@@ -61,7 +61,7 @@ session_start();
                     
                     
                     
-                    if($page!="user" && $page!="seller" && $page!="admin") 
+                    if($page!="user" && $page!="admin") 
                     { 
                         include('pages/core/nevigation.php');
                         include('pages/core/header.php');
@@ -72,7 +72,7 @@ session_start();
                         include('pages/'.$page.'.php');
                     }
 
-                    if($page!="user" && $page!="seller" && $page!="admin") 
+                    if($page!="user" && $page!="admin") 
                     { 
                         include('pages/core/about.php');
                         include('pages/core/services.php'); 

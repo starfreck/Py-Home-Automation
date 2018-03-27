@@ -73,6 +73,34 @@ class DB_Functions {
         }
     }
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    public function storeSecurityCamImgs($email, $file_name) {
+        
+        date_default_timezone_set('Asia/Kolkata');
+        
+        $time = date("H:i:s"); 
+        $date = date("Y-m-d");
+
+        $stmt = $this->conn->prepare("INSERT INTO security_cam(owner, img_path, created_at_date, created_at_time) VALUES(?, ?, ?, ?)");
+        $stmt->bind_param("ssss", $email, $file_name, $date, $time);
+        $result = $stmt->execute();
+        $stmt->close();
+
+        // check for successful store
+        if ($result) {
+            $stmt = $this->conn->prepare("SELECT * FROM security_cam WHERE img_path = ?");
+            $stmt->bind_param("s", $file_name);
+            $stmt->execute();
+            $user = $stmt->get_result()->fetch_assoc();
+            $stmt->close();
+
+            return true;
+        } else {
+            return false;
+        }
+    }
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
     /**
      * Get user by email and password
      */

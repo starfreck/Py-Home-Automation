@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost
--- Generation Time: Sep 09, 2017 at 11:07 PM
+-- Generation Time: Mar 27, 2018 at 02:23 AM
 -- Server version: 10.1.22-MariaDB
 -- PHP Version: 7.1.4
 
@@ -19,7 +19,7 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 --
--- Database: `android_api`
+-- Database: `id2506975_pyhomeautomation`
 --
 
 -- --------------------------------------------------------
@@ -70,13 +70,6 @@ CREATE TABLE `devices` (
   `status` tinyint(1) NOT NULL DEFAULT '0' COMMENT '1=Active, 0=Block'
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
---
--- Dumping data for table `devices`
---
-
-INSERT INTO `devices` (`no.`, `owner`, `device_unique_id`, `mac`, `local_ip`, `global_ip`, `latitude`, `longitude`, `created_at`, `updated_at`, `status`) VALUES
-(10, 'kirit@gmail.com', '59a0ffd1859323.79801', '88:9f:fa:79:9f:57', '192.168.43.186', '49.34.5.224', '22.5667', '72.9333', '2017-08-26', '0000-00-00', 1);
-
 -- --------------------------------------------------------
 
 --
@@ -92,14 +85,6 @@ CREATE TABLE `feedback` (
   `feedback_type` varchar(10) NOT NULL,
   `feedback` varchar(500) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-
---
--- Dumping data for table `feedback`
---
-
-INSERT INTO `feedback` (`no`, `name`, `email`, `user_type`, `date`, `feedback_type`, `feedback`) VALUES
-(5, 'kirit gareja', 'kirit@gmail.com', 'user', '2017-08-27', 'nutral', 'fgfdg'),
-(6, 'kirit gareja', 'kirit@gmail.com', 'user', '2017-09-03', 'nutral', 'this is vary good service');
 
 -- --------------------------------------------------------
 
@@ -122,8 +107,7 @@ CREATE TABLE `history` (
 
 INSERT INTO `history` (`id`, `owner`, `message`, `time`, `host_type`, `status`) VALUES
 (1, 'kirit@gmail.com', 'Turn On Fan', '2017-09-12 00:00:00.000000', 'global', 1),
-(2, 'kirit@gmail.com', 'Turn Off Lights', '2017-09-21 00:00:00.000000', 'local', 0),
-(3, 'kirit@gmail.com', 'Turn On TV', '2017-09-15 00:00:00.000000', 'local', 1);
+(2, 'kirit@gmail.com', 'Turn Off Lights', '2017-09-21 00:00:00.000000', 'local', 0);
 
 -- --------------------------------------------------------
 
@@ -145,7 +129,8 @@ CREATE TABLE `security_cam` (
   `id` int(11) NOT NULL,
   `owner` varchar(30) NOT NULL,
   `img_path` varchar(100) NOT NULL,
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  `created_at_date` date NOT NULL,
+  `created_at_time` time NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 -- --------------------------------------------------------
@@ -165,7 +150,7 @@ CREATE TABLE `users` (
   `mobile_no` bigint(50) NOT NULL,
   `dob` date NOT NULL,
   `user_type` varchar(10) NOT NULL,
-  `profile_pic` varchar(30) NOT NULL,
+  `profile_pic` varchar(300) NOT NULL,
   `city` varchar(15) NOT NULL,
   `country` varchar(10) NOT NULL,
   `gender` varchar(7) NOT NULL,
@@ -173,14 +158,6 @@ CREATE TABLE `users` (
   `created_at` datetime DEFAULT NULL,
   `updated_at` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-
---
--- Dumping data for table `users`
---
-
-INSERT INTO `users` (`id`, `unique_id`, `fname`, `lname`, `email`, `encrypted_password`, `salt`, `mobile_no`, `dob`, `user_type`, `profile_pic`, `city`, `country`, `gender`, `address`, `created_at`, `updated_at`) VALUES
-(2, '59a054f130d416.89419051', 'vasu', 'ratanpara', 'vasuratanpara@gmail.com', 'QY7wTPnKVkAnrWLu9vcc4k4Op203Y2JkZjYyMDY5', '7cbdf62069', 7041426923, '1997-01-18', 'admin', 'img/profile_pic/2.jpg', 'Junagadh', 'India', 'Female', 'Bharat Apartment block no 202', '2017-08-25 22:18:49', '2017-09-02 01:59:48'),
-(3, '59a05a800109d9.24261858', 'kirit', 'gareja', 'kirit@gmail.com', 'wLEaBjFgZcHkRcyRtv3t+YaG+7hkYWU1OWRkZjRm', 'dae59ddf4f', 9867, '1997-08-07', 'user', 'img/profile_pic/1.jpg', 'junagadh', 'india', 'Male', 'ksdjghurdhdk', '2017-08-25 22:42:32', '2017-09-03 15:53:08');
 
 --
 -- Indexes for dumped tables
@@ -238,22 +215,27 @@ ALTER TABLE `commands`
 -- AUTO_INCREMENT for table `devices`
 --
 ALTER TABLE `devices`
-  MODIFY `no.` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=11;
+  MODIFY `no.` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
 --
 -- AUTO_INCREMENT for table `feedback`
 --
 ALTER TABLE `feedback`
-  MODIFY `no` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `no` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
 --
 -- AUTO_INCREMENT for table `history`
 --
 ALTER TABLE `history`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+--
+-- AUTO_INCREMENT for table `security_cam`
+--
+ALTER TABLE `security_cam`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=70;
 --
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;COMMIT;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
