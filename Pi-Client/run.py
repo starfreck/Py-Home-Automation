@@ -1,6 +1,7 @@
 import requests
 import threading
 import os
+
 from PyHome.functions.functions import get_mac
 from PyHome.functions.functions import get_global_ip
 from PyHome.functions.functions import get_local_ip
@@ -8,8 +9,8 @@ from PyHome.functions.functions import location
 from PyHome.urls.urls import URL_LOGIN
 from PyHome.urls.urls import URL_REG
 from PyHome.server.server import SS
-from PyHome.settings_read_write.settings_read_write import write
-from PyHome.settings_read_write.settings_read_write import read
+from PyHome.first_run.first_run import first_run
+from PyHome.settings_reader.settings_reader import read
 from PyHome.face_recognizer.Final_cam_modual import Welcome
 
 
@@ -27,11 +28,11 @@ if os.path.exists('settings/config.json'):
     while loop == 'true':
         print("=======================================================")
         interface_name = read("interface_name")
-        print ("Interface_name :", interface_name)
+        print ("Interface Name :"+interface_name)
         print("=======================================================")
         email = read("email")
         password = read("password")
-        print ("E-mail :", email)
+        print ("E-mail :"+email)
         print("=======================================================")
 
         payload1 = {'email': email, 'password': password}
@@ -39,7 +40,10 @@ if os.path.exists('settings/config.json'):
         r1 = requests.post(URL_LOGIN, data=payload1).json()
 
         if r1['error']:
-            print("Message	 :" + r1['error_msg'])
+            print("Message	 : " + r1['error_msg'])
+            print("=======================================================")
+            print("Change your Login credentials in settings/config.json")
+            print("=======================================================")
             exit()
 
         else:
@@ -85,36 +89,14 @@ if os.path.exists('settings/config.json'):
                 print("Longitude :" + r2['device']['longitude'])
             print("=======================================================")
 
-            p1 = threading.Thread(target=taskA)
-            p2 = threading.Thread(target=taskB)
-
-            p1.start()
-            p2.start()
+            if True:
+                p1 = threading.Thread(target=taskA)
+                p2 = threading.Thread(target=taskB)
+                p1.start()
+                p2.start()
+            else:
+                print("Your Device isn't activated yet, Please contact Admin for approval  ")
+                print("Thank you")
+                exit(0)
 else:
-    import json
-
-    data = {}
-    os.mkdir("settings")
-    Name = os.path.join("settings/", "config.json")
-    f = open(Name, "a")
-    f.close()
-    interface_name = raw_input('Enter Network Interface Name:')
-    data["interface_name"]=interface_name
-    email = raw_input('Email   :')
-    data["email"] = email
-    password = raw_input('Password:')
-    data["password"] = password
-    device = int(raw_input("Which Device you like to use? [Webcam:Mobile]:[0:1]:"))
-    data["device"] = device
-    webcam_no = int(raw_input("Enter your webcam number [Note:Default Webcam has number 0]:"))
-    data["webcam_no"] = webcam_no
-    mobile_mode=int(raw_input("Would you like to use 'ipwebcam' or 'manual' mode for mobiles?[ipwebcam:manual]:[0:1] :"))
-    data["mobile_mode"] = mobile_mode
-    email_update_interval = int(raw_input("Enter E-mail interval in Seconds :"))
-    data["email_update_interval"] = email_update_interval
-    print("Default email_folder_Name = draft")
-    data["email_folder_name"] = "draft"
-    print("Default web_folder_Name = sent")
-    data["web_folder_name"] = "sent"
-    with open(Name, 'w') as outfile:
-        json.dump(data, outfile, indent=4)
+    first_run()

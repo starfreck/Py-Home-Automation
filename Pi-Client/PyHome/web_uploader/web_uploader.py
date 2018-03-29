@@ -2,7 +2,7 @@ import requests
 import sys
 import os
 from PyHome.urls.urls import URL_IMG
-from PyHome.settings_read_write.settings_read_write import read
+from PyHome.settings_reader.settings_reader import read
 
 
 def upload_to_web():

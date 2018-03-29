@@ -4,9 +4,9 @@ import numpy as np
 import os
 import time
 import threading
-from PyHome.settings_read_write.settings_read_write import read
+from PyHome.settings_reader.settings_reader import read
 from PyHome.email.mail import sendEmail
-from PyHome.web_uploader.upload_to_website import upload_to_web
+from PyHome.web_uploader.web_uploader import upload_to_web
 
 email_update_interval = read("email_update_interval")  # sends an email only once in this time interval in Seconds
 last_interval = 0

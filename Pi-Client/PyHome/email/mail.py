@@ -3,13 +3,13 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.image import MIMEImage
-from PyHome.settings_read_write.settings_read_write import read
+from PyHome.settings_reader.settings_reader import read
 
 # Email you want to send the update from (only works with gmail)
-fromEmail = '' # write your own Gmail
+fromEmail = 'ratanparavasu@gmail.com'
 # You can generate an app password here to avoid storing your password in plain text
 # https://support.google.com/accounts/answer/185833?hl=en
-fromEmailPassword = '' # write your Gmail Password
+fromEmailPassword = '9687918288'
 
 # Email you want to send the update to
 toEmail = read("email")
