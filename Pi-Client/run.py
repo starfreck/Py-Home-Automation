@@ -10,8 +10,8 @@ from PyHome.urls.urls import URL_LOGIN
 from PyHome.urls.urls import URL_REG
 from PyHome.server.server import SS
 from PyHome.first_run.first_run import first_run
-from PyHome.settings_reader.settings_reader import read
-from PyHome.face_recognizer.Final_cam_modual import Welcome
+from PyHome.settings_reader.settings_reader import reader
+from PyHome.face_recognizer.face_recognizer import Welcome
 
 
 def taskA():
@@ -23,15 +23,15 @@ def taskB():
     Welcome()
 
 
-if os.path.exists('settings/config.json'):
+if os.path.exists('settings/config.json') and os.path.exists('settings/commands.json'):
     loop = 'true'
     while loop == 'true':
         print("=======================================================")
-        interface_name = read("interface_name")
+        interface_name = reader("interface_name")
         print ("Interface Name :"+interface_name)
         print("=======================================================")
-        email = read("email")
-        password = read("password")
+        email = reader("email")
+        password = reader("password")
         print ("E-mail :"+email)
         print("=======================================================")
 
@@ -44,7 +44,7 @@ if os.path.exists('settings/config.json'):
             print("=======================================================")
             print("Change your Login credentials in settings/config.json")
             print("=======================================================")
-            exit()
+            exit(0)
 
         else:
             print("***#_User Details_#***")
@@ -61,6 +61,7 @@ if os.path.exists('settings/config.json'):
             latitude, longitude = location()
 
             print("=======================================================")
+            print("***#_Device Details_#***")
             print("Your MAC Address :" + mac)
             print("Your Global IP	 :" + global_ip)
             print("Your Local IP	 :" + local_ip)
@@ -74,6 +75,11 @@ if os.path.exists('settings/config.json'):
             r2 = requests.post(URL_REG, data=payload2).json()
 
             if r2['error']:
+                status = r2['status']
+                if status == '1':
+                    print("Status   :Active")
+                elif status == '0':
+                    print("Status   :Not Active")
                 print("Message	 :" + r2['error_msg'])
 
             else:
@@ -87,14 +93,20 @@ if os.path.exists('settings/config.json'):
                 print("created_at:" + r2['device']['created_at'])
                 print("Latitude  :" + r2['device']['latitude'])
                 print("Longitude :" + r2['device']['longitude'])
+                status = r2['device']['status']
+                if status == '1':
+                    print("Status    :Active")
+                elif status == '0':
+                    print("Status    :Not Active")
+
             print("=======================================================")
 
-            if True:
+            if status == '1':
                 p1 = threading.Thread(target=taskA)
                 p2 = threading.Thread(target=taskB)
                 p1.start()
                 p2.start()
-            else:
+            elif status == '0':
                 print("Your Device isn't activated yet, Please contact Admin for approval  ")
                 print("Thank you")
                 exit(0)

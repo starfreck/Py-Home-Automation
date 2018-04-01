@@ -26,6 +26,7 @@ if (isset($_POST['mac']) && isset($_POST['local_ip']) && isset($_POST['global_ip
         // device already existed
         $response["error"] = TRUE;
         $response["error_msg"] = "Device already existed with " . $mac;
+        $response["status"] = device_status($mac);
         echo json_encode($response); 
     } else {
         // create a new device
@@ -42,6 +43,7 @@ if (isset($_POST['mac']) && isset($_POST['local_ip']) && isset($_POST['global_ip
             $response["device"]["updated_at"] = $device["updated_at"];
             $response["device"]["latitude"] = $device["latitude"];
             $response["device"]["longitude"] = $device["longitude"];
+            $response["device"]["status"] = (string) $device["status"];
             echo json_encode($response);
         } else {
             // user failed to store

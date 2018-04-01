@@ -16,10 +16,14 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
 
+import java.io.DataOutputStream;
+import java.net.Socket;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Locale;
@@ -33,6 +37,7 @@ import com.vasu.venom.afinal.R;
 import com.vasu.venom.afinal.app.AppConfig;
 import com.vasu.venom.afinal.app.AppController;
 import com.vasu.venom.afinal.helper.SQLiteHandler;
+import com.vasu.venom.afinal.helper.SendMessage;
 import com.vasu.venom.afinal.helper.SessionManager;
 
 
@@ -46,17 +51,25 @@ public class MainActivity extends AppCompatActivity {
     private ImageButton mSpeakBtn;
     private static final String TAG = RegisterActivity.class.getSimpleName();
     private SQLiteHandler db;
+    RadioGroup hosttype;
+    RadioButton radiolocalhost, radioglobalhost, radiolocal;
 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        hosttype=(RadioGroup) findViewById(R.id.hosttype);
+        radioglobalhost=(RadioButton)findViewById(R.id.radioglobalhost);
+        radiolocalhost=(RadioButton)findViewById(R.id.radiolocalhost);
+        radiolocal=(RadioButton)findViewById(R.id.radiolocal);
+
 
         db = new SQLiteHandler(getApplicationContext());
 
         mVoiceInputTv = (TextView) findViewById(R.id.voiceInput);
         mSpeakBtn = (ImageButton) findViewById(R.id.btnSpeak);
+
         mSpeakBtn.setOnClickListener(new View.OnClickListener() {
 
             @Override
@@ -89,9 +102,23 @@ public class MainActivity extends AppCompatActivity {
                     mVoiceInputTv.setText(result.get(0));
                     String msg = result.get(0);
                     String email= getEmail();
-                    sendMsg(email,msg,"local");
-                    //sendMsg("vasuratanpara@gmail.com",msg,"local");
-                    //sendMsg("mandip@gmail.com",msg,"local");
+                    if(radiolocal.isChecked()){
+
+                        new SendMessage().execute("192.168.43.186", "1997",result.get(0));
+                    }
+                    else if(radiolocalhost.isChecked()){
+
+                        sendMsg(email,msg,"local");
+                    }
+                    else if(radioglobalhost.isChecked()){
+
+                        sendMsg(email,msg,"global");
+                    }
+                    else
+                    {
+                        Toast.makeText(getApplicationContext(),"Please select host type...",Toast.LENGTH_SHORT).show();
+                    }
+
                 }
                 break;
             }

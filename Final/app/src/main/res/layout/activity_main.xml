@@ -33,6 +33,30 @@
         android:gravity="center_horizontal"
         android:orientation="vertical"
         android:padding="20dp">
+        <RadioGroup
+            android:id="@+id/hosttype"
+            android:orientation="horizontal"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content">
+
+            <RadioButton
+                android:id="@+id/radioglobalhost"
+                android:text="Global Host"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+
+            <RadioButton
+                android:id="@+id/radiolocalhost"
+                android:text="Local Host"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+
+            <RadioButton
+                android:id="@+id/radiolocal"
+                android:text="Direct Mode"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+        </RadioGroup>
 
         <ImageButton
             android:id="@+id/btnSpeak"

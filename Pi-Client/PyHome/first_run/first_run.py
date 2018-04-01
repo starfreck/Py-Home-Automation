@@ -22,9 +22,9 @@ def first_run():
     Name = os.path.join("settings/", "config.json")
     f = open(Name, "a")
     f.close()
-    interface_name = raw_input('Enter Network Interface Name:')
+    interface_name = raw_input('Enter Network Interface Name:').lower()
     data["interface_name"] = interface_name
-    email = raw_input('Email   :')
+    email = raw_input('Email   :').lower()
     data["email"] = email
     password = raw_input('Password:')
     data["password"] = password
@@ -47,5 +47,35 @@ def first_run():
     print("========  All configurations are save under setting/config.json   ==========")
     print("========You can change these settings by modifying in config.json===========")
     print("============================================================================")
-    print("===============                Thank-you                    ================")
     print("============================================================================")
+    print("==========           Set Default Local-Host Commands              ==========")
+    print("============================================================================")
+
+    commands = {}
+    Name1 = os.path.join("settings/", "commands.json")
+    f = open(Name1, "a")
+    f.close()
+    device_1_on = raw_input('Enter command to turn on device 1:').lower()
+    commands["device_1_on"] = device_1_on
+    device_1_off = raw_input('Enter command to turn off device 1:').lower()
+    commands["device_1_off"] = device_1_off
+    device_2_on = raw_input('Enter command to turn on device 2:').lower()
+    commands["device_2_on"] = device_2_on
+    device_2_off = raw_input('Enter command to turn off device 2:').lower()
+    commands["device_2_off"] = device_2_off
+    device_3_on = raw_input('Enter command to turn on device 3:').lower()
+    commands["device_3_on"] = device_3_on
+    device_3_off = raw_input('Enter command to turn off device 3:').lower()
+    commands["device_3_off"] = device_3_off
+    device_4_on = raw_input('Enter command to turn on device 4:').lower()
+    commands["device_4_on"] = device_4_on
+    device_4_off = raw_input('Enter command to turn off device 4:').lower()
+    commands["device_4_off"] = device_4_off
+
+    print("==============================================================================")
+    print("========     All commands are save under setting/commands.json      ==========")
+    print("========You can change these commands by modifying in commands.json===========")
+    print("========             Please Re-run this software                  ===========")
+    print("==============================================================================")
+    print("================                Thank-you                    =================")
+    print("==============================================================================")

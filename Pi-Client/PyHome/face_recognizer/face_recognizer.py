@@ -4,11 +4,11 @@ import numpy as np
 import os
 import time
 import threading
-from PyHome.settings_reader.settings_reader import read
+from PyHome.settings_reader.settings_reader import reader
 from PyHome.email.mail import sendEmail
 from PyHome.web_uploader.web_uploader import upload_to_web
 
-email_update_interval = read("email_update_interval")  # sends an email only once in this time interval in Seconds
+email_update_interval = reader("email_update_interval")  # sends an email only once in this time interval in Seconds
 last_interval = 0
 
 face_cascade = cv2.CascadeClassifier('models/haarcascade_frontalface_default.xml')
@@ -18,7 +18,7 @@ face_glass_cascade = cv2.CascadeClassifier('models/haarcascade_eye.xml')
 def MobileStream():
     loop = True
     while loop:
-        raw = read("mobile_mode")
+        raw = reader("mobile_mode")
         if raw == 0:
             loop = False
             url = 'http://192.168.43.1:8080/shot.jpg'
@@ -52,9 +52,9 @@ def MobileStream():
 
 def WebcamStream():
     global last_interval
-    raw = read("webcam_no")
-    email_folder_name=read("email_folder_name")
-    web_folder_name = read("web_folder_name")
+    raw = reader("webcam_no")
+    email_folder_name=reader("email_folder_name")
+    web_folder_name = reader("web_folder_name")
     try:
         os.stat(email_folder_name)
         os.stat(web_folder_name)
@@ -97,7 +97,7 @@ def WebcamStream():
 def Welcome():
     loop = True
     while loop is True:
-        raw = read("device")
+        raw = reader("device")
         if raw == 0:
             loop = False
             WebcamStream()
