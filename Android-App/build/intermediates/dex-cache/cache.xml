@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<items version="2" >
+
+    <item
+        is-multidex="true"
+        jar="/home/venom/AndroidStudioProjects/Final/app/build/intermediates/incremental-classes/debug/instant-run-bootstrap.jar"
+        jumboMode="true"
+        optimize="true"
+        revision="26.0.2"
+        sha1="d69a222f812f351221c484f09c0e5cd1ce0f1f98">
+        <dex dex="/home/venom/AndroidStudioProjects/Final/app/build/intermediates/transforms/dex/debug/folders/1000/10000/instant-run-bootstrap_83859ecda652929add8796755bcce80c3b5cb495/classes.dex" />
+    </item>
+    <item
+        is-multidex="true"
+        jar="/home/venom/AndroidStudioProjects/Final/app/build/intermediates/incremental-runtime-classes/debug/instant-run.jar"
+        jumboMode="true"
+        optimize="true"
+        revision="26.0.2"
+        sha1="3be78ebc2706b2e1fe2f12d5726887a92d6c183b">
+        <dex dex="/home/venom/AndroidStudioProjects/Final/app/build/intermediates/transforms/dex/debug/folders/1000/10000/instant-run_cb2157fe2acd58ed3961174c3c35d887a768de7a/classes.dex" />
+    </item>
+    <item
+        is-multidex="false"
+        jar="/home/venom/.android/build-cache/cedc9ea8c0c97ec30617ba7eb5db49da82210140/output/jars/classes.jar"
+        jumboMode="false"
+        optimize="true"
+        revision="26.0.2"
+        sha1="2cd4b982617e544728de0782d718a58ce1b06e3f">
+        <dex dex="/home/venom/AndroidStudioProjects/Final/app/build/intermediates/pre-dexed/debug/classes_60a5a0787da34ceca36d5ad2e137d19805d8bd0e.jar" />
+    </item>
+
+</items>
