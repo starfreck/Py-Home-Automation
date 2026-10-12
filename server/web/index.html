@@ -3,147 +3,215 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PyHome — Smart Home Dashboard</title>
+  <title>PyHome Cortex — Ambient Neural Hub</title>
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
 </head>
 <body>
-  <div class="app-container">
-    <!-- TOP NAVIGATION -->
-    <header class="top-nav">
-      <div class="brand">
-        <div class="logo-badge">⚡</div>
-        <div class="brand-text">
-          <h1>PyHome</h1>
-          <span class="subtext">Next-Gen Local IoT Hub</span>
+  <!-- BACKGROUND SCI-FI AMBIENT EFFECTS -->
+  <div class="ambient-glow glow-1"></div>
+  <div class="ambient-glow glow-2"></div>
+  <div class="grid-overlay"></div>
+
+  <div class="hud-container">
+    <!-- TOP TACTICAL HUD HEADER -->
+    <header class="hud-header">
+      <div class="hud-brand">
+        <div class="core-symbol">
+          <div class="inner-core"></div>
+        </div>
+        <div class="brand-titles">
+          <h1>PYHOME <span class="accent-text">// CORTEX</span></h1>
+          <span class="hud-subline">Autonomous Ambient IoT Core • Gemma 4 Neural Engine</span>
         </div>
       </div>
 
-      <div class="quick-scenes">
-        <button class="scene-btn" onclick="activateScene('movie_night')">🎬 Movie Night</button>
-        <button class="scene-btn" onclick="activateScene('all_on')">☀️ All On</button>
-        <button class="scene-btn" onclick="activateScene('all_off')">🌙 All Off</button>
-        <button class="scene-btn" onclick="activateScene('away_mode')">🛡️ Away</button>
-      </div>
-
-      <div class="header-status">
-        <div id="ws-badge" class="status-pill offline">
-          <span class="dot"></span>
-          <span id="ws-status-text">Connecting...</span>
+      <div class="system-status-matrix">
+        <div class="matrix-pill">
+          <span class="pill-label">LLM ENGINE</span>
+          <span class="pill-val highlight">GEMMA 4 (4B)</span>
         </div>
-        <div id="clock" class="digital-clock">00:00:00</div>
+        <div class="matrix-pill">
+          <span class="pill-label">NEURAL LINK</span>
+          <span id="ws-badge" class="pill-val connected"><span class="pulse-dot"></span> LIVE • WS</span>
+        </div>
+        <div class="matrix-pill clock-pill">
+          <span class="pill-label">SYSTEM TIME</span>
+          <span id="clock" class="pill-val mono">00:00:00</span>
+        </div>
       </div>
     </header>
 
-    <!-- METRICS OVERVIEW BANNER -->
-    <section class="metrics-grid">
-      <div class="metric-card">
-        <div class="metric-icon">⚡</div>
-        <div class="metric-data">
-          <span class="metric-label">Live Power Draw</span>
-          <div class="metric-value-wrap">
-            <span id="stat-watts" class="metric-number">0.0</span>
-            <span class="metric-unit">Watts</span>
-          </div>
-        </div>
-        <div class="metric-sparkle"></div>
-      </div>
+    <!-- NEURAL VOICE INTERFACE MODULE (CENTERPIECE) -->
+    <section class="voice-command-hud">
+      <div class="hud-bracket tl"></div>
+      <div class="hud-bracket tr"></div>
+      <div class="hud-bracket bl"></div>
+      <div class="hud-bracket br"></div>
 
-      <div class="metric-card">
-        <div class="metric-icon">🌡️</div>
-        <div class="metric-data">
-          <span class="metric-label">Indoor Climate</span>
-          <div class="metric-value-wrap">
-            <span id="stat-temp" class="metric-number">--</span>
-            <span class="metric-unit">°C</span>
-            <span class="metric-divider">/</span>
-            <span id="stat-humidity" class="metric-number">--</span>
-            <span class="metric-unit">%</span>
-          </div>
+      <div class="voice-center-wrap">
+        <!-- ANIMATED NEURAL AUDIO VISUALIZER ORB -->
+        <div class="voice-orb-container" id="mic-trigger" onclick="toggleSpeechRecognition()" title="Click to speak">
+          <canvas id="waveform-canvas" width="220" height="220"></canvas>
+          <div class="orb-mic-icon" id="orb-icon">🎙️</div>
+          <div class="orb-ring ring-1"></div>
+          <div class="orb-ring ring-2"></div>
         </div>
-      </div>
 
-      <div class="metric-card">
-        <div class="metric-icon">🔌</div>
-        <div class="metric-data">
-          <span class="metric-label">Active Appliances</span>
-          <div class="metric-value-wrap">
-            <span id="stat-active-count" class="metric-number">0</span>
-            <span class="metric-unit">/ <span id="stat-total-count">0</span> ON</span>
+        <div class="voice-dialog-pane">
+          <div class="voice-status-header">
+            <span class="voice-state-tag" id="voice-state-tag">STANDBY // READY</span>
+            <span class="voice-model-tag">Gemma 4 Intent Parser</span>
           </div>
-        </div>
-      </div>
 
-      <div class="metric-card">
-        <div class="metric-icon">🍓</div>
-        <div class="metric-data">
-          <span class="metric-label">Raspberry Pi Health</span>
-          <div class="metric-value-wrap">
-            <span id="stat-pi-temp" class="metric-number">--</span>
-            <span class="metric-unit">°C</span>
-            <span class="metric-divider">|</span>
-            <span id="stat-pi-ram" class="metric-number">--</span>
-            <span class="metric-unit">% RAM</span>
+          <div class="voice-transcript" id="voice-transcript">
+            "Click microphone or type below to command Cortex..."
+          </div>
+
+          <div class="voice-reply" id="voice-reply">
+            Cortex AI is listening. Speak commands in natural language.
+          </div>
+
+          <!-- INPUT FORM FALLBACK -->
+          <form class="voice-input-form" onsubmit="handleManualPrompt(event)">
+            <input type="text" id="manual-prompt-input" placeholder="Type command: 'Movie night', 'Turn off bedroom fan', 'Lock front door'..." autocomplete="off">
+            <button type="submit" class="btn-send">TRANSMIT</button>
+          </form>
+
+          <!-- VOICE CHIPS -->
+          <div class="quick-voice-chips">
+            <button class="voice-chip" onclick="submitTextCommand('Movie night')">🎬 "Movie Night"</button>
+            <button class="voice-chip" onclick="submitTextCommand('Lock front door and turn off all lights')">🔒 "Lock front door & lights off"</button>
+            <button class="voice-chip" onclick="submitTextCommand('What is current temperature and power?')">📊 "Status report"</button>
+            <button class="voice-chip" onclick="submitTextCommand('Turn on air conditioner')">❄️ "Activate AC"</button>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- MAIN CONTENT TWO COLUMNS -->
-    <main class="main-layout">
-      <!-- LEFT: DEVICE CONTROL -->
-      <section class="device-section">
-        <div class="section-header">
-          <h2>Room Devices</h2>
-          <div class="room-filters">
-            <button class="filter-chip active" data-room="all" onclick="filterRoom('all')">All</button>
-            <button class="filter-chip" data-room="Living Room" onclick="filterRoom('Living Room')">Living Room</button>
-            <button class="filter-chip" data-room="Bedroom" onclick="filterRoom('Bedroom')">Bedroom</button>
-            <button class="filter-chip" data-room="Security" onclick="filterRoom('Security')">Security</button>
+    <!-- TACTICAL TELEMETRY DASHBOARD -->
+    <section class="telemetry-bar">
+      <div class="telemetry-box">
+        <div class="box-header">
+          <span class="box-title">POWER LOAD</span>
+          <span class="box-sub">240V MAINS</span>
+        </div>
+        <div class="box-value-row">
+          <span id="stat-watts" class="box-number">0.0</span>
+          <span class="box-unit">WATTS</span>
+        </div>
+        <div class="box-meter"><div id="meter-power-fill" class="meter-fill" style="width: 32%"></div></div>
+      </div>
+
+      <div class="telemetry-box">
+        <div class="box-header">
+          <span class="box-title">INDOOR CLIMATE</span>
+          <span class="box-sub">BME280 SENSOR</span>
+        </div>
+        <div class="box-value-row">
+          <span id="stat-temp" class="box-number">--</span>
+          <span class="box-unit">°C</span>
+          <span class="box-sep">/</span>
+          <span id="stat-humidity" class="box-number">--</span>
+          <span class="box-unit">% RH</span>
+        </div>
+        <div class="box-meter"><div class="meter-fill cyan" style="width: 48%"></div></div>
+      </div>
+
+      <div class="telemetry-box">
+        <div class="box-header">
+          <span class="box-title">ACTIVE RELAYS</span>
+          <span class="box-sub">GPIO MATRIX</span>
+        </div>
+        <div class="box-value-row">
+          <span id="stat-active-count" class="box-number">0</span>
+          <span class="box-unit">OF <span id="stat-total-count">6</span> ARMED</span>
+        </div>
+        <div class="box-meter"><div id="meter-active-fill" class="meter-fill green" style="width: 50%"></div></div>
+      </div>
+
+      <div class="telemetry-box">
+        <div class="box-header">
+          <span class="box-title">CORE HEALTH</span>
+          <span class="box-sub">PI ARM64</span>
+        </div>
+        <div class="box-value-row">
+          <span id="stat-pi-temp" class="box-number">--</span>
+          <span class="box-unit">°C CORE</span>
+          <span class="box-sep">|</span>
+          <span id="stat-pi-ram" class="box-number">--</span>
+          <span class="box-unit">% RAM</span>
+        </div>
+        <div class="box-meter"><div class="meter-fill purple" style="width: 24%"></div></div>
+      </div>
+    </section>
+
+    <!-- MAIN TWO-COLUMN WORKSPACE -->
+    <main class="hud-workspace">
+      <!-- HARDWARE MATRIX -->
+      <section class="hardware-sector">
+        <div class="sector-head">
+          <div class="sector-title">
+            <span class="sector-badge">SECTOR 01</span>
+            <h2>Connected Nodes & Relays</h2>
+          </div>
+          <div class="hud-room-filters">
+            <button class="filter-tab active" data-room="all" onclick="filterRoom('all')">ALL</button>
+            <button class="filter-tab" data-room="Living Room" onclick="filterRoom('Living Room')">LIVING ROOM</button>
+            <button class="filter-tab" data-room="Bedroom" onclick="filterRoom('Bedroom')">BEDROOM</button>
+            <button class="filter-tab" data-room="Security" onclick="filterRoom('Security')">SECURITY</button>
           </div>
         </div>
 
         <div id="devices-grid" class="devices-grid">
-          <!-- Dynamic device cards populated by app.js -->
+          <!-- Populated dynamically by app.js -->
         </div>
       </section>
 
-      <!-- RIGHT: LIVE CAMERA & SECURITY AI -->
-      <aside class="sidebar-section">
-        <!-- CAMERA CARD -->
-        <div class="card panel-card camera-panel">
-          <div class="panel-header">
-            <h3>👁️ Security Stream (AI Vision)</h3>
-            <span class="live-tag"><span class="blink-dot"></span> LIVE</span>
+      <!-- INTELLIGENCE & VISION ASIDE -->
+      <aside class="intel-sector">
+        <!-- AI VISION CARD -->
+        <div class="hud-card vision-card">
+          <div class="card-bar">
+            <h3>👁️ OPTICAL FEED // PERIMETER</h3>
+            <span class="hud-live-tag"><span class="red-dot"></span> FEED ON</span>
           </div>
 
-          <div class="camera-canvas-wrapper">
+          <div class="vision-viewport">
             <canvas id="camera-canvas" width="480" height="270"></canvas>
-            <div id="ai-overlay-box" class="ai-box">
-              <span class="ai-label">Vasu (98.4%)</span>
+            
+            <!-- TARGET SCANNER BRACKETS -->
+            <div id="ai-target-box" class="target-box">
+              <div class="corner-bracket c-tl"></div>
+              <div class="corner-bracket c-tr"></div>
+              <div class="corner-bracket c-bl"></div>
+              <div class="corner-bracket c-br"></div>
+              <span class="target-label" id="target-label">ID: VASU // 99.4%</span>
             </div>
-            <div class="camera-watermark">
-              <span>CAMERA 01 • RASPBERRY PI</span>
+
+            <div class="hud-crosshair-center"></div>
+            <div class="hud-cam-meta">
+              <span>CAM_01 • 1080P30 • CSI BUS</span>
               <span id="cam-timestamp">--:--:--</span>
             </div>
           </div>
 
-          <div class="cam-controls">
-            <button class="btn-action" onclick="simulateFaceScan()">🎯 Scan Face</button>
-            <button class="btn-action secondary" onclick="simulateSnapshot()">📸 Snapshot</button>
+          <div class="vision-actions">
+            <button class="hud-btn" onclick="simulateFaceScan()">⚡ BIOMETRIC SCAN</button>
+            <button class="hud-btn secondary" onclick="simulateSnapshot()">📸 SNAPSHOT</button>
           </div>
         </div>
 
-        <!-- REALTIME EVENT LOG -->
-        <div class="card panel-card log-panel">
-          <div class="panel-header">
-            <h3>📡 Realtime Event Log</h3>
-            <span class="sub-counter" id="log-count">0 events</span>
+        <!-- REALTIME EVENT AUDIT STREAM -->
+        <div class="hud-card event-card">
+          <div class="card-bar">
+            <h3>📡 EVENT AUDIT LOG</h3>
+            <span class="audit-counter" id="log-count">0 ENTRIES</span>
           </div>
-          <div id="event-log" class="log-stream">
-            <!-- Event stream lines -->
+          <div id="event-log" class="audit-stream">
+            <!-- Event entries stream -->
           </div>
         </div>
       </aside>

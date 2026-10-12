@@ -160,6 +160,22 @@ func main() {
 		http.NotFound(w, r)
 	})
 
+	// REST API: Voice Assistant (Gemma 4 integration)
+	mux.HandleFunc("/api/voice", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		var req service.VoiceCommandRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid request body", http.StatusBadRequest)
+			return
+		}
+		res := deviceMgr.ProcessVoiceCommand(req.Prompt)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(res)
+	})
+
 	// Embedded Static Web UI
 	webSubFS, err := fs.Sub(webFiles, "web")
 	if err != nil {
