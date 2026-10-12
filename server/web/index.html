@@ -3,303 +3,299 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PyHome OS — Smart Home Operating System</title>
+  <title>PyHome — Smart Home System</title>
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body>
-  <div class="app-layout">
-    <!-- TOP NAVIGATION BAR -->
-    <header class="app-header">
-      <div class="header-left">
-        <div class="brand-mark">
-          <div class="brand-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+  <div class="layout">
+    <!-- SIDEBAR NAVIGATION -->
+    <aside class="sidebar">
+      <div class="sidebar-top">
+        <div class="logo">
+          <div class="logo-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
               <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
               <polyline points="9 22 9 12 15 12 15 22"/>
             </svg>
           </div>
-          <div class="brand-meta">
-            <div class="brand-title">PyHome <span class="edition-badge">OS</span></div>
-            <span class="brand-subtitle">Local Smart Home Controller</span>
+          <div class="logo-text">
+            <span class="logo-name">PyHome</span>
+            <span class="logo-ver">v3.0 Local</span>
           </div>
         </div>
 
-        <nav class="scene-presets">
-          <button class="preset-btn" onclick="activateScene('movie_night')">
-            <span class="preset-icon">🎬</span> Cinema
+        <nav class="nav-menu">
+          <button class="nav-item active" onclick="switchNav('dashboard', this)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect width="7" height="9" x="3" y="3" rx="1"/>
+              <rect width="7" height="5" x="14" y="3" rx="1"/>
+              <rect width="7" height="9" x="14" y="12" rx="1"/>
+              <rect width="7" height="5" x="3" y="16" rx="1"/>
+            </svg>
+            Dashboard
           </button>
-          <button class="preset-btn" onclick="activateScene('all_on')">
-            <span class="preset-icon">☀️</span> All On
+          <button class="nav-item" onclick="switchNav('devices', this)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect width="18" height="18" x="3" y="3" rx="2"/>
+              <line x1="3" y1="9" x2="21" y2="9"/>
+              <line x1="9" y1="21" x2="9" y2="9"/>
+            </svg>
+            Devices
           </button>
-          <button class="preset-btn" onclick="activateScene('all_off')">
-            <span class="preset-icon">🌙</span> Good Night
+          <button class="nav-item" onclick="switchNav('cameras', this)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/>
+              <circle cx="12" cy="13" r="3"/>
+            </svg>
+            Cameras
           </button>
-          <button class="preset-btn" onclick="activateScene('away_mode')">
-            <span class="preset-icon">🛡️</span> Away
+          <button class="nav-item" onclick="switchNav('activity', this)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+            Activity Log
           </button>
         </nav>
       </div>
 
-      <div class="header-right">
-        <!-- VOICE AUDIO SWITCH -->
-        <button class="audio-toggle-btn" id="audio-toggle-btn" onclick="toggleAudioSpeech()" title="Toggle voice audio confirmation">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
-            <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
-            <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
-          </svg>
-          <span id="audio-toggle-label">Voice Audio: On</span>
-        </button>
-
-        <button class="test-voice-btn" onclick="testVoiceOutput()" title="Test audio output">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-            <polygon points="5 3 19 12 5 21 5 3"/>
-          </svg>
-          Test Audio
-        </button>
-
-        <!-- CONNECTION BADGE -->
-        <div id="ws-badge" class="connection-badge online">
-          <span class="status-indicator"></span>
-          <span id="ws-status-text">Connected • LAN</span>
-        </div>
-
-        <div id="clock" class="system-clock">00:00:00</div>
-      </div>
-    </header>
-
-    <!-- ASSISTANT INTERFACE (GEMMA 4 VOICE INTELLIGENCE) -->
-    <section class="assistant-bar-card">
-      <div class="assistant-top-row">
-        <div class="assistant-badge">
-          <span class="sparkle-icon">✨</span>
-          <span>Ambient Assistant</span>
-          <span class="model-tag">Gemma 4</span>
-        </div>
-
-        <div class="voice-picker-wrap">
-          <label for="voice-select">Voice:</label>
-          <select id="voice-select" class="voice-dropdown" onchange="onVoiceChange(this.value)"></select>
+      <!-- SYSTEM STATUS FOOTER -->
+      <div class="sidebar-footer">
+        <div class="hub-status-card">
+          <div class="status-row">
+            <span class="status-indicator"></span>
+            <span class="hub-label">Hub: Online</span>
+          </div>
+          <div class="hub-metrics-text">
+            <span>Raspberry Pi 4</span>
+            <span id="stat-pi-temp">--°C</span>
+          </div>
         </div>
       </div>
+    </aside>
 
-      <div class="assistant-interaction-row">
-        <!-- CLICKABLE MIC BUTTON WITH ANIMATED SOUND BARS -->
-        <button class="mic-action-btn" id="mic-trigger" onclick="toggleSpeechRecognition()" title="Click to speak">
-          <div class="mic-inner">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- MAIN APP CANVAS -->
+    <div class="main-content">
+      <!-- TOP BAR -->
+      <header class="topbar">
+        <!-- COMMAND & VOICE SEARCH (RAYCAST / SPOTLIGHT STYLE) -->
+        <div class="command-bar" onclick="focusVoiceInput()">
+          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input type="text" id="manual-prompt-input" 
+                 placeholder="Search or ask Gemma: 'Turn on cinema lights', 'Lock front door', 'Status'..." 
+                 autocomplete="off"
+                 onkeydown="if(event.key==='Enter')handleManualPrompt(event)">
+          
+          <button class="mic-btn" id="mic-trigger" onclick="event.stopPropagation(); toggleSpeechRecognition()" title="Voice input">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
               <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
               <line x1="12" x2="12" y1="19" y2="22"/>
             </svg>
-          </div>
-          <!-- MINIMALIST AUDIO WAVE BARS -->
-          <div class="wave-bars-container" id="wave-bars">
-            <span class="bar"></span>
-            <span class="bar"></span>
-            <span class="bar"></span>
-            <span class="bar"></span>
-            <span class="bar"></span>
-          </div>
-        </button>
-
-        <!-- VOICE TEXT INPUT -->
-        <form class="assistant-form" onsubmit="handleManualPrompt(event)">
-          <input type="text" id="manual-prompt-input" 
-                 placeholder="Ask anything or command devices: 'Cinema preset', 'Lock the door', 'What is the temperature?'..." 
-                 autocomplete="off">
-          <button type="submit" class="submit-btn" title="Send command">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="22" y1="2" x2="11" y2="13"/>
-              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-            </svg>
+            <span class="mic-pulse"></span>
           </button>
-        </form>
-      </div>
-
-      <!-- TRANSCRIPT & AI RESPONSE BALLOON -->
-      <div class="assistant-feedback-area">
-        <div class="transcript-line" id="voice-transcript">
-          <span class="label">User:</span> <span class="val">"Ready for commands. Click the microphone or type above."</span>
         </div>
-        <div class="response-line" id="voice-reply">
-          <span class="label">Assistant:</span> <span class="val">All systems nominal. 4 of 6 appliances active. Ready for instructions.</span>
+
+        <!-- RIGHT ACTIONS -->
+        <div class="topbar-actions">
+          <div class="audio-control-group">
+            <button class="btn-subtle" id="audio-toggle-btn" onclick="toggleAudioSpeech()" title="Toggle voice feedback audio">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+              </svg>
+              <span id="audio-toggle-label">Voice On</span>
+            </button>
+            <button class="btn-subtle" onclick="testVoiceOutput()" title="Test audio output">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                <polygon points="5 3 19 12 5 21 5 3"/>
+              </svg>
+              Test
+            </button>
+          </div>
+
+          <div class="clock-display" id="clock">00:00:00</div>
         </div>
-      </div>
+      </header>
 
-      <!-- QUICK CHIP SHORTCUTS -->
-      <div class="shortcut-chips">
-        <button class="chip" onclick="submitTextCommand('Movie night')">🎬 "Movie night"</button>
-        <button class="chip" onclick="submitTextCommand('Lock front door and turn off living room lights')">🔒 "Lock front door"</button>
-        <button class="chip" onclick="submitTextCommand('What is the current temperature and power usage?')">📊 "Status report"</button>
-        <button class="chip" onclick="submitTextCommand('Turn on air conditioner')">❄️ "Turn on AC"</button>
-        <button class="chip" onclick="submitTextCommand('Turn off all devices')">🌙 "All off"</button>
-      </div>
-    </section>
-
-    <!-- METRICS KPI ROW -->
-    <section class="kpi-row">
-      <div class="kpi-card">
-        <div class="kpi-header">
-          <span class="kpi-title">Power Consumption</span>
-          <div class="kpi-icon-wrap yellow">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+      <!-- INTELLIGENT ASSISTANT RESPONSE DRAWER (OPENS WHEN SPOKEN TO) -->
+      <section class="assistant-response-card" id="assistant-banner">
+        <div class="assistant-lead">
+          <div class="spark-badge">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
             </svg>
+            <span>Gemma 4 Assistant</span>
           </div>
-        </div>
-        <div class="kpi-main">
-          <span id="stat-watts" class="kpi-value">0.0</span>
-          <span class="kpi-unit">Watts</span>
-        </div>
-        <div class="kpi-subtext">Live AC mains draw</div>
-      </div>
-
-      <div class="kpi-card">
-        <div class="kpi-header">
-          <span class="kpi-title">Indoor Climate</span>
-          <div class="kpi-icon-wrap blue">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/>
-            </svg>
-          </div>
-        </div>
-        <div class="kpi-main">
-          <span id="stat-temp" class="kpi-value">--</span>
-          <span class="kpi-unit">°C</span>
-          <span class="kpi-divider">/</span>
-          <span id="stat-humidity" class="kpi-value">--</span>
-          <span class="kpi-unit">% RH</span>
-        </div>
-        <div class="kpi-subtext">BME280 sensor • Living room</div>
-      </div>
-
-      <div class="kpi-card">
-        <div class="kpi-header">
-          <span class="kpi-title">Active Devices</span>
-          <div class="kpi-icon-wrap green">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"/>
-              <polyline points="12 6 12 12 16 14"/>
-            </svg>
-          </div>
-        </div>
-        <div class="kpi-main">
-          <span id="stat-active-count" class="kpi-value">0</span>
-          <span class="kpi-unit">of <span id="stat-total-count">6</span> online</span>
-        </div>
-        <div class="kpi-subtext">Physical GPIO relays</div>
-      </div>
-
-      <div class="kpi-card">
-        <div class="kpi-header">
-          <span class="kpi-title">Hub Hardware</span>
-          <div class="kpi-icon-wrap purple">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect width="18" height="18" x="3" y="3" rx="2"/>
-              <path d="M9 3v18"/>
-              <path d="M15 3v18"/>
-            </svg>
-          </div>
-        </div>
-        <div class="kpi-main">
-          <span id="stat-pi-temp" class="kpi-value">--</span>
-          <span class="kpi-unit">°C Core</span>
-          <span class="kpi-divider">|</span>
-          <span id="stat-pi-ram" class="kpi-value">--</span>
-          <span class="kpi-unit">% RAM</span>
-        </div>
-        <div class="kpi-subtext">Raspberry Pi 4 • Linux 64-bit</div>
-      </div>
-    </section>
-
-    <!-- MAIN TWO-COLUMN CONTENT -->
-    <main class="content-split">
-      <!-- LEFT: ROOMS & DEVICES -->
-      <section class="devices-section">
-        <div class="section-toolbar">
-          <div class="toolbar-title">
-            <h2>Devices</h2>
-            <span class="device-count-pill" id="device-count-pill">6 Total</span>
-          </div>
-
-          <!-- ROOM SELECTOR PILLS -->
-          <div class="room-selector">
-            <button class="room-btn active" data-room="all" onclick="filterRoom('all')">All Rooms</button>
-            <button class="room-btn" data-room="Living Room" onclick="filterRoom('Living Room')">Living Room</button>
-            <button class="room-btn" data-room="Bedroom" onclick="filterRoom('Bedroom')">Bedroom</button>
-            <button class="room-btn" data-room="Security" onclick="filterRoom('Security')">Security</button>
+          <div class="voice-picker">
+            <label>Voice:</label>
+            <select id="voice-select" onchange="onVoiceChange(this.value)"></select>
           </div>
         </div>
 
-        <div id="devices-grid" class="devices-grid">
-          <!-- Populated dynamically by app.js -->
+        <div class="assistant-dialogue">
+          <div class="query-text" id="voice-transcript">"What is the system status?"</div>
+          <div class="reply-text" id="voice-reply">All systems operating normally. 4 devices active. Total energy draw 155 Watts.</div>
+        </div>
+
+        <div class="quick-chips">
+          <button class="chip" onclick="submitTextCommand('Movie night')">Cinema Mode</button>
+          <button class="chip" onclick="submitTextCommand('Lock front door and turn off all lights')">Secure Perimeter</button>
+          <button class="chip" onclick="submitTextCommand('Turn on air conditioner')">Climate On</button>
+          <button class="chip" onclick="submitTextCommand('Turn off all devices')">All Off</button>
         </div>
       </section>
 
-      <!-- RIGHT: SECURITY & ACTIVITY AUDIT -->
-      <aside class="sidebar-section">
-        <!-- SECURITY CAMERA PANEL -->
-        <div class="panel-card camera-panel">
-          <div class="panel-header">
-            <div class="panel-title-wrap">
-              <span class="cam-dot"></span>
-              <h3>Front Door Camera</h3>
+      <!-- DASHBOARD OVERVIEW PAGE -->
+      <div class="page-content" id="view-dashboard">
+        <!-- METRICS ROW -->
+        <div class="stats-row">
+          <div class="stat-card">
+            <div class="stat-header">
+              <span class="stat-label">Power Consumption</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+              </svg>
             </div>
-            <span class="quality-badge">1080p • 30 FPS</span>
+            <div class="stat-number">
+              <span id="stat-watts">0.0</span> <span class="stat-unit">W</span>
+            </div>
+            <span class="stat-desc">Live load draw</span>
           </div>
 
-          <div class="camera-viewport">
-            <canvas id="camera-canvas" width="480" height="270"></canvas>
-            
-            <!-- BIOMETRIC BOUNDING BOX -->
-            <div id="ai-target-box" class="biometric-box">
-              <span class="biometric-tag" id="target-label">Verified: Vasu (99.8%)</span>
+          <div class="stat-card">
+            <div class="stat-header">
+              <span class="stat-label">Indoor Climate</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/>
+              </svg>
             </div>
-
-            <div class="camera-overlay-info">
-              <span class="cam-id">CAM-01 • Front Entrance</span>
-              <span id="cam-timestamp" class="cam-time">00:00:00</span>
+            <div class="stat-number">
+              <span id="stat-temp">--</span><span class="stat-unit">°C</span>
+              <span class="stat-sep">/</span>
+              <span id="stat-humidity">--</span><span class="stat-unit">%</span>
             </div>
+            <span class="stat-desc">Living Room Sensor</span>
           </div>
 
-          <div class="camera-action-row">
-            <button class="btn-primary-action" onclick="simulateFaceScan()">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M3 7V5a2 2 0 0 1 2-2h2"/>
-                <path d="M17 3h2a2 2 0 0 1 2 2v2"/>
-                <path d="M21 17v2a2 2 0 0 1-2 2h-2"/>
-                <path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
-                <circle cx="12" cy="12" r="3"/>
+          <div class="stat-card">
+            <div class="stat-header">
+              <span class="stat-label">Active Relays</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12 6 12 12 16 14"/>
               </svg>
-              Biometric Scan
-            </button>
-            <button class="btn-secondary-action" onclick="simulateSnapshot()">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                <circle cx="12" cy="13" r="4"/>
+            </div>
+            <div class="stat-number">
+              <span id="stat-active-count">0</span> <span class="stat-unit">of <span id="stat-total-count">6</span></span>
+            </div>
+            <span class="stat-desc">Hardware online</span>
+          </div>
+
+          <div class="stat-card">
+            <div class="stat-header">
+              <span class="stat-label">Perimeter Security</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
               </svg>
-              Snapshot
-            </button>
+            </div>
+            <div class="stat-number">
+              <span id="stat-lock-status">Secured</span>
+            </div>
+            <span class="stat-desc">Front entrance deadbolt</span>
           </div>
         </div>
 
-        <!-- ACTIVITY AUDIT LOG -->
-        <div class="panel-card log-panel">
-          <div class="panel-header">
-            <h3>Activity Log</h3>
-            <span class="log-count" id="log-count">0 events</span>
+        <!-- MAIN SPLIT -->
+        <div class="workspace-grid">
+          <!-- DEVICE CONTROLS -->
+          <div class="devices-pane">
+            <div class="pane-header">
+              <div class="pane-title-group">
+                <h3>Rooms & Devices</h3>
+                <span class="item-count" id="device-count-pill">6 Devices</span>
+              </div>
+
+              <!-- ROOM FILTER SEGMENT -->
+              <div class="segment-control">
+                <button class="segment-btn active" data-room="all" onclick="filterRoom('all')">All</button>
+                <button class="segment-btn" data-room="Living Room" onclick="filterRoom('Living Room')">Living Room</button>
+                <button class="segment-btn" data-room="Bedroom" onclick="filterRoom('Bedroom')">Bedroom</button>
+                <button class="segment-btn" data-room="Security" onclick="filterRoom('Security')">Security</button>
+              </div>
+            </div>
+
+            <!-- CARDS GRID -->
+            <div id="devices-grid" class="cards-grid">
+              <!-- Rendered dynamically by app.js -->
+            </div>
           </div>
 
-          <div id="event-log" class="audit-log-stream">
-            <!-- Populated by app.js -->
+          <!-- RIGHT SIDEBAR: CAMERA & ACTIVITY -->
+          <div class="aside-pane">
+            <!-- CAMERA FEED -->
+            <div class="content-card camera-card">
+              <div class="card-title-bar">
+                <div class="title-with-badge">
+                  <span class="rec-dot"></span>
+                  <h4>Front Door Camera</h4>
+                </div>
+                <span class="badge-subtle">1080p • 30fps</span>
+              </div>
+
+              <div class="camera-frame">
+                <canvas id="camera-canvas" width="480" height="270"></canvas>
+                <div id="ai-target-box" class="face-detect-box">
+                  <span id="target-label" class="face-name">Vasu (99.8%)</span>
+                </div>
+                <div class="cam-overlay-footer">
+                  <span>CAM-01 • Front Entrance</span>
+                  <span id="cam-timestamp">00:00:00</span>
+                </div>
+              </div>
+
+              <div class="camera-buttons">
+                <button class="btn-action primary" onclick="simulateFaceScan()">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 7V5a2 2 0 0 1 2-2h2"/>
+                    <path d="M17 3h2a2 2 0 0 1 2 2v2"/>
+                    <path d="M21 17v2a2 2 0 0 1-2 2h-2"/>
+                    <path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                  Scan Face
+                </button>
+                <button class="btn-action secondary" onclick="simulateSnapshot()">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                    <circle cx="12" cy="13" r="4"/>
+                  </svg>
+                  Snapshot
+                </button>
+              </div>
+            </div>
+
+            <!-- RECENT ACTIVITY LOG -->
+            <div class="content-card activity-card">
+              <div class="card-title-bar">
+                <h4>System Events</h4>
+                <span class="badge-subtle" id="log-count">0 events</span>
+              </div>
+              <div id="event-log" class="activity-stream">
+                <!-- Activity items -->
+              </div>
+            </div>
           </div>
         </div>
-      </aside>
-    </main>
+      </div>
+    </div>
   </div>
 
   <script src="app.js"></script>

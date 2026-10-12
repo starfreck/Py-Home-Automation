@@ -1,4 +1,4 @@
-// PYHOME OS — PROFESSIONAL AMBIENT CONTROLLER & VOICE ENGINE
+// PYHOME — PRODUCTION SMART HOME CONTROLLER & GEMMA 4 ASSISTANT
 let ws = null;
 let devices = [];
 let currentFilter = 'all';
@@ -20,7 +20,58 @@ window.addEventListener('DOMContentLoaded', () => {
   connectWebSocket();
 });
 
-// SUBTLE LUXURY AUDIO CHIMES (WEB AUDIO API)
+// CLEAN VECTOR SVG ICONS FOR DEVICES (ZERO EMOJIS)
+function getDeviceSVG(type, state) {
+  switch (type) {
+    case 'relay':
+      return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/>
+        <path d="M9 18h6"/>
+        <path d="M10 22h4"/>
+      </svg>`;
+
+    case 'fan':
+      return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10.827 16.379a6.082 6.082 0 0 1-8.618-7.002l5.412 1.45a6.082 6.082 0 0 1 7.002-8.618l-1.45 5.412a6.082 6.082 0 0 1 8.618 7.002l-5.412-1.45a6.082 6.082 0 0 1-7.002 8.618l1.45-5.412Z"/>
+        <circle cx="12" cy="12" r="2"/>
+      </svg>`;
+
+    case 'dimmer':
+      return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="4"/>
+        <path d="M12 2v2"/>
+        <path d="M12 20v2"/>
+        <path d="m4.93 4.93 1.41 1.41"/>
+        <path d="m17.66 17.66 1.41 1.41"/>
+        <path d="M2 12h2"/>
+        <path d="M20 12h2"/>
+        <path d="m6.34 17.66-1.41 1.41"/>
+        <path d="m19.07 4.93-1.41 1.41"/>
+      </svg>`;
+
+    case 'lock':
+      return state ? `
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+      ` : `
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+          <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
+        </svg>
+      `;
+
+    default:
+      return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect width="20" height="14" x="2" y="3" rx="2"/>
+        <line x1="8" y1="21" x2="16" y2="21"/>
+        <line x1="12" y1="17" x2="12" y2="21"/>
+      </svg>`;
+  }
+}
+
+// LUXURY SUBTLE CHIMES (WEB AUDIO API)
 function getAudioContext() {
   if (!audioCtx) {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -41,7 +92,7 @@ function playTone(freq, duration, vol) {
   const gain = ctx.createGain();
   osc.type = 'sine';
   osc.frequency.setValueAtTime(freq, now);
-  gain.gain.setValueAtTime(vol || 0.04, now);
+  gain.gain.setValueAtTime(vol || 0.03, now);
   gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
   osc.connect(gain);
   gain.connect(ctx.destination);
@@ -53,32 +104,28 @@ function playSFX(type) {
   if (!speechAudioEnabled) return;
   switch (type) {
     case 'listen':
-      // Soft gentle two-tone chime
-      playTone(587.33, 0.1, 0.03); // D5
-      setTimeout(() => playTone(880.00, 0.14, 0.04), 80); // A5
+      playTone(600, 0.08, 0.03);
+      setTimeout(() => playTone(800, 0.12, 0.03), 60);
       break;
 
     case 'confirm':
-      // Elegant warm confirmation chord
-      playTone(523.25, 0.08, 0.03); // C5
-      setTimeout(() => playTone(659.25, 0.08, 0.03), 50); // E5
-      setTimeout(() => playTone(783.99, 0.14, 0.04), 100); // G5
+      playTone(523.25, 0.06, 0.03);
+      setTimeout(() => playTone(659.25, 0.06, 0.03), 50);
+      setTimeout(() => playTone(783.99, 0.12, 0.04), 100);
       break;
 
     case 'click':
-      // Subtle tactile click
-      playTone(400, 0.03, 0.02);
+      playTone(480, 0.02, 0.02);
       break;
 
     case 'scan':
-      // Clean frequency sweep
-      playTone(600, 0.12, 0.03);
-      setTimeout(() => playTone(750, 0.14, 0.03), 60);
+      playTone(550, 0.1, 0.03);
+      setTimeout(() => playTone(720, 0.12, 0.03), 60);
       break;
   }
 }
 
-// SPEECH SYNTHESIS VOICE LOADER
+// SPEECH SYNTHESIS VOICE ENGINE
 function initVoices() {
   if (!window.speechSynthesis) return;
 
@@ -131,11 +178,11 @@ function toggleAudioSpeech() {
   if (btn && label) {
     if (speechAudioEnabled) {
       btn.classList.add('active');
-      label.innerText = 'Voice Audio: On';
+      label.innerText = 'Voice On';
       playSFX('confirm');
     } else {
       btn.classList.remove('active');
-      label.innerText = 'Voice Audio: Muted';
+      label.innerText = 'Voice Muted';
       if (window.speechSynthesis) window.speechSynthesis.cancel();
     }
   }
@@ -187,15 +234,13 @@ function connectWebSocket() {
   const wsUrl = `${protocol}//${window.location.host}/ws`;
 
   addLog('system', `Connecting to WebSocket Gateway: ${wsUrl}`);
-  const badge = document.getElementById('ws-badge');
-  const statusText = document.getElementById('ws-status-text');
+  const statusLabel = document.querySelector('.hub-label');
 
   try {
     ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
-      badge.className = 'connection-badge online';
-      statusText.innerText = 'Connected • LAN';
+      if (statusLabel) statusLabel.innerText = 'Hub: Online';
       addLog('event', 'Local real-time channel established.');
     };
 
@@ -209,8 +254,7 @@ function connectWebSocket() {
     };
 
     ws.onclose = () => {
-      badge.className = 'connection-badge';
-      statusText.innerText = 'Reconnecting...';
+      if (statusLabel) statusLabel.innerText = 'Hub: Reconnecting...';
       addLog('warn', 'Connection interrupted. Re-establishing link...');
       setTimeout(connectWebSocket, 2000);
     };
@@ -274,7 +318,7 @@ function initSpeechRecognition() {
     for (let i = event.resultIndex; i < event.results.length; ++i) {
       transcript += event.results[i][0].transcript;
     }
-    const transcriptEl = document.querySelector('#voice-transcript .val');
+    const transcriptEl = document.getElementById('voice-transcript');
     if (transcriptEl) transcriptEl.innerText = `"${transcript}"`;
 
     if (event.results[0].isFinal) {
@@ -317,14 +361,19 @@ function stopListening() {
   if (trigger) trigger.classList.remove('listening');
 }
 
+function focusVoiceInput() {
+  const input = document.getElementById('manual-prompt-input');
+  if (input) input.focus();
+}
+
 // GEMMA 4 VOICE INTENT DISPATCH
 async function submitVoiceCommand(promptText) {
   if (!promptText || !promptText.trim()) return;
 
   getAudioContext();
-  addLog('ai', `Voice prompt: "${promptText}"`);
+  addLog('ai', `Prompt: "${promptText}"`);
 
-  const replyEl = document.querySelector('#voice-reply .val');
+  const replyEl = document.getElementById('voice-reply');
   if (replyEl) replyEl.innerText = 'Analyzing intent with Gemma 4...';
 
   try {
@@ -353,7 +402,7 @@ function handleManualPrompt(e) {
   const input = document.getElementById('manual-prompt-input');
   const val = input.value.trim();
   if (!val) return;
-  const transcriptEl = document.querySelector('#voice-transcript .val');
+  const transcriptEl = document.getElementById('voice-transcript');
   if (transcriptEl) transcriptEl.innerText = `"${val}"`;
   submitVoiceCommand(val);
   input.value = '';
@@ -361,14 +410,14 @@ function handleManualPrompt(e) {
 
 function submitTextCommand(cmd) {
   getAudioContext();
-  const transcriptEl = document.querySelector('#voice-transcript .val');
+  const transcriptEl = document.getElementById('voice-transcript');
   if (transcriptEl) transcriptEl.innerText = `"${cmd}"`;
   submitVoiceCommand(cmd);
 }
 
 function activateScene(sceneId) {
   playSFX('click');
-  addLog('event', `Activated scene preset '${sceneId}'`);
+  addLog('event', `Activated scene '${sceneId}'`);
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ type: 'scene', payload: { id: sceneId } }));
   } else {
@@ -376,7 +425,7 @@ function activateScene(sceneId) {
   }
 }
 
-// DEVICE GRID & CONTROLS
+// DEVICE GRID & CONTROLS (APPLE HOME / MUSHROOM STYLE)
 function renderDevices() {
   const grid = document.getElementById('devices-grid');
   if (!grid) return;
@@ -386,34 +435,36 @@ function renderDevices() {
     : devices.filter(d => d.room === currentFilter);
 
   const countPill = document.getElementById('device-count-pill');
-  if (countPill) countPill.innerText = `${filtered.length} of ${devices.length} Total`;
+  if (countPill) countPill.innerText = `${filtered.length} Devices`;
 
   grid.innerHTML = filtered.map(d => `
     <div id="card-${d.id}" class="device-card ${d.state ? 'active' : ''}">
-      <div class="card-top-row">
-        <div class="device-icon-box">${d.icon}</div>
-        <label class="switch">
+      <div class="card-top">
+        <button class="icon-btn" onclick="toggleDevice('${d.id}')" title="Click to toggle">
+          ${getDeviceSVG(d.type, d.state)}
+        </button>
+        <label class="toggle-switch">
           <input type="checkbox" ${d.state ? 'checked' : ''} onchange="toggleDevice('${d.id}')">
-          <span class="switch-slider"></span>
+          <span class="toggle-slider"></span>
         </label>
       </div>
 
-      <div class="device-meta-group">
+      <div class="device-details">
         <span class="device-title">${d.name}</span>
-        <div class="device-room-meta">
+        <div class="device-meta-row">
           <span>${d.room}</span>
-          ${d.gpio_pin ? `<span class="pin-chip">GPIO ${d.gpio_pin}</span>` : ''}
+          ${d.gpio_pin ? `<span class="pin-tag">GPIO ${d.gpio_pin}</span>` : ''}
           <span>• ${d.power_watts}W</span>
         </div>
       </div>
 
       ${(d.type === 'dimmer' || d.type === 'fan') ? `
-        <div class="slider-container">
-          <div class="slider-labels">
+        <div class="range-container">
+          <div class="range-labels">
             <span>${d.type === 'dimmer' ? 'Brightness' : 'Speed'}</span>
             <span id="val-${d.id}">${d.value}%</span>
           </div>
-          <input type="range" class="range-input" min="0" max="100" value="${d.value}"
+          <input type="range" class="clean-slider" min="0" max="100" value="${d.value}"
                  oninput="document.getElementById('val-${d.id}').innerText = this.value + '%'"
                  onchange="commitSlider('${d.id}', this.value)">
         </div>
@@ -433,10 +484,20 @@ function updateSingleDevice(updatedDevice) {
     if (cb) cb.checked = updatedDevice.state;
     if (updatedDevice.state) card.classList.add('active');
     else card.classList.remove('active');
+
+    const iconBtn = card.querySelector('.icon-btn');
+    if (iconBtn) iconBtn.innerHTML = getDeviceSVG(updatedDevice.type, updatedDevice.state);
+
     const valEl = document.getElementById(`val-${updatedDevice.id}`);
     if (valEl) valEl.innerText = `${updatedDevice.value}%`;
   } else {
     renderDevices();
+  }
+
+  // Update lock KPI card if lock changed
+  if (updatedDevice.id === 'device-6') {
+    const lockEl = document.getElementById('stat-lock-status');
+    if (lockEl) lockEl.innerText = updatedDevice.state ? 'Secured' : 'Unlocked';
   }
 }
 
@@ -467,11 +528,16 @@ function commitSlider(id, val) {
 
 function filterRoom(room) {
   currentFilter = room;
-  document.querySelectorAll('.room-btn').forEach(b => {
+  document.querySelectorAll('.segment-btn').forEach(b => {
     if (b.getAttribute('data-room') === room) b.classList.add('active');
     else b.classList.remove('active');
   });
   renderDevices();
+}
+
+function switchNav(view, el) {
+  document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+  if (el) el.classList.add('active');
 }
 
 // TELEMETRY UPDATES
@@ -483,15 +549,13 @@ function updateTelemetry(t) {
   const activeEl = document.getElementById('stat-active-count');
   const totalEl = document.getElementById('stat-total-count');
   const piTempEl = document.getElementById('stat-pi-temp');
-  const piRamEl = document.getElementById('stat-pi-ram');
 
   if (wattsEl) wattsEl.innerText = t.total_watts.toFixed(1);
   if (tempEl) tempEl.innerText = t.temperature.toFixed(1);
   if (humEl) humEl.innerText = Math.round(t.humidity);
   if (activeEl) activeEl.innerText = t.active_count;
   if (totalEl) totalEl.innerText = t.total_count;
-  if (piTempEl) piTempEl.innerText = t.cpu_temp.toFixed(1);
-  if (piRamEl) piRamEl.innerText = t.memory_usage.toFixed(0);
+  if (piTempEl) piTempEl.innerText = `${t.cpu_temp.toFixed(1)}°C`;
 }
 
 // AUDIT LOG
@@ -507,9 +571,9 @@ function addLog(type, text) {
   const timeStr = now.toTimeString().split(' ')[0];
 
   const line = document.createElement('div');
-  line.className = `log-item ${type === 'highlight' ? 'highlight' : ''}`;
+  line.className = `activity-item ${type === 'highlight' ? 'highlight' : ''}`;
   line.innerHTML = `
-    <span class="time">${timeStr}</span>
+    <span class="ts">[${timeStr}]</span>
     <span class="msg">${escapeHtml(text)}</span>
   `;
 
@@ -522,18 +586,17 @@ function escapeHtml(str) {
   }[m]));
 }
 
-// SECURITY CAMERA SIMULATION
+// CAMERA FEED SIMULATOR
 function initCameraCanvas() {
   const canvas = document.getElementById('camera-canvas');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
 
   function render() {
-    ctx.fillStyle = '#060a12';
+    ctx.fillStyle = '#09090b';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Subtle modern grid
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
     ctx.lineWidth = 1;
     for (let x = 0; x < canvas.width; x += 30) {
       ctx.beginPath();
@@ -566,20 +629,20 @@ function simulateFaceScan() {
 
   if (label) {
     label.innerText = 'Verifying Subject...';
-    label.style.background = 'var(--indigo)';
+    label.style.background = 'var(--primary)';
     label.style.color = '#fff';
   }
 
   setTimeout(() => {
     if (label) {
-      label.innerText = 'Verified: Vasu (99.8%)';
+      label.innerText = 'Vasu (99.8%)';
       label.style.background = 'var(--success)';
       label.style.color = '#000';
     }
     playSFX('confirm');
     speakAssistantResponse('Biometric verification confirmed. Subject identified as Vasu.');
     addLog('highlight', 'Biometric scan: Subject Vasu confirmed.');
-  }, 800);
+  }, 750);
 }
 
 function simulateSnapshot() {
