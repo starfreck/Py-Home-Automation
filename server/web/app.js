@@ -13,600 +13,105 @@ let selectedVoiceURI = localStorage.getItem('pyhome_voice_uri') || '';
 let audioCtx = null;
 
 // ==========================================
-// 1. THEMES ENGINE (7 EXECUTIVE PALETTES)
+// 1. CLAUDE AI THEME ENGINE (WARM DARK / LIGHT)
 // ==========================================
-const THEMES = {
-  dark: { name: 'Obsidian', full: 'Obsidian Onyx' },
-  light: { name: 'Titanium', full: 'Titanium Studio' },
-  midnight: { name: 'Midnight', full: 'OLED Midnight' },
-  nordic: { name: 'Nordic', full: 'Nordic Frost' },
-  emerald: { name: 'Emerald', full: 'Emerald Matrix' },
-  sunset: { name: 'Sunset', full: 'Sunset Ember' },
-  cyberpunk: { name: 'Cyberpunk', full: 'Neo Cyberpunk' }
-};
-
 let currentTheme = localStorage.getItem('pyhome_theme') || 'dark';
+if (currentTheme !== 'light') currentTheme = 'dark';
 
 function initTheme() {
-  if (!THEMES[currentTheme]) currentTheme = 'dark';
   document.documentElement.setAttribute('data-theme', currentTheme);
   updateThemeButtonUI();
-  updateThemeModalUI();
-}
-
-function selectTheme(themeName) {
-  if (!THEMES[themeName]) themeName = 'dark';
-  currentTheme = themeName;
-  document.documentElement.setAttribute('data-theme', currentTheme);
-  localStorage.setItem('pyhome_theme', currentTheme);
-  updateThemeButtonUI();
-  updateThemeModalUI();
-  playSFX('click');
-  closeThemeModal();
-  showToast(`Applied ${THEMES[themeName].full} theme`, 'success');
 }
 
 function toggleTheme() {
-  const themeKeys = Object.keys(THEMES);
-  const nextIdx = (themeKeys.indexOf(currentTheme) + 1) % themeKeys.length;
-  selectTheme(themeKeys[nextIdx]);
-}
-
-function openThemeModal() {
+  currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', currentTheme);
+  localStorage.setItem('pyhome_theme', currentTheme);
+  updateThemeButtonUI();
   playSFX('click');
-  updateThemeModalUI();
-  const modal = document.getElementById('theme-modal');
-  if (modal) modal.style.display = 'flex';
-}
-
-function closeThemeModal() {
-  const modal = document.getElementById('theme-modal');
-  if (modal) modal.style.display = 'none';
+  showToast(`Claude ${currentTheme === 'dark' ? 'Dark' : 'Light'} active`, 'info');
 }
 
 function updateThemeButtonUI() {
   const textEl = document.getElementById('theme-toggle-text');
-  if (textEl) {
-    textEl.innerText = THEMES[currentTheme] ? THEMES[currentTheme].name : 'Obsidian';
-  }
-}
-
-function updateThemeModalUI() {
-  document.querySelectorAll('.theme-card-option').forEach(card => {
-    if (card.getAttribute('data-theme-name') === currentTheme) {
-      card.classList.add('active');
-    } else {
-      card.classList.remove('active');
-    }
-  });
+  const iconEl = document.getElementById('theme-icon');
+  if (textEl) textEl.innerText = currentTheme === 'dark' ? 'Dark' : 'Light';
+  if (iconEl) iconEl.innerText = currentTheme === 'dark' ? '☾' : '☼';
 }
 
 // ==========================================
-// 2. WALLPAPER & ATMOSPHERE ENGINE
+// 2. CLAUDE NAVIGATION & VIEW CONTROLLER
 // ==========================================
-const WALLPAPERS = {
-  aurora: 'Aurora Nebula',
-  carbon: 'Obsidian Carbon',
-  mesh: 'Cyan Mesh',
-  matrix: 'Matrix Cyber',
-  sunset: 'Sunset Amber',
-  studio: 'Titanium Studio',
-  none: 'Clean Minimal',
-  custom: 'Custom Image'
-};
+function switchNav(viewName, el) {
+  playSFX('click');
+  if (viewName === 'dashboard') viewName = 'assistant';
 
-let currentWallpaper = localStorage.getItem('pyhome_wallpaper') || 'aurora';
-let currentBlur = localStorage.getItem('pyhome_wall_blur') || '12';
-let currentDimmer = localStorage.getItem('pyhome_wall_dimmer') || '40';
-let customWallpaperUrl = localStorage.getItem('pyhome_wall_custom_url') || '';
-
-function initWallpaper() {
-  const backdrop = document.getElementById('wallpaper-backdrop');
-  if (!backdrop) return;
-
-  setWallpaperBlur(currentBlur, false);
-  setWallpaperDimmer(currentDimmer, false);
-
-  if (customWallpaperUrl) {
-    applyCustomWallpaperUrl(customWallpaperUrl, false);
+  document.querySelectorAll('.claude-nav .nav-pill').forEach(i => i.classList.remove('active'));
+  if (el) {
+    el.classList.add('active');
   } else {
-    setWallpaper(currentWallpaper, false);
-  }
-}
-
-function setWallpaper(name, save = true) {
-  const backdrop = document.getElementById('wallpaper-backdrop');
-  if (!backdrop) return;
-
-  backdrop.style.backgroundImage = '';
-  backdrop.className = `wallpaper-backdrop wall-${name}`;
-  currentWallpaper = name;
-
-  if (save) {
-    customWallpaperUrl = '';
-    localStorage.removeItem('pyhome_wall_custom_url');
-    localStorage.setItem('pyhome_wallpaper', name);
-    playSFX('click');
+    const btn = document.querySelector(`.nav-pill[data-view="${viewName}"]`);
+    if (btn) btn.classList.add('active');
   }
 
-  document.querySelectorAll('.wallpaper-swatch').forEach(swatch => {
-    if (swatch.getAttribute('data-wall') === name) {
-      swatch.classList.add('active');
-    } else {
-      swatch.classList.remove('active');
-    }
-  });
-
-  const nameEl = document.getElementById('active-wallpaper-name');
-  if (nameEl) {
-    nameEl.innerText = WALLPAPERS[name] || name;
-  }
-}
-
-function setWallpaperBlur(val, save = true) {
-  const backdrop = document.getElementById('wallpaper-backdrop');
-  const badge = document.getElementById('blur-val-badge');
-  currentBlur = val;
-  if (backdrop) {
-    backdrop.style.filter = `blur(${val}px)`;
-  }
-  if (badge) {
-    badge.innerText = `${val}px`;
-  }
-  const slider = document.querySelector('input[oninput*="setWallpaperBlur"]');
-  if (slider && slider.value !== String(val)) slider.value = val;
-  if (save) {
-    localStorage.setItem('pyhome_wall_blur', val);
-  }
-}
-
-function setWallpaperDimmer(val, save = true) {
-  const backdrop = document.getElementById('wallpaper-backdrop');
-  const badge = document.getElementById('dimmer-val-badge');
-  currentDimmer = val;
-  if (backdrop) {
-    const opacity = (100 - parseInt(val, 10)) / 100;
-    backdrop.style.opacity = Math.max(0, Math.min(1, opacity)).toFixed(2);
-  }
-  if (badge) {
-    badge.innerText = `${val}%`;
-  }
-  const slider = document.querySelector('input[oninput*="setWallpaperDimmer"]');
-  if (slider && slider.value !== String(val)) slider.value = val;
-  if (save) {
-    localStorage.setItem('pyhome_wall_dimmer', val);
-  }
-}
-
-function applyCustomWallpaper() {
-  const input = document.getElementById('custom-wall-url');
-  if (!input) return;
-  const url = input.value.trim();
-  if (!url) {
-    showToast('Please enter an image URL', 'error');
-    return;
-  }
-  applyCustomWallpaperUrl(url, true);
-  showToast('Custom wallpaper applied', 'success');
-}
-
-function applyCustomWallpaperUrl(url, save = true) {
-  const backdrop = document.getElementById('wallpaper-backdrop');
-  if (!backdrop) return;
-
-  backdrop.className = 'wallpaper-backdrop';
-  backdrop.style.backgroundImage = `url("${url}")`;
-  backdrop.style.backgroundSize = 'cover';
-  backdrop.style.backgroundPosition = 'center';
-
-  if (save) {
-    customWallpaperUrl = url;
-    localStorage.setItem('pyhome_wall_custom_url', url);
-    playSFX('confirm');
-  }
-
-  document.querySelectorAll('.wallpaper-swatch').forEach(s => s.classList.remove('active'));
-
-  const nameEl = document.getElementById('active-wallpaper-name');
-  if (nameEl) nameEl.innerText = 'Custom Image';
-
-  const input = document.getElementById('custom-wall-url');
-  if (input && input.value !== url) input.value = url;
-}
-
-// ==========================================
-// 3. AESTHETIC CLOCK & TELEMETRY TIME ENGINE
-// ==========================================
-let clockFormat = parseInt(localStorage.getItem('pyhome_clock_format') || '12', 10);
-
-function initAestheticClock() {
-  updateAestheticClock();
-  setInterval(updateAestheticClock, 1000);
-
-  const tzLabel = document.getElementById('widget-tz-label');
-  if (tzLabel) {
-    try {
-      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      tzLabel.innerText = tz || 'Local RTC';
-    } catch (e) {
-      tzLabel.innerText = 'Local RTC';
-    }
-  }
-
-  updateClockFormatButtons();
-}
-
-function setTimeFormat(fmt) {
-  clockFormat = parseInt(fmt, 10) === 24 ? 24 : 12;
-  localStorage.setItem('pyhome_clock_format', clockFormat);
-  updateClockFormatButtons();
-  updateAestheticClock();
-  playSFX('click');
-}
-
-function updateClockFormatButtons() {
-  const btn12 = document.getElementById('btn-fmt-12');
-  const btn24 = document.getElementById('btn-fmt-24');
-  if (btn12 && btn24) {
-    if (clockFormat === 12) {
-      btn12.classList.add('active');
-      btn24.classList.remove('active');
-    } else {
-      btn12.classList.remove('active');
-      btn24.classList.add('active');
-    }
-  }
-}
-
-function updateAestheticClock() {
-  const now = new Date();
-  const hours = now.getHours();
-  const minutes = String(now.getMinutes()).padStart(2, '0');
-  const seconds = String(now.getSeconds()).padStart(2, '0');
-
-  const bigClockEl = document.getElementById('widget-big-clock');
-  if (bigClockEl) {
-    if (clockFormat === 12) {
-      const hours12 = String(hours % 12 || 12).padStart(2, '0');
-      const period = hours >= 12 ? 'PM' : 'AM';
-      bigClockEl.innerHTML = `${hours12}:${minutes}:${seconds} <span class="clock-period">${period}</span>`;
-    } else {
-      const hours24 = String(hours).padStart(2, '0');
-      bigClockEl.innerHTML = `${hours24}:${minutes}:${seconds}`;
-    }
-  }
-
-  const bigDateEl = document.getElementById('widget-big-date');
-  if (bigDateEl) {
-    bigDateEl.innerText = now.toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  }
-
-  const topClockEl = document.getElementById('clock');
-  const camTimeEl = document.getElementById('cam-timestamp');
-  const timeStr = `${String(hours).padStart(2, '0')}:${minutes}:${seconds}`;
-  if (topClockEl) topClockEl.innerText = timeStr;
-  if (camTimeEl) camTimeEl.innerText = timeStr;
-}
-
-const initClock = initAestheticClock;
-
-// ==========================================
-// 4. MODULAR RE-ADJUSTABLE DASHBOARD ENGINE
-// ==========================================
-const DEFAULT_WIDGETS_ORDER = [
-  'widget-clock',
-  'widget-wallpaper',
-  'widget-metrics',
-  'widget-scenes',
-  'widget-devices',
-  'widget-memo'
-];
-
-let isDashboardEditMode = false;
-
-function initDashboardLayout() {
-  const container = document.getElementById('dashboard-widgets-container');
-  if (!container) return;
-
-  // 1. Restore reordered widgets
-  let savedOrder = null;
-  try {
-    savedOrder = JSON.parse(localStorage.getItem('pyhome_dashboard_layout') || 'null');
-  } catch (e) {
-    savedOrder = null;
-  }
-
-  if (Array.isArray(savedOrder) && savedOrder.length > 0) {
-    savedOrder.forEach(id => {
-      const widget = document.getElementById(id);
-      if (widget && widget.parentElement === container) {
-        container.appendChild(widget);
-      }
-    });
-  }
-
-  // 2. Restore visibility states
-  applyWidgetVisibilities();
-
-  // 3. Setup drag and drop
-  setupWidgetDragAndDrop();
-}
-
-function toggleDashboardEditMode() {
-  isDashboardEditMode = !isDashboardEditMode;
-  playSFX('click');
-
-  const container = document.getElementById('dashboard-widgets-container');
-  const banner = document.getElementById('layout-edit-banner');
-  const editBtn = document.getElementById('btn-edit-layout');
-  const tag = document.getElementById('layout-status-tag');
-
-  if (container) {
-    if (isDashboardEditMode) {
-      container.classList.add('edit-mode');
-    } else {
-      container.classList.remove('edit-mode');
-    }
-  }
-
-  if (banner) {
-    banner.style.display = isDashboardEditMode ? 'flex' : 'none';
-  }
-
-  if (editBtn) {
-    if (isDashboardEditMode) {
-      editBtn.classList.add('active');
-    } else {
-      editBtn.classList.remove('active');
-    }
-  }
-
-  if (tag) {
-    tag.innerText = isDashboardEditMode ? 'Editing Layout' : 'Modular Layout';
-    tag.style.color = isDashboardEditMode ? 'var(--primary)' : '';
-  }
-
-  // Toggle draggable attribute on widgets
-  document.querySelectorAll('.dash-widget').forEach(w => {
-    w.setAttribute('draggable', isDashboardEditMode ? 'true' : 'false');
-  });
-
-  if (isDashboardEditMode) {
-    showToast('Layout edit mode active: drag handles or click ▲ / ▼ to reorder', 'info');
-  } else {
-    saveDashboardLayout();
-    showToast('Dashboard layout saved', 'success');
-  }
-}
-
-function moveWidget(widgetId, delta) {
-  const container = document.getElementById('dashboard-widgets-container');
-  const widget = document.getElementById(widgetId);
-  if (!container || !widget) return;
-
-  if (delta === -1) {
-    const prev = widget.previousElementSibling;
-    if (prev && prev.classList.contains('dash-widget')) {
-      container.insertBefore(widget, prev);
-      saveDashboardLayout();
-      playSFX('click');
-    }
-  } else if (delta === 1) {
-    const next = widget.nextElementSibling;
-    if (next && next.classList.contains('dash-widget')) {
-      container.insertBefore(next, widget);
-      saveDashboardLayout();
-      playSFX('click');
-    }
-  }
-}
-
-function saveDashboardLayout() {
-  const container = document.getElementById('dashboard-widgets-container');
-  if (!container) return;
-  const currentOrder = Array.from(container.querySelectorAll('.dash-widget')).map(el => el.id);
-  localStorage.setItem('pyhome_dashboard_layout', JSON.stringify(currentOrder));
-}
-
-function resetDashboardLayout() {
-  localStorage.removeItem('pyhome_dashboard_layout');
-  localStorage.removeItem('pyhome_dashboard_hidden');
-
-  const container = document.getElementById('dashboard-widgets-container');
-  if (!container) return;
-
-  DEFAULT_WIDGETS_ORDER.forEach(id => {
-    const el = document.getElementById(id);
-    if (el && el.parentElement === container) {
-      container.appendChild(el);
-      el.style.display = '';
-    }
-  });
-
-  DEFAULT_WIDGETS_ORDER.forEach(id => {
-    const cb = document.getElementById(`toggle-vis-${id}`);
-    if (cb) cb.checked = true;
-  });
-
-  playSFX('confirm');
-  showToast('Dashboard layout reset to factory defaults', 'success');
-}
-
-function getHiddenWidgets() {
-  try {
-    return JSON.parse(localStorage.getItem('pyhome_dashboard_hidden') || '[]');
-  } catch (e) {
-    return [];
-  }
-}
-
-function applyWidgetVisibilities() {
-  const hidden = getHiddenWidgets();
-  DEFAULT_WIDGETS_ORDER.forEach(id => {
-    const el = document.getElementById(id);
-    const cb = document.getElementById(`toggle-vis-${id}`);
-    const isHidden = hidden.includes(id);
-    if (el) {
-      el.style.display = isHidden ? 'none' : '';
-      const toggleBtn = el.querySelector('.btn-order-toggle');
-      if (toggleBtn) {
-        toggleBtn.style.opacity = isHidden ? '0.5' : '1';
-        toggleBtn.title = isHidden ? 'Show Widget' : 'Hide Widget';
-      }
-    }
-    if (cb) {
-      cb.checked = !isHidden;
-    }
-  });
-}
-
-function toggleWidgetVisibility(widgetId) {
-  let hidden = getHiddenWidgets();
-  if (hidden.includes(widgetId)) {
-    hidden = hidden.filter(id => id !== widgetId);
-    showToast(`Widget visible`, 'info');
-  } else {
-    hidden.push(widgetId);
-    showToast(`Widget hidden`, 'info');
-  }
-  localStorage.setItem('pyhome_dashboard_hidden', JSON.stringify(hidden));
-  applyWidgetVisibilities();
-  playSFX('click');
-}
-
-function toggleWidgetCheck(widgetId, checked) {
-  let hidden = getHiddenWidgets();
-  if (checked) {
-    hidden = hidden.filter(id => id !== widgetId);
-  } else {
-    if (!hidden.includes(widgetId)) hidden.push(widgetId);
-  }
-  localStorage.setItem('pyhome_dashboard_hidden', JSON.stringify(hidden));
-  applyWidgetVisibilities();
-  playSFX('click');
-}
-
-function resetWidgetVisibility() {
-  localStorage.removeItem('pyhome_dashboard_hidden');
-  applyWidgetVisibilities();
-  playSFX('confirm');
-  showToast('All widgets visible', 'success');
-}
-
-function openWidgetVisibilityModal() {
-  playSFX('click');
-  applyWidgetVisibilities();
-  const modal = document.getElementById('widget-visibility-modal');
-  if (modal) modal.style.display = 'flex';
-}
-
-function closeWidgetVisibilityModal() {
-  const modal = document.getElementById('widget-visibility-modal');
-  if (modal) modal.style.display = 'none';
-}
-
-function setupWidgetDragAndDrop() {
-  const container = document.getElementById('dashboard-widgets-container');
-  if (!container) return;
-  const widgets = container.querySelectorAll('.dash-widget');
-  let draggedEl = null;
-
-  widgets.forEach(widget => {
-    widget.addEventListener('dragstart', (e) => {
-      if (!isDashboardEditMode) {
-        e.preventDefault();
-        return;
-      }
-      draggedEl = widget;
-      widget.classList.add('dragging');
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/plain', widget.id);
-    });
-
-    widget.addEventListener('dragend', () => {
-      draggedEl = null;
-      widgets.forEach(w => {
-        w.classList.remove('dragging');
-        w.classList.remove('drag-over');
-      });
-      saveDashboardLayout();
-    });
-
-    widget.addEventListener('dragover', (e) => {
-      if (!isDashboardEditMode || !draggedEl || draggedEl === widget) return;
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      widget.classList.add('drag-over');
-    });
-
-    widget.addEventListener('dragleave', () => {
-      widget.classList.remove('drag-over');
-    });
-
-    widget.addEventListener('drop', (e) => {
-      if (!isDashboardEditMode || !draggedEl || draggedEl === widget) return;
-      e.preventDefault();
-      widget.classList.remove('drag-over');
-
-      const rect = widget.getBoundingClientRect();
-      const midY = rect.top + rect.height / 2;
-      if (e.clientY < midY) {
-        container.insertBefore(draggedEl, widget);
+  const views = ['assistant', 'devices', 'cameras', 'activity', 'settings'];
+  views.forEach(v => {
+    const page = document.getElementById(`view-${v}`);
+    if (page) {
+      if (v === viewName) {
+        page.style.display = 'block';
+        page.classList.add('active');
       } else {
-        container.insertBefore(draggedEl, widget.nextSibling);
+        page.style.display = 'none';
+        page.classList.remove('active');
       }
-      saveDashboardLayout();
-      playSFX('confirm');
-    });
+    }
   });
+
+  if (viewName === 'settings') {
+    loadSettings();
+    renderDeviceSettingsTable();
+  } else if (viewName === 'devices') {
+    renderDevices();
+  } else if (viewName === 'activity') {
+    renderFullActivityLog();
+  } else if (viewName === 'cameras') {
+    initCameraCanvasFull();
+  } else if (viewName === 'assistant') {
+    if (typeof resizeJarvisGlob === 'function') resizeJarvisGlob();
+  }
 }
 
 // ==========================================
-// 5. HOME MEMO & GEMMA SCRATCHPAD ENGINE
+// 3. SYSTEM CLOCK & TELEMETRY SYNC
 // ==========================================
-let memoSaveTimeout = null;
-
-function initHomeMemo() {
-  const textarea = document.getElementById('memo-text-area');
-  if (!textarea) return;
-  const savedMemo = localStorage.getItem('pyhome_memo') || '';
-  textarea.value = savedMemo;
+function initClock() {
+  const clockEl = document.getElementById('clock');
+  const camTimeEl = document.getElementById('cam-timestamp');
+  function update() {
+    const now = new Date();
+    const str = now.toTimeString().split(' ')[0];
+    if (clockEl) clockEl.innerText = str;
+    if (camTimeEl) camTimeEl.innerText = str;
+  }
+  update();
+  setInterval(update, 1000);
 }
 
-function saveHomeMemo(text) {
-  const ind = document.getElementById('memo-saved-indicator');
-  if (ind) ind.innerText = 'Saving...';
-
-  clearTimeout(memoSaveTimeout);
-  memoSaveTimeout = setTimeout(() => {
-    localStorage.setItem('pyhome_memo', text);
-    if (ind) ind.innerText = 'Auto-saved';
-  }, 400);
+// ==========================================
+// 4. CLAUDE PROMPT DISPATCH
+// ==========================================
+function submitPromptFromInput() {
+  const input = document.getElementById('manual-prompt-input');
+  if (!input) return;
+  const val = input.value.trim();
+  if (!val) return;
+  const transcriptEl = document.getElementById('voice-transcript');
+  if (transcriptEl) transcriptEl.innerText = `"${val}"`;
+  submitVoiceCommand(val);
+  input.value = '';
 }
 
-function appendMemo(note) {
-  const textarea = document.getElementById('memo-text-area');
-  if (!textarea) return;
-  const current = textarea.value.trim();
-  textarea.value = current ? `${current}\n${note}` : note;
-  saveHomeMemo(textarea.value);
-  playSFX('click');
-  showToast('Note added to scratchpad', 'info');
-}
-
-function clearMemo() {
-  const textarea = document.getElementById('memo-text-area');
-  if (!textarea) return;
-  textarea.value = '';
-  saveHomeMemo('');
-  playSFX('click');
-  showToast('Scratchpad cleared', 'info');
-}
 
 // ==========================================
 // 6. JARVIS HOLOGRAPHIC MOVING GLOB ENGINE (SIRI X JARVIS)
@@ -696,7 +201,7 @@ function spawnShockwave(color) {
     maxRadius: isCoreImmersion ? 220 : 160,
     alpha: 0.85,
     speed: 4.8,
-    color: color || '0, 240, 255'
+    color: color || '217, 119, 87'
   });
 }
 
@@ -731,7 +236,7 @@ function setOrbState(newState) {
     if (hintText) hintText.innerText = 'SPEAKING...';
     if (caption) caption.innerText = 'Gemma 4 voice response transmitting';
     if (neuralPct) neuralPct.innerText = '99.2';
-    spawnShockwave('0, 240, 255');
+    spawnShockwave('217, 119, 87');
   } else {
     // idle
     if (statusText) statusText.innerText = 'STANDBY // READY';
@@ -813,28 +318,29 @@ function renderJarvisGlob() {
   const cy = height / 2 + mouseTilt.y;
   const R0 = Math.min(width, height) * 0.22;
 
-  // 1. Ambient Volumetric Radial Glow
+  // 1. Ambient Volumetric Radial Glow (Claude Warm Amber/Terracotta)
   const bgGrad = ctx.createRadialGradient(cx, cy, R0 * 0.15, cx, cy, R0 * 1.95);
   if (orbState === 'listening') {
-    bgGrad.addColorStop(0, 'rgba(16, 185, 129, 0.28)');
-    bgGrad.addColorStop(0.45, 'rgba(6, 182, 212, 0.12)');
+    bgGrad.addColorStop(0, 'rgba(16, 185, 129, 0.25)');
+    bgGrad.addColorStop(0.45, 'rgba(245, 158, 11, 0.08)');
   } else if (orbState === 'thinking') {
-    bgGrad.addColorStop(0, 'rgba(168, 85, 247, 0.30)');
-    bgGrad.addColorStop(0.45, 'rgba(56, 189, 248, 0.10)');
+    bgGrad.addColorStop(0, 'rgba(168, 85, 247, 0.25)');
+    bgGrad.addColorStop(0.45, 'rgba(217, 119, 87, 0.08)');
   } else if (orbState === 'speaking') {
-    bgGrad.addColorStop(0, 'rgba(0, 240, 255, 0.32)');
-    bgGrad.addColorStop(0.45, 'rgba(99, 102, 241, 0.14)');
+    bgGrad.addColorStop(0, 'rgba(217, 119, 87, 0.32)');
+    bgGrad.addColorStop(0.45, 'rgba(245, 158, 11, 0.12)');
   } else {
-    bgGrad.addColorStop(0, 'rgba(0, 240, 255, 0.18)');
-    bgGrad.addColorStop(0.45, 'rgba(30, 64, 175, 0.06)');
+    // idle Claude terracotta
+    bgGrad.addColorStop(0, 'rgba(217, 119, 87, 0.18)');
+    bgGrad.addColorStop(0.45, 'rgba(245, 158, 11, 0.06)');
   }
   bgGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
   ctx.fillStyle = bgGrad;
   ctx.fillRect(0, 0, width, height);
 
-  // 2. Holographic Concentric Coordinate Grid (JARVIS Guides)
+  // 2. Holographic Concentric Coordinate Grid (Claude Terracotta HUD)
   ctx.save();
-  ctx.strokeStyle = 'rgba(56, 189, 248, 0.12)';
+  ctx.strokeStyle = 'rgba(217, 119, 87, 0.14)';
   ctx.lineWidth = 1;
   ctx.setLineDash([2, 5]);
 
@@ -847,7 +353,6 @@ function renderJarvisGlob() {
 
   // 3. Precision Cardinal Radial Ticks
   ctx.save();
-  ctx.strokeStyle = 'rgba(56, 189, 248, 0.28)';
   const tickRadius = R0 * 1.15;
   for (let i = 0; i < 60; i++) {
     const angle = (i * Math.PI * 2) / 60;
@@ -859,14 +364,14 @@ function renderJarvisGlob() {
 
     ctx.beginPath();
     ctx.lineWidth = isCardinal ? 1.5 : 1;
-    ctx.strokeStyle = isCardinal ? 'rgba(0, 240, 255, 0.65)' : 'rgba(56, 189, 248, 0.25)';
+    ctx.strokeStyle = isCardinal ? 'rgba(217, 119, 87, 0.7)' : 'rgba(245, 158, 11, 0.28)';
     ctx.moveTo(cx + cosA * tickRadius, cy + sinA * tickRadius);
     ctx.lineTo(cx + cosA * (tickRadius + len), cy + sinA * (tickRadius + len));
     ctx.stroke();
   }
 
   // Cardinal Degree Labels
-  ctx.fillStyle = 'rgba(56, 189, 248, 0.55)';
+  ctx.fillStyle = 'rgba(217, 119, 87, 0.65)';
   ctx.font = '7px "JetBrains Mono", monospace';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -887,7 +392,7 @@ function renderJarvisGlob() {
     const startA = (s * Math.PI * 2) / 3;
     const arcLen = Math.PI * 0.38;
     ctx.beginPath();
-    ctx.strokeStyle = 'rgba(0, 240, 255, 0.5)';
+    ctx.strokeStyle = 'rgba(217, 119, 87, 0.55)';
     ctx.arc(0, 0, ringA_Radius, startA, startA + arcLen);
     ctx.stroke();
 
@@ -895,7 +400,7 @@ function renderJarvisGlob() {
     const endX = Math.cos(startA + arcLen) * ringA_Radius;
     const endY = Math.sin(startA + arcLen) * ringA_Radius;
     ctx.beginPath();
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = '#fef3c7';
     ctx.arc(endX, endY, 2.2, 0, Math.PI * 2);
     ctx.fill();
   }
@@ -906,7 +411,7 @@ function renderJarvisGlob() {
   ctx.translate(cx, cy);
   ctx.rotate(-orbTime * 0.42);
   const ringB_Radius = R0 * 1.42;
-  ctx.strokeStyle = 'rgba(129, 140, 248, 0.45)';
+  ctx.strokeStyle = 'rgba(245, 158, 11, 0.4)';
   ctx.lineWidth = 1.2;
   ctx.setLineDash([4, 6]);
   ctx.beginPath();
@@ -929,11 +434,13 @@ function renderJarvisGlob() {
     ctx.lineWidth = 1.5;
     ctx.lineCap = 'round';
     if (orbState === 'listening') {
-      ctx.strokeStyle = 'rgba(16, 185, 129, 0.65)';
+      ctx.strokeStyle = 'rgba(16, 185, 129, 0.7)';
     } else if (orbState === 'thinking') {
-      ctx.strokeStyle = 'rgba(192, 132, 252, 0.65)';
+      ctx.strokeStyle = 'rgba(192, 132, 252, 0.7)';
+    } else if (orbState === 'speaking') {
+      ctx.strokeStyle = 'rgba(245, 158, 11, 0.8)';
     } else {
-      ctx.strokeStyle = 'rgba(0, 240, 255, 0.55)';
+      ctx.strokeStyle = 'rgba(217, 119, 87, 0.6)';
     }
     ctx.moveTo(cx + cosP * eqRadius, cy + sinP * eqRadius);
     ctx.lineTo(cx + cosP * (eqRadius + pinH), cy + sinP * (eqRadius + pinH));
@@ -954,7 +461,7 @@ function renderJarvisGlob() {
       const alpha = pt.baseAlpha * (0.35 + (z + 1) * 0.35);
 
       ctx.beginPath();
-      ctx.fillStyle = `rgba(56, 189, 248, ${alpha})`;
+      ctx.fillStyle = `rgba(245, 158, 11, ${alpha * 0.7})`;
       ctx.arc(px, py, pt.size * 0.8, 0, Math.PI * 2);
       ctx.fill();
     }
@@ -982,13 +489,13 @@ function renderJarvisGlob() {
   ctx.restore();
 
   // 8. THE MULTI-LAYER SIRI FLUID ORGANIC MORPHING GLOB (CORE)
-  // Layer 0: Deep Plasma Shell (Cobalt-Violet)
+  // Layer 0: Deep Plasma Shell (Warm Terracotta / Coral)
   drawFluidGlobLayer(ctx, cx, cy, R0, 0, orbTime, orbAudioEnergy, orbState);
 
-  // Layer 1: Chromasphere Mid Shell (Neon Cyan-Azure)
+  // Layer 1: Chromasphere Mid Shell (Warm Terracotta / Amber)
   drawFluidGlobLayer(ctx, cx, cy, R0, 1, orbTime, orbAudioEnergy, orbState);
 
-  // Layer 2: Inner Radiant Plasma Nucleus (White-Cyan High Energy)
+  // Layer 2: Inner Radiant Plasma Nucleus (Warm Pearl High Energy)
   drawFluidGlobLayer(ctx, cx, cy, R0, 2, orbTime, orbAudioEnergy, orbState);
 
   // 9. Core Twisting Flux Ribbons (Arc Reactor Filaments)
@@ -999,7 +506,7 @@ function renderJarvisGlob() {
     const fAngle = orbTime * (1.8 + f * 0.4) + f * (Math.PI * 2 / 3);
     const rFlux = R0 * (0.42 + 0.12 * Math.sin(orbTime * 3 + f));
     ctx.beginPath();
-    ctx.strokeStyle = f === 0 ? 'rgba(255, 255, 255, 0.75)' : (f === 1 ? 'rgba(0, 240, 255, 0.65)' : 'rgba(168, 85, 247, 0.55)');
+    ctx.strokeStyle = f === 0 ? 'rgba(255, 255, 255, 0.75)' : (f === 1 ? 'rgba(217, 119, 87, 0.7)' : 'rgba(245, 158, 11, 0.55)');
     ctx.ellipse(cx, cy, rFlux, rFlux * 0.45, fAngle, 0, Math.PI * 2);
     ctx.stroke();
   }
@@ -1034,9 +541,9 @@ function renderJarvisGlob() {
       ctx.arc(px, py, pt.size * 1.1, 0, Math.PI * 2);
       ctx.fill();
 
-      // Cyan particle glow
+      // Warm Amber / Champagne particle glow
       ctx.beginPath();
-      ctx.fillStyle = `rgba(0, 240, 255, ${alpha * 0.45})`;
+      ctx.fillStyle = `rgba(245, 158, 11, ${alpha * 0.45})`;
       ctx.arc(px, py, pt.size * 2.2, 0, Math.PI * 2);
       ctx.fill();
     }
@@ -1055,8 +562,8 @@ function renderJarvisGlob() {
     ctx.strokeStyle = '#c084fc';
     ctx.fillStyle = 'rgba(168, 85, 247, 0.25)';
   } else {
-    ctx.strokeStyle = '#00f0ff';
-    ctx.fillStyle = 'rgba(0, 240, 255, 0.2)';
+    ctx.strokeStyle = '#d97757';
+    ctx.fillStyle = 'rgba(217, 119, 87, 0.25)';
   }
   ctx.arc(cx, cy, irisRadius, 0, Math.PI * 2);
   ctx.stroke();
@@ -1064,7 +571,7 @@ function renderJarvisGlob() {
 
   // Center white pinpoint
   ctx.beginPath();
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = '#fffdfa';
   ctx.arc(cx, cy, 2.5, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
@@ -1111,42 +618,42 @@ function drawFluidGlobLayer(ctx, cx, cy, R0, layerIdx, time, energy, state) {
 
   ctx.closePath();
 
-  // Create layer gradient
+  // Create layer gradient in Claude palette
   const grad = ctx.createRadialGradient(cx - R0 * 0.15, cy - R0 * 0.15, 5, cx, cy, R0 * 1.2);
 
   if (layerIdx === 0) {
     if (state === 'listening') {
-      grad.addColorStop(0, 'rgba(6, 182, 212, 0.85)');
-      grad.addColorStop(0.5, 'rgba(16, 185, 129, 0.6)');
+      grad.addColorStop(0, 'rgba(16, 185, 129, 0.85)');
+      grad.addColorStop(0.5, 'rgba(245, 158, 11, 0.6)');
       grad.addColorStop(1, 'rgba(5, 150, 105, 0.15)');
     } else if (state === 'thinking') {
       grad.addColorStop(0, 'rgba(168, 85, 247, 0.85)');
-      grad.addColorStop(0.5, 'rgba(99, 102, 241, 0.6)');
-      grad.addColorStop(1, 'rgba(67, 56, 202, 0.15)');
+      grad.addColorStop(0.5, 'rgba(217, 119, 87, 0.6)');
+      grad.addColorStop(1, 'rgba(194, 65, 12, 0.15)');
     } else {
-      grad.addColorStop(0, 'rgba(30, 64, 175, 0.85)');
-      grad.addColorStop(0.5, 'rgba(124, 58, 237, 0.6)');
-      grad.addColorStop(1, 'rgba(6, 182, 212, 0.15)');
+      grad.addColorStop(0, 'rgba(194, 65, 12, 0.85)');
+      grad.addColorStop(0.5, 'rgba(217, 119, 87, 0.6)');
+      grad.addColorStop(1, 'rgba(245, 158, 11, 0.15)');
     }
   } else if (layerIdx === 1) {
     if (state === 'listening') {
       grad.addColorStop(0, 'rgba(52, 211, 153, 0.95)');
-      grad.addColorStop(0.6, 'rgba(6, 182, 212, 0.7)');
+      grad.addColorStop(0.6, 'rgba(245, 158, 11, 0.7)');
       grad.addColorStop(1, 'rgba(16, 185, 129, 0)');
     } else if (state === 'thinking') {
-      grad.addColorStop(0, 'rgba(192, 132, 252, 0.95)');
-      grad.addColorStop(0.6, 'rgba(56, 189, 248, 0.7)');
-      grad.addColorStop(1, 'rgba(147, 51, 234, 0)');
+      grad.addColorStop(0, 'rgba(216, 180, 254, 0.95)');
+      grad.addColorStop(0.6, 'rgba(217, 119, 87, 0.7)');
+      grad.addColorStop(1, 'rgba(168, 85, 247, 0)');
     } else {
-      grad.addColorStop(0, 'rgba(0, 240, 255, 0.95)');
-      grad.addColorStop(0.6, 'rgba(56, 189, 248, 0.7)');
-      grad.addColorStop(1, 'rgba(129, 140, 248, 0)');
+      grad.addColorStop(0, 'rgba(217, 119, 87, 0.95)');
+      grad.addColorStop(0.6, 'rgba(245, 158, 11, 0.7)');
+      grad.addColorStop(1, 'rgba(217, 119, 87, 0)');
     }
   } else {
-    // Nucleus
-    grad.addColorStop(0, 'rgba(255, 255, 255, 0.98)');
-    grad.addColorStop(0.5, 'rgba(56, 189, 248, 0.75)');
-    grad.addColorStop(1, 'rgba(0, 240, 255, 0)');
+    // Nucleus: warm pearl & amber radiance
+    grad.addColorStop(0, 'rgba(255, 253, 250, 0.98)');
+    grad.addColorStop(0.5, 'rgba(254, 215, 170, 0.8)');
+    grad.addColorStop(1, 'rgba(217, 119, 87, 0)');
   }
 
   ctx.fillStyle = grad;
@@ -1159,10 +666,7 @@ function drawFluidGlobLayer(ctx, cx, cy, R0, layerIdx, time, energy, state) {
 // ==========================================
 window.addEventListener('DOMContentLoaded', () => {
   initTheme();
-  initWallpaper();
-  initAestheticClock();
-  initDashboardLayout();
-  initHomeMemo();
+  initClock();
   initJarvisGlob();
   initVoices();
   initCameraCanvas();
@@ -1743,33 +1247,12 @@ function filterRoom(room) {
   renderDevices();
 }
 
-function switchNav(viewName, el) {
-  playSFX('click');
-  document.querySelectorAll('.nav-menu .nav-item').forEach(i => i.classList.remove('active'));
-  if (el) el.classList.add('active');
+function clearEventLogs() {
+  clearActivityLog();
+}
 
-  const views = ['dashboard', 'devices', 'cameras', 'activity', 'settings'];
-  views.forEach(v => {
-    const page = document.getElementById(`view-${v}`);
-    if (page) {
-      if (v === viewName) {
-        page.style.display = 'flex';
-      } else {
-        page.style.display = 'none';
-      }
-    }
-  });
-
-  if (viewName === 'settings') {
-    loadSettings();
-    renderDeviceSettingsTable();
-  } else if (viewName === 'devices') {
-    renderDevices();
-  } else if (viewName === 'activity') {
-    renderFullActivityLog();
-  } else if (viewName === 'cameras') {
-    initCameraCanvasFull();
-  }
+function exportAuditLog() {
+  exportLogsCsv();
 }
 
 // SETTINGS & CONFIGURATION ENGINE
@@ -2154,10 +1637,12 @@ function addLog(type, text) {
   const logStream = document.getElementById('event-log');
   const fullStream = document.getElementById('full-event-log');
   const counterEl = document.getElementById('log-count');
+  const fullCounterEl = document.getElementById('full-log-count');
   if (!logStream && !fullStream) return;
 
   logCounter++;
   if (counterEl) counterEl.innerText = `${logCounter} events`;
+  if (fullCounterEl) fullCounterEl.innerText = `${logCounter} events`;
 
   const now = new Date();
   const timeStr = now.toTimeString().split(' ')[0];
@@ -2187,10 +1672,12 @@ function clearActivityLog() {
   const miniLog = document.getElementById('event-log');
   const fullLog = document.getElementById('full-event-log');
   const counterEl = document.getElementById('log-count');
+  const fullCounterEl = document.getElementById('full-log-count');
   if (miniLog) miniLog.innerHTML = '';
   if (fullLog) fullLog.innerHTML = '';
   logCounter = 0;
   if (counterEl) counterEl.innerText = '0 events';
+  if (fullCounterEl) fullCounterEl.innerText = '0 events';
   showToast('Activity stream cleared', 'info');
 }
 
