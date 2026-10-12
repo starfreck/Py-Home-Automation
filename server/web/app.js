@@ -44,7 +44,7 @@ function updateThemeButtonUI() {
 // ==========================================
 function switchNav(viewName, el) {
   playSFX('click');
-  if (viewName === 'dashboard') viewName = 'assistant';
+  if (viewName === 'assistant') viewName = 'dashboard';
 
   document.querySelectorAll('.claude-nav .nav-pill').forEach(i => i.classList.remove('active'));
   if (el) {
@@ -54,7 +54,7 @@ function switchNav(viewName, el) {
     if (btn) btn.classList.add('active');
   }
 
-  const views = ['assistant', 'devices', 'cameras', 'activity', 'settings'];
+  const views = ['dashboard', 'devices', 'cameras', 'activity', 'settings'];
   views.forEach(v => {
     const page = document.getElementById(`view-${v}`);
     if (page) {
@@ -77,7 +77,8 @@ function switchNav(viewName, el) {
     renderFullActivityLog();
   } else if (viewName === 'cameras') {
     initCameraCanvasFull();
-  } else if (viewName === 'assistant') {
+  } else if (viewName === 'dashboard') {
+    renderDevices();
     if (typeof resizeJarvisGlob === 'function') resizeJarvisGlob();
   }
 }
@@ -1725,32 +1726,35 @@ function escapeHtml(str) {
 
 // CAMERA FEED SIMULATOR
 function initCameraCanvas() {
-  const canvas = document.getElementById('camera-canvas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
+  const ids = ['camera-canvas', 'camera-canvas-cam2'];
+  ids.forEach(id => {
+    const canvas = document.getElementById(id);
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
 
-  function render() {
-    ctx.fillStyle = '#09090b';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    function render() {
+      ctx.fillStyle = '#09090b';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
-    ctx.lineWidth = 1;
-    for (let x = 0; x < canvas.width; x += 30) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, canvas.height);
-      ctx.stroke();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+      ctx.lineWidth = 1;
+      for (let x = 0; x < canvas.width; x += 30) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+      }
+      for (let y = 0; y < canvas.height; y += 30) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+
+      requestAnimationFrame(render);
     }
-    for (let y = 0; y < canvas.height; y += 30) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(canvas.width, y);
-      ctx.stroke();
-    }
-
-    requestAnimationFrame(render);
-  }
-  render();
+    render();
+  });
 }
 
 function initCameraCanvasFull() {
