@@ -165,9 +165,14 @@ let bentoWidgetPrefs = (() => {
   };
 })();
 
-// EDIT MODE & DRAG-AND-DROP REORDER ENGINE
+// EDIT MODE & FLIP DRAG-AND-DROP REORDER ENGINE
 let isEditMode = false;
 let draggedCardEl = null;
+let isPointerDragging = false;
+let pointerStartX = 0;
+let pointerStartY = 0;
+let lastSwapTarget = null;
+let lastSwapTime = 0;
 
 function toggleEditMode() {
   isEditMode = !isEditMode;
@@ -188,14 +193,16 @@ function updateEditModeUI() {
     if (banner) banner.style.display = 'flex';
     if (editBtn) editBtn.classList.add('active-edit');
     if (editLabel) editLabel.textContent = 'Done Editing';
-    showToast('Edit Mode active: drag cards to reorder, tap ✕ to hide', 'info');
+    showToast('Edit Mode active: drag cards to reorder with live animation', 'info');
   } else {
     grid.classList.remove('edit-mode');
     if (banner) banner.style.display = 'none';
     if (editBtn) editBtn.classList.remove('active-edit');
     if (editLabel) editLabel.textContent = 'Edit Layout';
     grid.querySelectorAll('.bento-card').forEach(c => {
-      c.classList.remove('is-dragging', 'drag-over');
+      c.classList.remove('is-dragging', 'drag-over', 'bento-shifting');
+      c.style.transform = '';
+      c.style.transition = '';
     });
     showToast('Dashboard layout saved', 'success');
   }
@@ -238,6 +245,165 @@ function saveCurrentGridOrder() {
   }
 }
 
+/**
+ * High-performance FLIP (First, Last, Invert, Play) animated reordering.
+ * Instantly reorders dragged card in DOM, then animates all displaced sibling
+ * cards from their old coordinates to their new slots with a fluid spring curve.
+ */
+function moveCardWithAnimation(dragged, target, isAfter) {
+  const grid = document.getElementById('bento-grid');
+  if (!grid || !dragged || !target || dragged === target) return;
+  if (!target.classList.contains('bento-card') || !dragged.classList.contains('bento-card')) return;
+
+  // 1. FIRST: Capture bounding boxes of all visible cards prior to DOM mutation
+  const cards = Array.from(grid.children).filter(el => 
+    el.classList.contains('bento-card') && el.style.display !== 'none'
+  );
+  
+  const firstPositions = new Map();
+  cards.forEach(card => {
+    firstPositions.set(card, card.getBoundingClientRect());
+  });
+
+  // 2. LAST: Insert dragged card in new DOM position
+  if (isAfter) {
+    target.after(dragged);
+  } else {
+    target.before(dragged);
+  }
+
+  // 3. INVERT: Calculate translation delta for displaced cards and apply invert
+  cards.forEach(card => {
+    if (card === dragged) return;
+
+    const first = firstPositions.get(card);
+    if (!first) return;
+
+    const last = card.getBoundingClientRect();
+    const dx = first.left - last.left;
+    const dy = first.top - last.top;
+
+    if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
+      card.style.transform = `translate(${dx}px, ${dy}px)`;
+      card.style.transition = 'none';
+      card.classList.add('bento-shifting');
+    }
+  });
+
+  // 4. PLAY: Transition displaced cards to natural (0, 0) position
+  requestAnimationFrame(() => {
+    grid.offsetHeight; // Force reflow
+
+    cards.forEach(card => {
+      if (card === dragged) return;
+      if (card.classList.contains('bento-shifting')) {
+        card.style.transition = 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1)';
+        card.style.transform = '';
+
+        const cleanUp = () => {
+          card.classList.remove('bento-shifting');
+          card.style.transition = '';
+          card.removeEventListener('transitionend', cleanUp);
+        };
+        card.addEventListener('transitionend', cleanUp);
+      }
+    });
+  });
+
+  saveCurrentGridOrder();
+}
+
+/**
+ * Finds the bento card currently underneath pointer coordinates using bounding boxes.
+ */
+function findTargetBentoCard(clientX, clientY, excludeCard) {
+  const cards = document.querySelectorAll('#bento-grid > .bento-card:not([style*="display: none"])');
+  for (const c of cards) {
+    if (c === excludeCard) continue;
+    const r = c.getBoundingClientRect();
+    if (clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom) {
+      return c;
+    }
+  }
+  return null;
+}
+
+function handleCardPointerDown(e, card) {
+  if (!isEditMode) return;
+  if (e.target.closest('button, input, select, textarea, .bento-hide-btn, a')) return;
+
+  // On touch screens, prefer initiating drag from the drag handle or card header to allow vertical scrolling
+  if (e.pointerType === 'touch' && !e.target.closest('.bento-drag-handle, .bento-card-header')) {
+    return;
+  }
+
+  draggedCardEl = card;
+  isPointerDragging = false;
+  pointerStartX = e.clientX;
+  pointerStartY = e.clientY;
+  lastSwapTarget = null;
+  lastSwapTime = 0;
+
+  try {
+    card.setPointerCapture(e.pointerId);
+  } catch (err) {}
+
+  const onPointerMove = (moveEvt) => {
+    if (!draggedCardEl || draggedCardEl !== card) return;
+
+    const dist = Math.hypot(moveEvt.clientX - pointerStartX, moveEvt.clientY - pointerStartY);
+    if (!isPointerDragging && dist > 6) {
+      isPointerDragging = true;
+      card.classList.add('is-dragging');
+      playSFX('click');
+    }
+
+    if (!isPointerDragging) return;
+
+    if (moveEvt.cancelable) moveEvt.preventDefault();
+
+    const target = findTargetBentoCard(moveEvt.clientX, moveEvt.clientY, card);
+    if (target && target !== card && !target.classList.contains('bento-shifting')) {
+      const now = Date.now();
+      if (now - lastSwapTime > 150 && target !== lastSwapTarget) {
+        const rect = target.getBoundingClientRect();
+        const isAfter = (moveEvt.clientY > rect.top + rect.height * 0.5) ||
+                        (moveEvt.clientX > rect.left + rect.width * 0.5);
+
+        moveCardWithAnimation(card, target, isAfter);
+        lastSwapTarget = target;
+        lastSwapTime = now;
+        playSFX('click');
+      }
+    }
+  };
+
+  const onPointerUp = (upEvt) => {
+    try {
+      card.releasePointerCapture(upEvt.pointerId);
+    } catch (err) {}
+
+    card.removeEventListener('pointermove', onPointerMove);
+    card.removeEventListener('pointerup', onPointerUp);
+    card.removeEventListener('pointercancel', onPointerUp);
+
+    if (isPointerDragging) {
+      card.classList.remove('is-dragging');
+      saveCurrentGridOrder();
+      playSFX('click');
+      showToast('Dashboard layout updated', 'info');
+    }
+
+    draggedCardEl = null;
+    isPointerDragging = false;
+    lastSwapTarget = null;
+  };
+
+  card.addEventListener('pointermove', onPointerMove);
+  card.addEventListener('pointerup', onPointerUp);
+  card.addEventListener('pointercancel', onPointerUp);
+}
+
 function setupBentoDragAndDrop() {
   const grid = document.getElementById('bento-grid');
   if (!grid) return;
@@ -261,21 +427,22 @@ function setupBentoDragAndDrop() {
       `;
       card.insertBefore(editBar, card.firstChild);
     }
+
+    // Bind pointer events for cross-device fluid dragging
+    card.onpointerdown = (e) => handleCardPointerDown(e, card);
   });
 
   if (grid.dataset.dragInitialized === 'true') return;
   grid.dataset.dragInitialized = 'true';
 
-  // Desktop HTML5 Drag & Drop
+  // Desktop HTML5 Drag & Drop fallback with live FLIP reordering
   grid.addEventListener('dragstart', (e) => {
     if (!isEditMode) {
       e.preventDefault();
       return;
     }
     const card = e.target.closest('.bento-card');
-    if (!card) return;
-
-    if (e.target.closest('button, input, textarea, select, .bento-hide-btn')) {
+    if (!card || e.target.closest('button, input, textarea, select, .bento-hide-btn, a')) {
       e.preventDefault();
       return;
     }
@@ -291,7 +458,7 @@ function setupBentoDragAndDrop() {
     if (card) card.classList.remove('is-dragging');
     if (draggedCardEl) draggedCardEl.classList.remove('is-dragging');
     draggedCardEl = null;
-    grid.querySelectorAll('.bento-card').forEach(c => c.classList.remove('drag-over'));
+    lastSwapTarget = null;
   });
 
   grid.addEventListener('dragover', (e) => {
@@ -299,97 +466,31 @@ function setupBentoDragAndDrop() {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
 
-    const targetCard = e.target.closest('.bento-card');
-    grid.querySelectorAll('.bento-card').forEach(c => {
-      if (c !== targetCard) c.classList.remove('drag-over');
-    });
+    const target = findTargetBentoCard(e.clientX, e.clientY, draggedCardEl);
+    if (target && target !== draggedCardEl && !target.classList.contains('bento-shifting')) {
+      const now = Date.now();
+      if (now - lastSwapTime > 150 && target !== lastSwapTarget) {
+        const rect = target.getBoundingClientRect();
+        const isAfter = (e.clientY > rect.top + rect.height * 0.5) ||
+                        (e.clientX > rect.left + rect.width * 0.5);
 
-    if (targetCard && targetCard !== draggedCardEl) {
-      targetCard.classList.add('drag-over');
-    }
-  });
-
-  grid.addEventListener('dragleave', (e) => {
-    const targetCard = e.target.closest('.bento-card');
-    if (targetCard && !targetCard.contains(e.relatedTarget)) {
-      targetCard.classList.remove('drag-over');
+        moveCardWithAnimation(draggedCardEl, target, isAfter);
+        lastSwapTarget = target;
+        lastSwapTime = now;
+        playSFX('click');
+      }
     }
   });
 
   grid.addEventListener('drop', (e) => {
     if (!isEditMode || !draggedCardEl) return;
     e.preventDefault();
-    grid.querySelectorAll('.bento-card').forEach(c => c.classList.remove('drag-over'));
-
-    const targetCard = e.target.closest('.bento-card');
-    if (targetCard && targetCard !== draggedCardEl) {
-      const rect = targetCard.getBoundingClientRect();
-      const isAfter = (e.clientY > rect.top + rect.height / 2) || (e.clientX > rect.left + rect.width / 2);
-      if (isAfter) {
-        targetCard.after(draggedCardEl);
-      } else {
-        targetCard.before(draggedCardEl);
-      }
-      saveCurrentGridOrder();
-      playSFX('click');
-      showToast('Dashboard layout updated', 'info');
-    }
     draggedCardEl.classList.remove('is-dragging');
     draggedCardEl = null;
-  });
-
-  // Touch Support for tablets and mobile
-  let touchCard = null;
-  let touchTarget = null;
-
-  grid.addEventListener('touchstart', (e) => {
-    if (!isEditMode) return;
-    const handleOrHeader = e.target.closest('.bento-drag-handle, .bento-card-header');
-    if (!handleOrHeader) return;
-    if (e.target.closest('button, input, select, .bento-hide-btn')) return;
-
-    touchCard = handleOrHeader.closest('.bento-card');
-    if (touchCard) {
-      touchCard.classList.add('is-dragging');
-    }
-  }, { passive: true });
-
-  grid.addEventListener('touchmove', (e) => {
-    if (!isEditMode || !touchCard) return;
-    const touch = e.touches[0];
-    const elem = document.elementFromPoint(touch.clientX, touch.clientY);
-    const target = elem ? elem.closest('.bento-card') : null;
-
-    grid.querySelectorAll('.bento-card').forEach(c => {
-      if (c !== target) c.classList.remove('drag-over');
-    });
-
-    if (target && target !== touchCard) {
-      target.classList.add('drag-over');
-      touchTarget = target;
-    } else {
-      touchTarget = null;
-    }
-  }, { passive: true });
-
-  grid.addEventListener('touchend', (e) => {
-    if (!isEditMode || !touchCard) return;
-    if (touchTarget && touchTarget !== touchCard) {
-      const rect = touchTarget.getBoundingClientRect();
-      const touch = e.changedTouches[0];
-      const isAfter = (touch.clientY > rect.top + rect.height / 2);
-      if (isAfter) {
-        touchTarget.after(touchCard);
-      } else {
-        touchTarget.before(touchCard);
-      }
-      saveCurrentGridOrder();
-      playSFX('click');
-      showToast('Dashboard layout updated', 'info');
-    }
-    grid.querySelectorAll('.bento-card').forEach(c => c.classList.remove('is-dragging', 'drag-over'));
-    touchCard = null;
-    touchTarget = null;
+    lastSwapTarget = null;
+    saveCurrentGridOrder();
+    playSFX('click');
+    showToast('Dashboard layout updated', 'info');
   });
 }
 
