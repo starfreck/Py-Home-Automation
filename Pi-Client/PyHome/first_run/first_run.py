@@ -1,7 +1,61 @@
+"""
+First Run Setup Wizard
+======================
+
+Interactive command-line wizard that runs on the first launch of the
+Pi-Client (i.e., when ``settings/config.json`` and ``settings/commands.json``
+do not yet exist).
+
+This wizard guides the user through initial configuration:
+
+1. **Network Setup** — Enter the network interface name (e.g., wlan0).
+2. **Authentication** — Enter email and password for the web server account.
+3. **Camera Setup** — Choose webcam or mobile camera, set webcam number,
+   and configure mobile streaming mode.
+4. **Email Settings** — Set the notification interval (in seconds).
+5. **Voice Commands** — Define custom on/off commands for each device (1-4).
+
+Generated Files:
+    settings/config.json   - All runtime configuration settings
+    settings/commands.json - Voice command to device mappings
+
+After the wizard completes, the user must restart the application
+for the settings to take effect.
+
+Functions:
+    first_run() - Run the interactive setup wizard.
+
+Note:
+    This module uses ``raw_input()`` (Python 2). For Python 3, replace
+    with ``input()``.
+"""
+
 import json
 import os
 
 def first_run():
+    """Run the first-time interactive setup wizard.
+
+    Prompts the user for all required configuration values via the
+    command line, then saves them to JSON files in the ``settings/``
+    directory.
+
+    Creates two files:
+        - ``settings/config.json`` with keys:
+            interface_name, email, password, device, webcam_no,
+            mobile_mode, email_update_interval, email_folder_name,
+            web_folder_name
+        - ``settings/commands.json`` with keys:
+            device_1_on, device_1_off, device_2_on, device_2_off,
+            device_3_on, device_3_off, device_4_on, device_4_off
+
+    The ``settings/`` directory is created if it doesn't exist.
+
+    Note:
+        After this wizard completes, the user must re-run the application.
+        The main script (run.py) checks for these files on startup and
+        only calls first_run() when they are missing.
+    """
     print("============================================================================")
     print("============================================================================")
     print("================    Hello Welcome to Pi-Client Software     ================")

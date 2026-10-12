@@ -1,3 +1,31 @@
+"""
+Email Notification Service
+==========================
+
+Sends security camera snapshot images as email notifications via
+Gmail SMTP. When the face recognizer detects a person, this module
+composes an HTML email with the captured image embedded inline and
+sends it to the device owner.
+
+Configuration:
+    - ``fromEmail``: The Gmail address to send FROM (set in this file)
+    - ``fromEmailPassword``: Gmail app password (set in this file)
+    - ``toEmail``: Recipient email (read from config.json ``email`` key)
+    - ``email_folder_name``: Directory containing snapshots to send
+      (read from config.json)
+
+Security Note:
+    For Gmail, generate an App Password instead of using your main
+    password: https://support.google.com/accounts/answer/185833
+
+Functions:
+    sendEmail() - Compose and send security alert email with image attachment.
+
+Dependencies:
+    smtplib       - SMTP protocol client (Python standard library)
+    email.mime.*  - Email message composition (Python standard library)
+"""
+
 import os
 import smtplib
 from email.mime.multipart import MIMEMultipart
@@ -16,6 +44,29 @@ toEmail = reader("email")
 
 
 def sendEmail():
+    """Send a security camera alert email with an attached snapshot image.
+
+    Scans the email folder (configured as ``email_folder_name`` in config.json)
+    for JPEG files, composes an HTML email with the image embedded inline
+    using Content-ID, and sends it via Gmail's SMTP server (port 587 with TLS).
+
+    After successful sending, the source image file is deleted from the
+    email folder to prevent re-sending.
+
+    Email structure:
+        - Subject: "Security Updates"
+        - Body text: "Smart security cam found Someone at your doorsteps..."
+        - Inline image: The captured face detection frame
+
+    Raises:
+        smtplib.SMTPAuthenticationError: If Gmail credentials are invalid.
+        OSError: If the email folder or image file cannot be accessed.
+
+    Note:
+        - Set ``fromEmail`` and ``fromEmailPassword`` module variables before use.
+        - Gmail requires either "Less Secure Apps" enabled or an App Password.
+        - This function is designed to be called from a background thread.
+    """
     for file in os.listdir(reader("email_folder_name")):
         if file.endswith(".jpg"):
             msgRoot = MIMEMultipart('related')
