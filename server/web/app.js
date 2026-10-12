@@ -13,34 +13,88 @@ let selectedVoiceURI = localStorage.getItem('omnihome_voice_uri') || localStorag
 let audioCtx = null;
 
 // ==========================================
-// 1. CLAUDE AI THEME ENGINE (WARM DARK / LIGHT)
+// 1. PROFESSIONAL THEME & WALLPAPER ENGINE
 // ==========================================
-let currentTheme = localStorage.getItem('omnihome_theme') || localStorage.getItem('pyhome_theme') || 'dark';
-if (currentTheme !== 'light') currentTheme = 'dark';
+let currentTheme = localStorage.getItem('omnihome_theme') || localStorage.getItem('pyhome_theme') || 'claude-dark';
+if (currentTheme === 'dark') currentTheme = 'claude-dark';
+if (currentTheme === 'light') currentTheme = 'claude-light';
+
+let currentWallpaper = localStorage.getItem('omnihome_wallpaper') || 'mesh';
 
 function initTheme() {
   document.documentElement.setAttribute('data-theme', currentTheme);
+  document.documentElement.setAttribute('data-wallpaper', currentWallpaper);
   updateThemeButtonUI();
 }
 
-function toggleTheme() {
-  currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+function setTheme(theme) {
+  currentTheme = theme;
   document.documentElement.setAttribute('data-theme', currentTheme);
   localStorage.setItem('omnihome_theme', currentTheme);
   updateThemeButtonUI();
+  closeThemeDropdown();
   playSFX('click');
-  showToast(`Claude ${currentTheme === 'dark' ? 'Dark' : 'Light'} active`, 'info');
+  showToast(`Theme changed to ${getThemeDisplayName(theme)}`, 'info');
+}
+
+function setWallpaper(wp) {
+  currentWallpaper = wp;
+  document.documentElement.setAttribute('data-wallpaper', currentWallpaper);
+  localStorage.setItem('omnihome_wallpaper', currentWallpaper);
+  document.querySelectorAll('.wallpaper-btn').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('data-wp') === wp);
+  });
+  playSFX('click');
+  showToast(`Backdrop set to ${wp}`, 'info');
+}
+
+function toggleThemeDropdown(e) {
+  if (e) e.stopPropagation();
+  const menu = document.getElementById('theme-dropdown-menu');
+  if (menu) {
+    const isShown = menu.style.display === 'flex';
+    menu.style.display = isShown ? 'none' : 'flex';
+  }
+}
+
+function closeThemeDropdown() {
+  const menu = document.getElementById('theme-dropdown-menu');
+  if (menu) menu.style.display = 'none';
+}
+
+window.addEventListener('click', () => {
+  closeThemeDropdown();
+});
+
+function getThemeDisplayName(theme) {
+  const map = {
+    'claude-dark': 'Claude Dark',
+    'jarvis': 'Jarvis Hologram',
+    'obsidian': 'Midnight Obsidian',
+    'nordic': 'Nordic Slate',
+    'claude-light': 'Alabaster Light'
+  };
+  return map[theme] || 'Claude Dark';
 }
 
 function updateThemeButtonUI() {
   const textEl = document.getElementById('theme-toggle-text');
-  const iconEl = document.getElementById('theme-icon');
-  if (textEl) textEl.innerText = currentTheme === 'dark' ? 'Dark' : 'Light';
-  if (iconEl) iconEl.innerText = currentTheme === 'dark' ? '☾' : '☼';
+  const badgeEl = document.getElementById('theme-indicator-dot');
+  if (textEl) textEl.innerText = getThemeDisplayName(currentTheme);
+  if (badgeEl) {
+    const colorMap = {
+      'claude-dark': '#d97757',
+      'jarvis': '#00e5ff',
+      'obsidian': '#10b981',
+      'nordic': '#6366f1',
+      'claude-light': '#c96442'
+    };
+    badgeEl.style.background = colorMap[currentTheme] || '#d97757';
+  }
 }
 
 // ==========================================
-// 2. CLAUDE NAVIGATION & VIEW CONTROLLER
+// 2. NAVIGATION & VIEW CONTROLLER
 // ==========================================
 function switchNav(viewName, el) {
   playSFX('click');
@@ -54,7 +108,7 @@ function switchNav(viewName, el) {
     if (btn) btn.classList.add('active');
   }
 
-  const views = ['dashboard', 'devices', 'cameras', 'activity', 'settings'];
+  const views = ['dashboard', 'ambient', 'devices', 'cameras', 'activity', 'settings'];
   views.forEach(v => {
     const page = document.getElementById(`view-${v}`);
     if (page) {
@@ -79,8 +133,140 @@ function switchNav(viewName, el) {
     initCameraCanvasFull();
   } else if (viewName === 'dashboard') {
     renderDevices();
+    applyWidgetPreferences();
+    if (typeof resizeJarvisGlob === 'function') resizeJarvisGlob();
+  } else if (viewName === 'ambient') {
     if (typeof resizeJarvisGlob === 'function') resizeJarvisGlob();
   }
+}
+
+// ==========================================
+// 2.5 BENTO DASHBOARD CUSTOMIZATION ENGINE
+// ==========================================
+const allWidgetDefinitions = [
+  { id: 'widget-jarvis', label: 'Jarvis Intelligence Core' },
+  { id: 'widget-scenes', label: 'Quick Automations & Scenes' },
+  { id: 'widget-climate', label: 'Indoor Climate & Environment' },
+  { id: 'widget-power', label: 'Live Power & Watts Load' },
+  { id: 'widget-security', label: 'Perimeter Security & Lock' },
+  { id: 'widget-camera', label: 'Front Door Camera Spotlight' },
+  { id: 'widget-devices', label: 'Essential Quick Devices' },
+  { id: 'widget-activity', label: 'Recent System Activity' }
+];
+
+let bentoWidgetPrefs = (() => {
+  try {
+    const stored = localStorage.getItem('omnihome_bento_prefs');
+    if (stored) return JSON.parse(stored);
+  } catch (e) {}
+  return {
+    order: allWidgetDefinitions.map(w => w.id),
+    hidden: []
+  };
+})();
+
+function applyWidgetPreferences() {
+  const container = document.getElementById('bento-grid');
+  if (!container) return;
+
+  bentoWidgetPrefs.order.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) container.appendChild(el);
+  });
+
+  allWidgetDefinitions.forEach(w => {
+    const el = document.getElementById(w.id);
+    if (el) {
+      if (bentoWidgetPrefs.hidden.includes(w.id)) {
+        el.style.display = 'none';
+      } else {
+        el.style.display = '';
+      }
+    }
+  });
+}
+
+function openCustomizeModal() {
+  playSFX('click');
+  const modal = document.getElementById('modal-customize');
+  if (!modal) return;
+  renderCustomizeModalContent();
+  modal.style.display = 'flex';
+}
+
+function closeCustomizeModal() {
+  const modal = document.getElementById('modal-customize');
+  if (modal) modal.style.display = 'none';
+}
+
+function renderCustomizeModalContent() {
+  document.querySelectorAll('.theme-card-option').forEach(card => {
+    const t = card.getAttribute('data-theme-val');
+    card.classList.toggle('active', t === currentTheme);
+  });
+
+  document.querySelectorAll('.wallpaper-btn').forEach(btn => {
+    const wp = btn.getAttribute('data-wp');
+    btn.classList.toggle('active', wp === currentWallpaper);
+  });
+
+  const listEl = document.getElementById('widget-customizer-list');
+  if (!listEl) return;
+
+  listEl.innerHTML = bentoWidgetPrefs.order.map((id, index) => {
+    const def = allWidgetDefinitions.find(w => w.id === id) || { id: id, label: id };
+    const isVisible = !bentoWidgetPrefs.hidden.includes(id);
+    return `
+      <div class="widget-order-item" data-id="${id}">
+        <label class="widget-order-left">
+          <input type="checkbox" ${isVisible ? 'checked' : ''} onchange="toggleWidgetVisibility('${id}', this.checked)">
+          <span>${def.label}</span>
+        </label>
+        <div class="widget-order-actions">
+          <button type="button" class="btn-arrow" onclick="moveWidget('${id}', -1)" ${index === 0 ? 'disabled' : ''} title="Move Up">&uarr;</button>
+          <button type="button" class="btn-arrow" onclick="moveWidget('${id}', 1)" ${index === bentoWidgetPrefs.order.length - 1 ? 'disabled' : ''} title="Move Down">&darr;</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function toggleWidgetVisibility(id, visible) {
+  if (visible) {
+    bentoWidgetPrefs.hidden = bentoWidgetPrefs.hidden.filter(h => h !== id);
+  } else {
+    if (!bentoWidgetPrefs.hidden.includes(id)) bentoWidgetPrefs.hidden.push(id);
+  }
+  saveDashboardPreferences();
+  applyWidgetPreferences();
+}
+
+function moveWidget(id, dir) {
+  const idx = bentoWidgetPrefs.order.indexOf(id);
+  if (idx === -1) return;
+  const targetIdx = idx + dir;
+  if (targetIdx < 0 || targetIdx >= bentoWidgetPrefs.order.length) return;
+
+  const item = bentoWidgetPrefs.order.splice(idx, 1)[0];
+  bentoWidgetPrefs.order.splice(targetIdx, 0, item);
+  saveDashboardPreferences();
+  applyWidgetPreferences();
+  renderCustomizeModalContent();
+}
+
+function saveDashboardPreferences() {
+  localStorage.setItem('omnihome_bento_prefs', JSON.stringify(bentoWidgetPrefs));
+}
+
+function resetDashboardPreferences() {
+  bentoWidgetPrefs = {
+    order: allWidgetDefinitions.map(w => w.id),
+    hidden: []
+  };
+  saveDashboardPreferences();
+  applyWidgetPreferences();
+  renderCustomizeModalContent();
+  showToast('Dashboard widgets reset to default', 'info');
 }
 
 // ==========================================
@@ -89,11 +275,19 @@ function switchNav(viewName, el) {
 function initClock() {
   const clockEl = document.getElementById('clock');
   const camTimeEl = document.getElementById('cam-timestamp');
+  const bigClock = document.getElementById('ambient-big-clock');
+  const bigDate = document.getElementById('ambient-big-date');
+
   function update() {
     const now = new Date();
     const str = now.toTimeString().split(' ')[0];
     if (clockEl) clockEl.innerText = str;
     if (camTimeEl) camTimeEl.innerText = str;
+    if (bigClock) bigClock.innerText = str;
+    if (bigDate) {
+      const opts = { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' };
+      bigDate.innerText = now.toLocaleDateString('en-US', opts);
+    }
   }
   update();
   setInterval(update, 1000);
@@ -226,15 +420,20 @@ function initOrbParticles() {
 }
 
 function resizeJarvisGlob() {
-  if (!globCanvas) return;
-  const rect = globCanvas.getBoundingClientRect();
+  const canvases = [
+    document.getElementById('jarvis-glob-canvas'),
+    document.getElementById('ambient-glob-canvas')
+  ];
   const dpr = window.devicePixelRatio || 1;
-  const size = rect.width > 0 ? rect.width : 240;
-
-  globCanvas.width = size * dpr;
-  globCanvas.height = size * dpr;
-  globCtx = globCanvas.getContext('2d');
-  globCtx.scale(dpr, dpr);
+  canvases.forEach(cv => {
+    if (!cv) return;
+    const rect = cv.getBoundingClientRect();
+    const size = rect.width > 0 ? rect.width : (cv.id === 'ambient-glob-canvas' ? 320 : 220);
+    cv.width = size * dpr;
+    cv.height = size * dpr;
+    const ctx = cv.getContext('2d');
+    if (ctx) ctx.scale(dpr, dpr);
+  });
 }
 
 function spawnShockwave(color) {
@@ -258,6 +457,10 @@ function setOrbState(newState) {
   if (badge) {
     badge.className = `core-status-pill ${newState}`;
   }
+  const ambBadge = document.getElementById('ambient-core-badge');
+  const ambStatusText = document.getElementById('ambient-status-text');
+  if (ambBadge) ambBadge.className = `core-status-pill large ${newState}`;
+  if (ambStatusText && statusText) ambStatusText.innerText = statusText.innerText;
 
   if (newState === 'listening') {
     if (statusText) statusText.innerText = 'Listening...';
@@ -627,6 +830,7 @@ window.addEventListener('DOMContentLoaded', () => {
   initClock();
   initGreeting();
   initShortcuts();
+  applyWidgetPreferences();
   initJarvisGlob();
   initVoices();
   initCameraCanvas();
@@ -1026,9 +1230,16 @@ function showSynapseBanner(directive, reply) {
   const banner = document.getElementById('ai-synapse-hud');
   const transcriptEl = document.getElementById('voice-transcript');
   const replyEl = document.getElementById('voice-reply');
-  if (directive && transcriptEl) transcriptEl.innerText = `"${directive}"`;
-  if (reply && replyEl) {
-    replyEl.innerText = reply;
+  const ambTrans = document.getElementById('ambient-transcript');
+  const ambReply = document.getElementById('ambient-reply');
+
+  if (directive) {
+    if (transcriptEl) transcriptEl.innerText = `"${directive}"`;
+    if (ambTrans) ambTrans.innerText = `"${directive}"`;
+  }
+  if (reply) {
+    if (replyEl) replyEl.innerText = reply;
+    if (ambReply) ambReply.innerText = reply;
     lastAssistantResponse = reply;
   }
   if (banner) {
@@ -1474,10 +1685,8 @@ function closeDeviceModal() {
 function closeModalOnBackdrop(e) {
   if (e.target.id === 'device-modal') {
     closeDeviceModal();
-  } else if (e.target.id === 'theme-modal') {
-    closeThemeModal();
-  } else if (e.target.id === 'widget-visibility-modal') {
-    closeWidgetVisibilityModal();
+  } else if (e.target.id === 'modal-customize') {
+    closeCustomizeModal();
   }
 }
 

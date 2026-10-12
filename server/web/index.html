@@ -26,6 +26,10 @@
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
         Dashboard
       </button>
+      <button class="nav-pill" data-view="ambient" onclick="switchNav('ambient', this)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/></svg>
+        Ambient Core
+      </button>
       <button class="nav-pill" data-view="devices" onclick="switchNav('devices', this)">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
         Devices
@@ -56,10 +60,35 @@
         <span id="audio-toggle-label">Voice On</span>
       </button>
 
-      <button class="theme-toggle-btn" onclick="toggleTheme()" title="Switch Light/Dark Claude theme">
-        <span id="theme-icon">◐</span>
-        <span id="theme-toggle-text">Dark</span>
-      </button>
+      <div class="theme-dropdown-wrap">
+        <button class="btn-subtle theme-menu-btn" id="theme-menu-btn" onclick="toggleThemeDropdown(event)" title="Select Theme">
+          <span class="theme-color-badge" id="theme-indicator-dot"></span>
+          <span id="theme-toggle-text">Claude Dark</span>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="theme-dropdown-menu" id="theme-dropdown-menu" style="display: none;">
+          <button type="button" class="theme-dropdown-item" onclick="setTheme('claude-dark')">
+            <span class="swatch-circle claude-dark"></span>
+            <span>Claude Dark</span>
+          </button>
+          <button type="button" class="theme-dropdown-item" onclick="setTheme('jarvis')">
+            <span class="swatch-circle jarvis"></span>
+            <span>Jarvis Hologram</span>
+          </button>
+          <button type="button" class="theme-dropdown-item" onclick="setTheme('obsidian')">
+            <span class="swatch-circle obsidian"></span>
+            <span>Midnight Obsidian</span>
+          </button>
+          <button type="button" class="theme-dropdown-item" onclick="setTheme('nordic')">
+            <span class="swatch-circle nordic"></span>
+            <span>Nordic Slate</span>
+          </button>
+          <button type="button" class="theme-dropdown-item" onclick="setTheme('claude-light')">
+            <span class="swatch-circle claude-light"></span>
+            <span>Alabaster Light</span>
+          </button>
+        </div>
+      </div>
 
       <div class="clock-display" id="clock">00:00:00</div>
     </div>
@@ -70,8 +99,11 @@
     <!-- ============================================================== -->
     <!-- VIEW 1: DASHBOARD (UNIFIED AI COMMAND CENTER & HARDWARE MATRIX) -->
     <!-- ============================================================== -->
+    <!-- ============================================================== -->
+    <!-- VIEW 1: DASHBOARD (MODULAR BENTO COMMAND CENTER)              -->
+    <!-- ============================================================== -->
     <div class="page-view active" id="view-dashboard">
-      <!-- AMBIENT WELCOME & SYSTEM STATUS HEADER -->
+      <!-- AMBIENT GREETING & STATUS ROW -->
       <div class="dashboard-greeting-bar">
         <div class="greeting-left">
           <span class="greeting-date" id="greeting-date">Monday, October 12</span>
@@ -82,221 +114,264 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
             <span id="greeting-climate">Living Room 24.2°C • 48%</span>
           </div>
-          <div class="security-chip-pill">
+          <div class="security-chip-pill" onclick="toggleDevice('device-6')" title="Click to toggle front deadbolt">
             <span class="sec-dot secured"></span>
             <span id="greeting-security-status">Front Deadbolt Secured</span>
           </div>
+          <button class="btn-subtle" onclick="openCustomizeModal()" title="Customize Dashboard layout & widgets">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            Customize
+          </button>
         </div>
       </div>
 
-      <!-- HERO AI INTELLIGENCE STAGE (CLEAN & MINIMALIST) -->
-      <section class="ai-hero-stage">
-        <!-- SIRI X JARVIS FLUID ORB -->
-        <div class="glob-stage-wrapper" onclick="handleGlobClick()" title="Tap to talk with Gemma">
-          <div class="glob-canvas-container" id="glob-canvas-container">
-            <canvas id="jarvis-glob-canvas" width="240" height="240"></canvas>
-            <div class="glob-center-hint" id="glob-hint-overlay">
-              <span class="hint-text" id="glob-hint-text">Tap to Speak</span>
+      <!-- BENTO GRID -->
+      <div class="bento-grid" id="bento-grid">
+        
+        <!-- WIDGET 1: JARVIS AI CORE -->
+        <div class="bento-card bento-card-jarvis" id="widget-jarvis" data-widget="jarvis">
+          <div class="bento-card-header">
+            <div class="bento-card-title">
+              <span class="core-pulse-dot"></span>
+              <span>Gemma 4 Intelligence</span>
             </div>
-          </div>
-          <div class="core-status-pill" id="core-state-badge">
-            <span class="core-pulse-dot"></span>
-            <span id="core-status-text">Online // Ready</span>
-          </div>
-        </div>
-
-        <!-- AI COMMAND CONSOLE (SPOTLIGHT / RAYCAST CONSOLE) -->
-        <div class="ai-command-bar">
-          <div class="command-bar-inner">
-            <span class="command-icon">⌘</span>
-            <input type="text" id="manual-prompt-input" 
-                   placeholder="Ask Gemma or command home (e.g. 'Movie night', 'Lock up', 'Status')..." 
-                   autocomplete="off"
-                   onkeydown="if(event.key==='Enter')handleManualPrompt(event)">
-            
-            <button class="mic-trigger-btn" id="mic-trigger" onclick="event.stopPropagation(); toggleSpeechRecognition()" title="Voice directive">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
-            </button>
-            <button class="send-prompt-btn" onclick="submitPromptFromInput()" title="Execute directive">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-            </button>
+            <span class="badge-subtle" id="core-status-text">Online // Ready</span>
           </div>
 
-          <div class="command-suggestions-row">
-            <span class="sugg-label">Try:</span>
-            <button type="button" class="sugg-chip" onclick="submitTextCommand('Cinema mode')">"Cinema mode"</button>
-            <button type="button" class="sugg-chip" onclick="submitTextCommand('Turn off fan')">"Fan off"</button>
-            <button type="button" class="sugg-chip" onclick="submitTextCommand('Lock front door')">"Lock door"</button>
-            <button type="button" class="sugg-chip" onclick="submitTextCommand('System diagnostics')">"Diagnostics"</button>
-          </div>
-        </div>
-
-        <!-- DYNAMIC SYNAPSE RESPONSE BANNER (APPEARS ONLY ON INTERACTION) -->
-        <div class="ai-synapse-banner" id="ai-synapse-hud" style="display: none;">
-          <div class="synapse-banner-content">
-            <div class="synapse-header-line">
-              <div class="synapse-badge-wrap">
-                <span class="synapse-pulse"></span>
-                <span class="synapse-badge">Gemma 4</span>
-                <span class="synapse-latency-badge" id="synapse-latency">Local • 14ms</span>
+          <div class="bento-jarvis-stage">
+            <div class="glob-stage-wrapper" onclick="handleGlobClick()" title="Tap to talk with Gemma">
+              <div class="glob-canvas-container" id="glob-canvas-container">
+                <canvas id="jarvis-glob-canvas" width="220" height="220"></canvas>
+                <div class="glob-center-hint" id="glob-hint-overlay">
+                  <span class="hint-text" id="glob-hint-text">Tap to Speak</span>
+                </div>
               </div>
-              <span class="synapse-directive" id="voice-transcript">"System status"</span>
-              <div class="synapse-actions-btns">
-                <button type="button" class="synapse-replay-btn" id="synapse-replay-btn" onclick="replayLastSpeech()" title="Replay voice audio">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+            </div>
+
+            <!-- Sleek spotlight prompt trigger -->
+            <div class="bento-command-line">
+              <div class="command-bar-inner">
+                <span class="command-icon">⌘</span>
+                <input type="text" id="manual-prompt-input" 
+                       placeholder="Command home or ask Gemma (e.g. 'Cinema mode', 'Lock door')..." 
+                       autocomplete="off"
+                       onkeydown="if(event.key==='Enter')handleManualPrompt(event)">
+                
+                <button class="mic-trigger-btn" id="mic-trigger" onclick="event.stopPropagation(); toggleSpeechRecognition()" title="Voice directive">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
                 </button>
-                <button type="button" class="synapse-close-btn" onclick="dismissSynapseBanner()" title="Dismiss">&times;</button>
+                <button class="send-prompt-btn" onclick="submitPromptFromInput()" title="Execute directive">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                </button>
               </div>
             </div>
-            <div class="synapse-response-line" id="voice-reply">All systems nominal • 4 relays active • Energy draw 155 Watts</div>
-            <div class="synapse-actions-list" id="synapse-actions-list"></div>
+
+            <!-- DYNAMIC SYNAPSE RESPONSE BANNER -->
+            <div class="ai-synapse-banner" id="ai-synapse-hud" style="display: none;">
+              <div class="synapse-banner-content">
+                <div class="synapse-header-line">
+                  <div class="synapse-badge-wrap">
+                    <span class="synapse-pulse"></span>
+                    <span class="synapse-badge">Gemma 4</span>
+                    <span class="synapse-latency-badge" id="synapse-latency">Local • 14ms</span>
+                  </div>
+                  <span class="synapse-directive" id="voice-transcript">"System status"</span>
+                  <div class="synapse-actions-btns">
+                    <button type="button" class="synapse-replay-btn" id="synapse-replay-btn" onclick="replayLastSpeech()" title="Replay voice audio">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+                    </button>
+                    <button type="button" class="synapse-close-btn" onclick="dismissSynapseBanner()" title="Dismiss">&times;</button>
+                  </div>
+                </div>
+                <div class="synapse-response-line" id="voice-reply">All systems nominal • 4 relays active • Energy draw 155 Watts</div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <!-- CLEAN AUTOMATION PRESET CHIPS -->
-        <div class="quick-scenes-row">
-          <button class="scene-chip" onclick="activateScene('movie_night')">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="15" x="2" y="7" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg>
-            Cinema
-          </button>
-          <button class="scene-chip" onclick="activateScene('secure_perimeter')">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            Secure
-          </button>
-          <button class="scene-chip" onclick="submitTextCommand('Turn on air conditioner')">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
-            Climate 22°C
-          </button>
-          <button class="scene-chip" onclick="activateScene('all_on')">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/></svg>
-            All On
-          </button>
-          <button class="scene-chip" onclick="activateScene('all_off')">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
-            All Off
-          </button>
-        </div>
-      </section>
-
-      <!-- LIVE TELEMETRY KPI CARDS (4-COLUMNS) -->
-      <div class="dashboard-telemetry-grid">
-        <div class="stat-card">
-          <div class="stat-header">
-            <span class="stat-label">Power Consumption</span>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        <!-- WIDGET 2: QUICK SCENES -->
+        <div class="bento-card bento-card-scenes" id="widget-scenes" data-widget="scenes">
+          <div class="bento-card-header">
+            <span class="bento-card-title">Quick Automations</span>
+            <span class="badge-subtle">4 Presets</span>
           </div>
-          <div class="stat-number">
-            <span id="stat-watts">155.0</span> <span class="stat-unit">W</span>
+          <div class="bento-scenes-grid">
+            <button type="button" class="bento-scene-btn" onclick="activateScene('movie_night')">
+              <div class="scene-icon-wrap">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="15" x="2" y="7" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg>
+              </div>
+              <div class="scene-text">
+                <span class="scene-name">Cinema</span>
+                <span class="scene-sub">Living room dims</span>
+              </div>
+            </button>
+            <button type="button" class="bento-scene-btn" onclick="activateScene('secure_perimeter')">
+              <div class="scene-icon-wrap">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              </div>
+              <div class="scene-text">
+                <span class="scene-name">Secure</span>
+                <span class="scene-sub">Lock & vision live</span>
+              </div>
+            </button>
+            <button type="button" class="bento-scene-btn" onclick="activateScene('all_on')">
+              <div class="scene-icon-wrap">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/></svg>
+              </div>
+              <div class="scene-text">
+                <span class="scene-name">All On</span>
+                <span class="scene-sub">All relays active</span>
+              </div>
+            </button>
+            <button type="button" class="bento-scene-btn" onclick="activateScene('all_off')">
+              <div class="scene-icon-wrap">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+              </div>
+              <div class="scene-text">
+                <span class="scene-name">All Off</span>
+                <span class="scene-sub">Standby eco mode</span>
+              </div>
+            </button>
           </div>
-          <span class="stat-desc">Live load draw</span>
-        </div>
-
-        <div class="stat-card">
-          <div class="stat-header">
-            <span class="stat-label">Indoor Climate</span>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
-          </div>
-          <div class="stat-number">
-            <span id="stat-temp">24.2</span><span class="stat-unit">°C</span>
-            <span class="stat-sep">/</span>
-            <span id="stat-humidity">48</span><span class="stat-unit">%</span>
-          </div>
-          <span class="stat-desc">Living Room Sensor</span>
         </div>
 
-        <div class="stat-card">
-          <div class="stat-header">
-            <span class="stat-label">Active Relays</span>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <!-- WIDGET 3: CLIMATE & ENVIRONMENT -->
+        <div class="bento-card bento-card-kpi" id="widget-climate" data-widget="climate">
+          <div class="bento-card-header">
+            <span class="bento-card-title">Indoor Climate</span>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
           </div>
-          <div class="stat-number">
-            <span id="stat-active-count">4</span> <span class="stat-unit">of <span id="stat-total-count">6</span></span>
+          <div class="kpi-main-number">
+            <span id="stat-temp">24.2</span><span class="kpi-unit">°C</span>
           </div>
-          <span class="stat-desc">Hardware online</span>
+          <div class="kpi-meta-row">
+            <span>Humidity: <strong id="stat-humidity">48</strong>%</span>
+            <span class="kpi-tag-good">Optimal</span>
+          </div>
+          <span class="kpi-desc">Living Room Edge Sensor</span>
         </div>
 
-        <div class="stat-card">
-          <div class="stat-header">
-            <span class="stat-label">Perimeter Security</span>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <!-- WIDGET 4: POWER & ENERGY -->
+        <div class="bento-card bento-card-kpi" id="widget-power" data-widget="power">
+          <div class="bento-card-header">
+            <span class="bento-card-title">Live Power Draw</span>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
           </div>
-          <div class="stat-number">
+          <div class="kpi-main-number">
+            <span id="stat-watts">155.0</span><span class="kpi-unit">W</span>
+          </div>
+          <div class="kpi-meta-row">
+            <span>Active Relays: <strong id="stat-active-count">4</strong> / <span id="stat-total-count">6</span></span>
+          </div>
+          <span class="kpi-desc">Real-time hardware load</span>
+        </div>
+
+        <!-- WIDGET 5: PERIMETER SECURITY & LOCK -->
+        <div class="bento-card bento-card-kpi" id="widget-security" data-widget="security">
+          <div class="bento-card-header">
+            <span class="bento-card-title">Perimeter Security</span>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </div>
+          <div class="kpi-main-number">
             <span id="stat-lock-status">Secured</span>
           </div>
-          <span class="stat-desc">Front entrance deadbolt • Pi CPU <span id="stat-pi-temp">41.8°C</span></span>
+          <div class="kpi-meta-row">
+            <button class="btn-subtle" onclick="toggleDevice('device-6')">Toggle Deadbolt</button>
+            <span class="kpi-desc">Pi: <span id="stat-pi-temp">41.8°C</span></span>
+          </div>
         </div>
+
+        <!-- WIDGET 6: PERIMETER VISION SPOTLIGHT -->
+        <div class="bento-card bento-card-camera" id="widget-camera" data-widget="camera">
+          <div class="bento-card-header">
+            <div class="bento-card-title">
+              <span class="rec-dot"></span>
+              <span>CAM-01 • Front Door CSI Feed</span>
+            </div>
+            <div class="bento-header-actions">
+              <button class="btn-subtle" onclick="simulateFaceScan()" title="Identify face">Scan Face</button>
+              <button class="btn-subtle" onclick="simulateSnapshot()" title="Capture frame">Snapshot</button>
+              <button class="link-pill-btn" onclick="switchNav('cameras')">Surveillance &rarr;</button>
+            </div>
+          </div>
+          <div class="bento-cam-frame">
+            <canvas id="camera-canvas" width="480" height="240"></canvas>
+            <div id="ai-target-box" class="face-detect-box">
+              <span id="target-label" class="face-name">Vasu (99.8%)</span>
+            </div>
+            <div class="cam-overlay-footer">
+              <span>CSI Stream • Front Entrance</span>
+              <span id="cam-timestamp">00:00:00</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- WIDGET 7: QUICK DEVICES -->
+        <div class="bento-card bento-card-devices" id="widget-devices" data-widget="devices">
+          <div class="bento-card-header">
+            <div class="bento-card-title">
+              <span>Essential Devices</span>
+              <span class="badge-subtle" id="device-count-pill">6 Devices</span>
+            </div>
+            <button class="link-pill-btn" onclick="switchNav('devices')">Manage All Devices &rarr;</button>
+          </div>
+          <div class="bento-devices-strip" id="devices-grid">
+            <!-- Dynamically populated by app.js -->
+          </div>
+        </div>
+
+        <!-- WIDGET 8: RECENT SYSTEM ACTIVITY -->
+        <div class="bento-card bento-card-activity" id="widget-activity" data-widget="activity">
+          <div class="bento-card-header">
+            <span class="bento-card-title">Recent Activity</span>
+            <button class="link-pill-btn" onclick="switchNav('activity')">Full Audit &rarr;</button>
+          </div>
+          <div class="bento-activity-stream" id="event-log">
+            <!-- Dynamically populated by app.js -->
+          </div>
+        </div>
+
       </div>
+    </div>
 
-      <!-- WORKSPACE SPLIT (DEVICES ON LEFT, CAMERA & ACTIVITY ON RIGHT) -->
-      <div class="dashboard-workspace-grid">
-        <!-- LEFT: ROOMS & DEVICES PANE -->
-        <div class="devices-pane">
-          <div class="pane-header">
-            <div class="pane-title-group">
-              <h3>Rooms & Devices</h3>
-              <span class="item-count" id="device-count-pill">6 Devices</span>
-            </div>
+    <!-- ============================================================== -->
+    <!-- VIEW: AMBIENT CORE (FULL-SCREEN SIRI X JARVIS PRESENCE)       -->
+    <!-- ============================================================== -->
+    <div class="page-view" id="view-ambient" style="display: none;">
+      <div class="ambient-fullscreen-stage">
+        <div class="ambient-clock-large" id="ambient-big-clock">00:00:00</div>
+        <div class="ambient-date-sub" id="ambient-big-date">Monday, October 12, 2026</div>
 
-            <!-- ROOM FILTER SEGMENT -->
-            <div class="segment-control">
-              <button class="segment-btn active" data-room="all" onclick="filterRoom('all')">All</button>
-              <button class="segment-btn" data-room="Living Room" onclick="filterRoom('Living Room')">Living Room</button>
-              <button class="segment-btn" data-room="Bedroom" onclick="filterRoom('Bedroom')">Bedroom</button>
-              <button class="segment-btn" data-room="Security" onclick="filterRoom('Security')">Security</button>
+        <div class="ambient-glob-wrapper" onclick="handleGlobClick()">
+          <div class="glob-canvas-container large">
+            <canvas id="ambient-glob-canvas" width="340" height="340"></canvas>
+            <div class="glob-center-hint">
+              <span class="hint-text">Tap to Speak</span>
             </div>
           </div>
-
-          <!-- CARDS GRID -->
-          <div id="devices-grid" class="cards-grid">
-            <!-- Rendered dynamically by app.js -->
+          <div class="core-status-pill large" id="ambient-core-badge">
+            <span class="core-pulse-dot"></span>
+            <span id="ambient-status-text">Online // Ready</span>
           </div>
         </div>
 
-        <!-- RIGHT: PERIMETER CAMERA & SYSTEM AUDIT -->
-        <div class="aside-pane">
-          <!-- LIVE CAMERA CARD -->
-          <div class="content-card camera-card">
-            <div class="card-title-bar">
-              <div class="title-with-badge">
-                <span class="rec-dot"></span>
-                <h4>CAM-01 • Front Door</h4>
-              </div>
-              <span class="badge-subtle">LIVE • 1080p</span>
-            </div>
+        <div class="ambient-interaction-hud">
+          <div class="ambient-transcript" id="ambient-transcript">"All systems nominal"</div>
+          <div class="ambient-reply" id="ambient-reply">Awaiting vocal directive or shortcut command.</div>
+        </div>
 
-            <div class="camera-frame">
-              <canvas id="camera-canvas" width="480" height="270"></canvas>
-              <div id="ai-target-box" class="face-detect-box">
-                <span id="target-label" class="face-name">Vasu (99.8%)</span>
-              </div>
-              <div class="cam-overlay-footer">
-                <span>CSI Stream • Front Entrance</span>
-                <span id="cam-timestamp">00:00:00</span>
-              </div>
-            </div>
-
-            <div class="camera-buttons">
-              <button class="btn-action primary" onclick="simulateFaceScan()">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/></svg>
-                Scan Face
-              </button>
-              <button class="btn-action secondary" onclick="simulateSnapshot()">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-                Snapshot
-              </button>
-            </div>
-          </div>
-
-          <!-- RECENT EVENT STREAM CARD -->
-          <div class="content-card activity-card">
-            <div class="card-title-bar">
-              <h4>Live System Audit</h4>
-              <button class="link-pill-btn" onclick="switchNav('activity')">View Timeline &rarr;</button>
-            </div>
-            <div id="event-log" class="activity-stream">
-              <!-- Dynamically populated by app.js -->
-            </div>
-          </div>
+        <div class="ambient-controls-bar">
+          <button class="btn-ambient-mic" onclick="toggleSpeechRecognition()" title="Voice Directive">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+            <span>Activate Voice</span>
+          </button>
+          <button class="btn-subtle" onclick="focusVoiceInput()" title="Press Cmd+K">
+            <span>⌘K Direct Prompt</span>
+          </button>
+          <button class="btn-subtle" onclick="replayLastSpeech()" title="Replay voice audio">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+            <span>Replay</span>
+          </button>
         </div>
       </div>
     </div>
@@ -651,6 +726,74 @@
           <button type="submit" class="btn-action primary">Save Device</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- CUSTOMIZE DASHBOARD MODAL -->
+  <div id="modal-customize" class="modal-overlay" onclick="closeModalOnBackdrop(event)" style="display: none;">
+    <div class="modal-card customize-modal-card">
+      <div class="modal-header">
+        <div>
+          <h3>Customize Home OS</h3>
+          <p class="modal-subtitle">Personalize themes, wallpapers, and dashboard widget layouts.</p>
+        </div>
+        <button class="btn-close" onclick="closeCustomizeModal()" title="Close">&times;</button>
+      </div>
+
+      <div class="customize-sections">
+        <!-- THEME SELECTION -->
+        <div class="customize-section">
+          <h4>Visual Theme</h4>
+          <div class="theme-swatches-grid">
+            <button type="button" class="theme-card-option" data-theme-val="claude-dark" onclick="setTheme('claude-dark')">
+              <span class="theme-card-preview claude-dark"></span>
+              <span class="theme-card-label">Claude Dark</span>
+            </button>
+            <button type="button" class="theme-card-option" data-theme-val="jarvis" onclick="setTheme('jarvis')">
+              <span class="theme-card-preview jarvis"></span>
+              <span class="theme-card-label">Jarvis Hologram</span>
+            </button>
+            <button type="button" class="theme-card-option" data-theme-val="obsidian" onclick="setTheme('obsidian')">
+              <span class="theme-card-preview obsidian"></span>
+              <span class="theme-card-label">Midnight Obsidian</span>
+            </button>
+            <button type="button" class="theme-card-option" data-theme-val="nordic" onclick="setTheme('nordic')">
+              <span class="theme-card-preview nordic"></span>
+              <span class="theme-card-label">Nordic Slate</span>
+            </button>
+            <button type="button" class="theme-card-option" data-theme-val="claude-light" onclick="setTheme('claude-light')">
+              <span class="theme-card-preview claude-light"></span>
+              <span class="theme-card-label">Alabaster Light</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- WALLPAPER / BACKDROP ATMOSPHERE -->
+        <div class="customize-section">
+          <h4>Atmospheric Wallpaper</h4>
+          <div class="wallpaper-options-row">
+            <button type="button" class="wallpaper-btn active" data-wp="mesh" onclick="setWallpaper('mesh')">Cyber Mesh</button>
+            <button type="button" class="wallpaper-btn" data-wp="glow" onclick="setWallpaper('glow')">Core Glow</button>
+            <button type="button" class="wallpaper-btn" data-wp="none" onclick="setWallpaper('none')">Minimalist Matte</button>
+          </div>
+        </div>
+
+        <!-- BENTO WIDGET REORDER & VISIBILITY -->
+        <div class="customize-section">
+          <div class="section-title-row">
+            <h4>Bento Grid Widgets</h4>
+            <span class="section-sub-hint">Toggle visibility or reorder</span>
+          </div>
+          <div class="widget-order-list" id="widget-customizer-list">
+            <!-- Dynamically populated by app.js -->
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-action secondary" onclick="resetDashboardPreferences()">Reset to Default</button>
+        <button type="button" class="btn-action primary" onclick="closeCustomizeModal()">Done</button>
+      </div>
     </div>
   </div>
 
