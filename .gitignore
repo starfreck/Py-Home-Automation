@@ -24,3 +24,12 @@ ENV/
 # OS
 .DS_Store
 Thumbs.db
+
+# Build artifacts
+server/bin/
+bin/
+
+# Agent & CLI internal workspace directories
+.gemini/
+.agents/
+.opencode/

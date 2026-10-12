@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  omnihome-gateway:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: omnihome-gateway
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - GIN_MODE=release
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/status"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    networks:
+      - omnihome-net
+
+  edge-daemon:
+    image: python:3.11-slim
+    container_name: omnihome-edge
+    restart: unless-stopped
+    depends_on:
+      omnihome-gateway:
+        condition: service_healthy
+    working_dir: /app
+    volumes:
+      - ./edge:/app/edge
+    command: >
+      bash -c "pip install --no-cache-dir -r /app/edge/requirements.txt &&
+               python3 /app/edge/daemon.py --gateway http://omnihome-gateway:8080 --mock"
+    networks:
+      - omnihome-net
+    profiles:
+      - full
+
+networks:
+  omnihome-net:
+    driver: bridge

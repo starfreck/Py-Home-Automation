@@ -23,6 +23,7 @@ type DeviceManager struct {
 	mu         sync.RWMutex
 	onUpdate   func(device *model.Device)
 	onActivity func(item *model.ActivityItem)
+	stopChan   chan struct{}
 }
 
 // NewDeviceManager initializes the pre-configured devices, default scenes, and activity ledger.
@@ -35,6 +36,7 @@ func NewDeviceManager(onUpdate func(device *model.Device), onActivity func(item 
 		startTime:  time.Now(),
 		onUpdate:   onUpdate,
 		onActivity: onActivity,
+		stopChan:   make(chan struct{}),
 		settings: model.Settings{
 			HubName:            "OmniHome Main Hub",
 			OllamaHost:         "http://localhost:11434",
@@ -377,16 +379,30 @@ func (dm *DeviceManager) telemetryWorker() {
 	baseTemp := 22.4
 	baseHumidity := 48.0
 
-	for range ticker.C {
-		dm.mu.Lock()
-		dm.telemetry = model.Telemetry{
-			Temperature: baseTemp + (rand.Float64()*0.4 - 0.2),
-			Humidity:    baseHumidity + (rand.Float64()*0.8 - 0.4),
-			CPUUsage:    4.0 + rand.Float64()*6.0,
-			MemoryUsage: 22.5,
-			CPUTemp:     38.2 + (rand.Float64()*1.2 - 0.6),
+	for {
+		select {
+		case <-dm.stopChan:
+			return
+		case <-ticker.C:
+			dm.mu.Lock()
+			dm.telemetry = model.Telemetry{
+				Temperature: baseTemp + (rand.Float64()*0.4 - 0.2),
+				Humidity:    baseHumidity + (rand.Float64()*0.8 - 0.4),
+				CPUUsage:    4.0 + rand.Float64()*6.0,
+				MemoryUsage: 22.5,
+				CPUTemp:     38.2 + (rand.Float64()*1.2 - 0.6),
+			}
+			dm.mu.Unlock()
 		}
-		dm.mu.Unlock()
+	}
+}
+
+// Close gracefully stops background goroutines.
+func (dm *DeviceManager) Close() {
+	select {
+	case <-dm.stopChan:
+	default:
+		close(dm.stopChan)
 	}
 }
 
@@ -401,7 +417,6 @@ func (dm *DeviceManager) triggerPhysicalGPIO(pin int, state bool) {
 // AddDevice registers a new device in the system.
 func (dm *DeviceManager) AddDevice(d model.Device) (*model.Device, error) {
 	dm.mu.Lock()
-	defer dm.mu.Unlock()
 
 	if d.ID == "" {
 		d.ID = fmt.Sprintf("device-%d", time.Now().UnixNano()%100000)
@@ -426,6 +441,7 @@ func (dm *DeviceManager) AddDevice(d model.Device) (*model.Device, error) {
 	d.LastUpdated = time.Now()
 	dm.devices[d.ID] = &d
 	cpy := d
+	dm.mu.Unlock()
 
 	if dm.onUpdate != nil {
 		dm.onUpdate(&cpy)
@@ -438,10 +454,10 @@ func (dm *DeviceManager) AddDevice(d model.Device) (*model.Device, error) {
 // UpdateDevice updates an existing device's metadata.
 func (dm *DeviceManager) UpdateDevice(id string, updated model.Device) (*model.Device, error) {
 	dm.mu.Lock()
-	defer dm.mu.Unlock()
 
 	d, ok := dm.devices[id]
 	if !ok {
+		dm.mu.Unlock()
 		return nil, fmt.Errorf("device %s not found", id)
 	}
 
@@ -452,6 +468,7 @@ func (dm *DeviceManager) UpdateDevice(id string, updated model.Device) (*model.D
 	d.PowerWatts = updated.PowerWatts
 	d.LastUpdated = time.Now()
 	cpy := *d
+	dm.mu.Unlock()
 
 	if dm.onUpdate != nil {
 		dm.onUpdate(&cpy)
@@ -464,14 +481,15 @@ func (dm *DeviceManager) UpdateDevice(id string, updated model.Device) (*model.D
 // DeleteDevice removes a device from the manager.
 func (dm *DeviceManager) DeleteDevice(id string) error {
 	dm.mu.Lock()
-	defer dm.mu.Unlock()
 
 	d, ok := dm.devices[id]
 	if !ok {
+		dm.mu.Unlock()
 		return fmt.Errorf("device %s not found", id)
 	}
 	devName := d.Name
 	delete(dm.devices, id)
+	dm.mu.Unlock()
 
 	dm.LogActivity("hardware", fmt.Sprintf("Device deleted: %s (%s)", devName, id), "web")
 	return nil
