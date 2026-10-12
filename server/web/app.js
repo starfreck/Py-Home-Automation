@@ -1,11 +1,10 @@
-// PYHOME CORTEX — NEURAL HUB CLIENT & GEMMA 4 VOICE CONTROLLER
+// PYHOME OS — PROFESSIONAL AMBIENT CONTROLLER & VOICE ENGINE
 let ws = null;
 let devices = [];
 let currentFilter = 'all';
 let logCounter = 0;
 let isListening = false;
 let speechRecognizer = null;
-let waveformMode = 'idle'; // 'idle', 'listening', 'processing', 'speaking'
 
 // AUDIO ENGINE STATE
 let speechAudioEnabled = true;
@@ -16,13 +15,12 @@ let audioCtx = null;
 window.addEventListener('DOMContentLoaded', () => {
   initClock();
   initVoices();
-  initWaveformVisualizer();
   initCameraCanvas();
   initSpeechRecognition();
   connectWebSocket();
 });
 
-// WEB AUDIO SYNTHESIZER (ZERO EXTERNAL MP3 DEPENDENCIES)
+// SUBTLE LUXURY AUDIO CHIMES (WEB AUDIO API)
 function getAudioContext() {
   if (!audioCtx) {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -34,57 +32,8 @@ function getAudioContext() {
   return audioCtx;
 }
 
-function playSFX(type) {
-  if (!speechAudioEnabled) return;
-  const ctx = getAudioContext();
-  if (!ctx) return;
-
-  const now = ctx.currentTime;
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-  osc.connect(gain);
-  gain.connect(ctx.destination);
-
-  switch (type) {
-    case 'chirp': // Ascending sci-fi chirp when mic starts
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(580, now);
-      osc.frequency.exponentialRampToValueAtTime(1180, now + 0.12);
-      gain.gain.setValueAtTime(0.09, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
-      osc.start(now);
-      osc.stop(now + 0.12);
-      break;
-
-    case 'confirm': // Futuristic three-tone chord for actions
-      playTone(523.25, 0.08, 0.05); // C5
-      setTimeout(() => playTone(659.25, 0.08, 0.05), 60); // E5
-      setTimeout(() => playTone(783.99, 0.15, 0.07), 120); // G5
-      break;
-
-    case 'click': // Subtle tactile relay click
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(480, now);
-      osc.frequency.exponentialRampToValueAtTime(240, now + 0.04);
-      gain.gain.setValueAtTime(0.06, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
-      osc.start(now);
-      osc.stop(now + 0.04);
-      break;
-
-    case 'scan': // Biometric sweep sound
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(320, now);
-      osc.frequency.linearRampToValueAtTime(920, now + 0.22);
-      gain.gain.setValueAtTime(0.04, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
-      osc.start(now);
-      osc.stop(now + 0.22);
-      break;
-  }
-}
-
 function playTone(freq, duration, vol) {
+  if (!speechAudioEnabled) return;
   const ctx = getAudioContext();
   if (!ctx) return;
   const now = ctx.currentTime;
@@ -92,15 +41,44 @@ function playTone(freq, duration, vol) {
   const gain = ctx.createGain();
   osc.type = 'sine';
   osc.frequency.setValueAtTime(freq, now);
-  gain.gain.setValueAtTime(vol || 0.05, now);
-  gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+  gain.gain.setValueAtTime(vol || 0.04, now);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
   osc.connect(gain);
   gain.connect(ctx.destination);
   osc.start(now);
   osc.stop(now + duration);
 }
 
-// BULLETPROOF TEXT-TO-SPEECH (TTS) & VOICE SELECTION
+function playSFX(type) {
+  if (!speechAudioEnabled) return;
+  switch (type) {
+    case 'listen':
+      // Soft gentle two-tone chime
+      playTone(587.33, 0.1, 0.03); // D5
+      setTimeout(() => playTone(880.00, 0.14, 0.04), 80); // A5
+      break;
+
+    case 'confirm':
+      // Elegant warm confirmation chord
+      playTone(523.25, 0.08, 0.03); // C5
+      setTimeout(() => playTone(659.25, 0.08, 0.03), 50); // E5
+      setTimeout(() => playTone(783.99, 0.14, 0.04), 100); // G5
+      break;
+
+    case 'click':
+      // Subtle tactile click
+      playTone(400, 0.03, 0.02);
+      break;
+
+    case 'scan':
+      // Clean frequency sweep
+      playTone(600, 0.12, 0.03);
+      setTimeout(() => playTone(750, 0.14, 0.03), 60);
+      break;
+  }
+}
+
+// SPEECH SYNTHESIS VOICE LOADER
 function initVoices() {
   if (!window.speechSynthesis) return;
 
@@ -148,31 +126,29 @@ function onVoiceChange(uri) {
 
 function toggleAudioSpeech() {
   speechAudioEnabled = !speechAudioEnabled;
-  const valEl = document.getElementById('audio-toggle-val');
-  if (valEl) {
+  const btn = document.getElementById('audio-toggle-btn');
+  const label = document.getElementById('audio-toggle-label');
+  if (btn && label) {
     if (speechAudioEnabled) {
-      valEl.innerHTML = '🔊 SPEECH ON';
-      valEl.style.color = 'var(--cyan-neon)';
+      btn.classList.add('active');
+      label.innerText = 'Voice Audio: On';
       playSFX('confirm');
     } else {
-      valEl.innerHTML = '🔇 SPEECH MUTED';
-      valEl.style.color = 'var(--text-muted)';
+      btn.classList.remove('active');
+      label.innerText = 'Voice Audio: Muted';
       if (window.speechSynthesis) window.speechSynthesis.cancel();
     }
   }
 }
 
 function testVoiceOutput() {
-  getAudioContext(); // Unlocks Web Audio on user click
+  getAudioContext();
   playSFX('confirm');
-  speakAssistantResponse("PyHome Cortex neural audio engine online. Ready for vocal directives.");
+  speakAssistantResponse("PyHome assistant audio online. Ready for instructions.");
 }
 
 function speakAssistantResponse(text) {
-  if (!speechAudioEnabled || !window.speechSynthesis) {
-    waveformMode = 'idle';
-    return;
-  }
+  if (!speechAudioEnabled || !window.speechSynthesis) return;
 
   if (window.speechSynthesis.paused) {
     window.speechSynthesis.resume();
@@ -180,38 +156,18 @@ function speakAssistantResponse(text) {
   window.speechSynthesis.cancel();
 
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.rate = 1.02;
-  utterance.pitch = 0.96;
+  utterance.rate = 1.0;
+  utterance.pitch = 1.0;
 
   if (selectedVoiceURI && availableVoices.length > 0) {
     const v = availableVoices.find(x => x.voiceURI === selectedVoiceURI);
     if (v) utterance.voice = v;
   }
 
-  waveformMode = 'speaking';
-  const stateTag = document.getElementById('voice-state-tag');
-  if (stateTag) {
-    stateTag.innerText = 'TRANSMITTING // SPEECH';
-    stateTag.style.color = 'var(--green-neon)';
-  }
-
-  utterance.onend = () => {
-    waveformMode = 'idle';
-    if (stateTag) {
-      stateTag.innerText = 'STANDBY // READY';
-      stateTag.style.color = 'var(--cyan-neon)';
-    }
-  };
-
-  utterance.onerror = (e) => {
-    console.warn('Speech synthesis error:', e);
-    waveformMode = 'idle';
-  };
-
   window.speechSynthesis.speak(utterance);
 }
 
-// CLOCK
+// SYSTEM CLOCK
 function initClock() {
   const clockEl = document.getElementById('clock');
   const camTimeEl = document.getElementById('cam-timestamp');
@@ -225,21 +181,22 @@ function initClock() {
   setInterval(update, 1000);
 }
 
-// WEBSOCKET REALTIME CONNECTION
+// WEBSOCKET HUB CONNECTION
 function connectWebSocket() {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsUrl = `${protocol}//${window.location.host}/ws`;
 
-  addAuditLog('system', `Handshaking with Go Realtime Gateway: ${wsUrl}`);
+  addLog('system', `Connecting to WebSocket Gateway: ${wsUrl}`);
   const badge = document.getElementById('ws-badge');
+  const statusText = document.getElementById('ws-status-text');
 
   try {
     ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
-      badge.innerHTML = '<span class="pulse-dot"></span> LIVE • WS';
-      badge.style.color = 'var(--green-neon)';
-      addAuditLog('event', 'Neural socket linked. Real-time telemetry active.');
+      badge.className = 'connection-badge online';
+      statusText.innerText = 'Connected • LAN';
+      addLog('event', 'Local real-time channel established.');
     };
 
     ws.onmessage = (event) => {
@@ -252,9 +209,9 @@ function connectWebSocket() {
     };
 
     ws.onclose = () => {
-      badge.innerHTML = '<span class="pulse-dot" style="background:var(--red-neon)"></span> RECONNECTING';
-      badge.style.color = 'var(--red-neon)';
-      addAuditLog('warn', 'Neural link interrupted. Retrying in 2000ms...');
+      badge.className = 'connection-badge';
+      statusText.innerText = 'Reconnecting...';
+      addLog('warn', 'Connection interrupted. Re-establishing link...');
       setTimeout(connectWebSocket, 2000);
     };
 
@@ -287,7 +244,7 @@ function handleServerMessage(msg) {
       break;
 
     case 'event':
-      addAuditLog('event', msg.payload);
+      addLog('event', msg.payload);
       break;
   }
 }
@@ -296,7 +253,7 @@ function handleServerMessage(msg) {
 function initSpeechRecognition() {
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRecognition) {
-    console.warn('Web Speech API not supported in this browser. Fallback to manual text input.');
+    console.warn('SpeechRecognition unavailable in this browser.');
     return;
   }
 
@@ -307,12 +264,9 @@ function initSpeechRecognition() {
 
   speechRecognizer.onstart = () => {
     isListening = true;
-    waveformMode = 'listening';
-    playSFX('chirp');
-    document.getElementById('mic-trigger').classList.add('listening');
-    const stateTag = document.getElementById('voice-state-tag');
-    stateTag.innerText = 'LISTENING // AUDIO STREAM';
-    stateTag.style.color = 'var(--cyan-neon)';
+    playSFX('listen');
+    const trigger = document.getElementById('mic-trigger');
+    if (trigger) trigger.classList.add('listening');
   };
 
   speechRecognizer.onresult = (event) => {
@@ -320,7 +274,8 @@ function initSpeechRecognition() {
     for (let i = event.resultIndex; i < event.results.length; ++i) {
       transcript += event.results[i][0].transcript;
     }
-    document.getElementById('voice-transcript').innerText = `"${transcript}"`;
+    const transcriptEl = document.querySelector('#voice-transcript .val');
+    if (transcriptEl) transcriptEl.innerText = `"${transcript}"`;
 
     if (event.results[0].isFinal) {
       submitVoiceCommand(transcript);
@@ -328,7 +283,7 @@ function initSpeechRecognition() {
   };
 
   speechRecognizer.onerror = (event) => {
-    console.warn('Speech Recognition error:', event.error);
+    console.warn('Speech error:', event.error);
     stopListening();
   };
 
@@ -338,7 +293,7 @@ function initSpeechRecognition() {
 }
 
 function toggleSpeechRecognition() {
-  getAudioContext(); // Ensure Web Audio is unlocked
+  getAudioContext();
   if (!speechRecognizer) {
     document.getElementById('manual-prompt-input').focus();
     return;
@@ -358,29 +313,19 @@ function toggleSpeechRecognition() {
 
 function stopListening() {
   isListening = false;
-  if (waveformMode !== 'speaking') {
-    waveformMode = 'idle';
-  }
   const trigger = document.getElementById('mic-trigger');
   if (trigger) trigger.classList.remove('listening');
-  const stateTag = document.getElementById('voice-state-tag');
-  if (stateTag) {
-    stateTag.innerText = 'STANDBY // READY';
-    stateTag.style.color = 'var(--cyan-neon)';
-  }
 }
 
-// SEND VOICE PROMPT TO GEMMA 4 BACKEND
+// GEMMA 4 VOICE INTENT DISPATCH
 async function submitVoiceCommand(promptText) {
   if (!promptText || !promptText.trim()) return;
 
   getAudioContext();
-  waveformMode = 'processing';
-  const stateTag = document.getElementById('voice-state-tag');
-  stateTag.innerText = 'PROCESSING // GEMMA 4';
-  stateTag.style.color = 'var(--purple-neon)';
+  addLog('ai', `Voice prompt: "${promptText}"`);
 
-  addAuditLog('ai', `Neural Voice Input: "${promptText}"`);
+  const replyEl = document.querySelector('#voice-reply .val');
+  if (replyEl) replyEl.innerText = 'Analyzing intent with Gemma 4...';
 
   try {
     const res = await fetch('/api/voice', {
@@ -390,17 +335,15 @@ async function submitVoiceCommand(promptText) {
     });
     const data = await res.json();
 
-    document.getElementById('voice-reply').innerText = data.speech_reply;
-    addAuditLog('action', `Gemma 4: ${data.speech_reply}`);
+    if (replyEl) replyEl.innerText = data.speech_reply;
+    addLog('highlight', `Action: ${data.speech_reply}`);
 
-    // Play subtle audio confirm chime + Speak confirmation
     playSFX('confirm');
     speakAssistantResponse(data.speech_reply);
 
   } catch (err) {
-    console.error('Voice command error:', err);
-    document.getElementById('voice-reply').innerText = 'Command dispatch error. Verify network link.';
-    waveformMode = 'idle';
+    console.error('Voice error:', err);
+    if (replyEl) replyEl.innerText = 'Unable to reach local intelligence endpoint.';
   }
 }
 
@@ -410,65 +353,27 @@ function handleManualPrompt(e) {
   const input = document.getElementById('manual-prompt-input');
   const val = input.value.trim();
   if (!val) return;
-  document.getElementById('voice-transcript').innerText = `"${val}"`;
+  const transcriptEl = document.querySelector('#voice-transcript .val');
+  if (transcriptEl) transcriptEl.innerText = `"${val}"`;
   submitVoiceCommand(val);
   input.value = '';
 }
 
 function submitTextCommand(cmd) {
   getAudioContext();
-  document.getElementById('voice-transcript').innerText = `"${cmd}"`;
+  const transcriptEl = document.querySelector('#voice-transcript .val');
+  if (transcriptEl) transcriptEl.innerText = `"${cmd}"`;
   submitVoiceCommand(cmd);
 }
 
-// ANIMATED NEURAL AUDIO VISUALIZER ORB (CANVAS)
-function initWaveformVisualizer() {
-  const canvas = document.getElementById('waveform-canvas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const cx = canvas.width / 2;
-  const cy = canvas.height / 2;
-  const radius = 64;
-
-  let step = 0;
-  function animate() {
-    step += 0.04;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    const bars = 48;
-    for (let i = 0; i < bars; i++) {
-      const angle = (i / bars) * Math.PI * 2;
-      let amplitude = 4;
-
-      if (waveformMode === 'listening') {
-        amplitude = 12 + Math.sin(step * 4 + i) * 14;
-      } else if (waveformMode === 'speaking') {
-        amplitude = 16 + Math.cos(step * 5 + i * 1.5) * 18;
-      } else if (waveformMode === 'processing') {
-        amplitude = 8 + Math.sin(step * 8 + i * 2) * 8;
-      } else {
-        amplitude = 4 + Math.sin(step + i * 0.5) * 3;
-      }
-
-      const x1 = cx + Math.cos(angle) * (radius - 2);
-      const y1 = cy + Math.sin(angle) * (radius - 2);
-      const x2 = cx + Math.cos(angle) * (radius + amplitude);
-      const y2 = cy + Math.sin(angle) * (radius + amplitude);
-
-      ctx.beginPath();
-      ctx.moveTo(x1, y1);
-      ctx.lineTo(x2, y2);
-      ctx.strokeStyle = waveformMode === 'listening' ? '#00f2fe' : 
-                        waveformMode === 'speaking' ? '#10b981' : 
-                        waveformMode === 'processing' ? '#9333ea' : 'rgba(0, 242, 254, 0.4)';
-      ctx.lineWidth = 2.5;
-      ctx.lineCap = 'round';
-      ctx.stroke();
-    }
-
-    requestAnimationFrame(animate);
+function activateScene(sceneId) {
+  playSFX('click');
+  addLog('event', `Activated scene preset '${sceneId}'`);
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'scene', payload: { id: sceneId } }));
+  } else {
+    fetch(`/api/scenes/${sceneId}/activate`, { method: 'POST' });
   }
-  animate();
 }
 
 // DEVICE GRID & CONTROLS
@@ -480,32 +385,35 @@ function renderDevices() {
     ? devices 
     : devices.filter(d => d.room === currentFilter);
 
+  const countPill = document.getElementById('device-count-pill');
+  if (countPill) countPill.innerText = `${filtered.length} of ${devices.length} Total`;
+
   grid.innerHTML = filtered.map(d => `
-    <div id="card-${d.id}" class="hud-device-card ${d.state ? 'active' : ''}">
-      <div class="card-top">
-        <div class="dev-icon-block">${d.icon}</div>
-        <label class="hud-switch">
+    <div id="card-${d.id}" class="device-card ${d.state ? 'active' : ''}">
+      <div class="card-top-row">
+        <div class="device-icon-box">${d.icon}</div>
+        <label class="switch">
           <input type="checkbox" ${d.state ? 'checked' : ''} onchange="toggleDevice('${d.id}')">
-          <span class="switch-track"></span>
+          <span class="switch-slider"></span>
         </label>
       </div>
 
-      <div class="dev-label-group">
-        <span class="dev-name">${d.name}</span>
-        <div class="dev-subinfo">
+      <div class="device-meta-group">
+        <span class="device-title">${d.name}</span>
+        <div class="device-room-meta">
           <span>${d.room}</span>
-          ${d.gpio_pin ? `<span class="pin-badge">PIN ${d.gpio_pin}</span>` : ''}
+          ${d.gpio_pin ? `<span class="pin-chip">GPIO ${d.gpio_pin}</span>` : ''}
           <span>• ${d.power_watts}W</span>
         </div>
       </div>
 
       ${(d.type === 'dimmer' || d.type === 'fan') ? `
-        <div class="dev-slider-wrap">
-          <div class="slider-top">
-            <span>${d.type === 'dimmer' ? 'LEVEL' : 'SPEED'}</span>
+        <div class="slider-container">
+          <div class="slider-labels">
+            <span>${d.type === 'dimmer' ? 'Brightness' : 'Speed'}</span>
             <span id="val-${d.id}">${d.value}%</span>
           </div>
-          <input type="range" class="hud-slider" min="0" max="100" value="${d.value}"
+          <input type="range" class="range-input" min="0" max="100" value="${d.value}"
                  oninput="document.getElementById('val-${d.id}').innerText = this.value + '%'"
                  onchange="commitSlider('${d.id}', this.value)">
         </div>
@@ -559,7 +467,7 @@ function commitSlider(id, val) {
 
 function filterRoom(room) {
   currentFilter = room;
-  document.querySelectorAll('.filter-tab').forEach(b => {
+  document.querySelectorAll('.room-btn').forEach(b => {
     if (b.getAttribute('data-room') === room) b.classList.add('active');
     else b.classList.remove('active');
   });
@@ -576,8 +484,6 @@ function updateTelemetry(t) {
   const totalEl = document.getElementById('stat-total-count');
   const piTempEl = document.getElementById('stat-pi-temp');
   const piRamEl = document.getElementById('stat-pi-ram');
-  const meterPower = document.getElementById('meter-power-fill');
-  const meterActive = document.getElementById('meter-active-fill');
 
   if (wattsEl) wattsEl.innerText = t.total_watts.toFixed(1);
   if (tempEl) tempEl.innerText = t.temperature.toFixed(1);
@@ -586,28 +492,25 @@ function updateTelemetry(t) {
   if (totalEl) totalEl.innerText = t.total_count;
   if (piTempEl) piTempEl.innerText = t.cpu_temp.toFixed(1);
   if (piRamEl) piRamEl.innerText = t.memory_usage.toFixed(0);
-
-  if (meterPower) meterPower.style.width = `${Math.min(100, (t.total_watts / 1000) * 100)}%`;
-  if (meterActive) meterActive.style.width = `${(t.active_count / t.total_count) * 100}%`;
 }
 
-// AUDIT EVENT LOG
-function addAuditLog(type, text) {
+// AUDIT LOG
+function addLog(type, text) {
   const logStream = document.getElementById('event-log');
   const counterEl = document.getElementById('log-count');
   if (!logStream) return;
 
   logCounter++;
-  if (counterEl) counterEl.innerText = `${logCounter} ENTRIES`;
+  if (counterEl) counterEl.innerText = `${logCounter} events`;
 
   const now = new Date();
-  const timeStr = now.toTimeString().split(' ')[0] + '.' + String(now.getMilliseconds()).padStart(3, '0');
+  const timeStr = now.toTimeString().split(' ')[0];
 
   const line = document.createElement('div');
-  line.className = `audit-entry ${type}`;
+  line.className = `log-item ${type === 'highlight' ? 'highlight' : ''}`;
   line.innerHTML = `
-    <span class="audit-time">[${timeStr}]</span>
-    <span class="audit-msg">${escapeHtml(text)}</span>
+    <span class="time">${timeStr}</span>
+    <span class="msg">${escapeHtml(text)}</span>
   `;
 
   logStream.prepend(line);
@@ -625,32 +528,25 @@ function initCameraCanvas() {
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
 
-  let scanLine = 0;
   function render() {
-    scanLine = (scanLine + 1.5) % canvas.height;
-    ctx.fillStyle = '#060a14';
+    ctx.fillStyle = '#060a12';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    ctx.strokeStyle = 'rgba(0, 242, 254, 0.08)';
+    // Subtle modern grid
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
     ctx.lineWidth = 1;
-    for (let x = 0; x < canvas.width; x += 35) {
+    for (let x = 0; x < canvas.width; x += 30) {
       ctx.beginPath();
       ctx.moveTo(x, 0);
       ctx.lineTo(x, canvas.height);
       ctx.stroke();
     }
-    for (let y = 0; y < canvas.height; y += 35) {
+    for (let y = 0; y < canvas.height; y += 30) {
       ctx.beginPath();
       ctx.moveTo(0, y);
       ctx.lineTo(canvas.width, y);
       ctx.stroke();
     }
-
-    ctx.strokeStyle = 'rgba(0, 242, 254, 0.25)';
-    ctx.beginPath();
-    ctx.moveTo(0, scanLine);
-    ctx.lineTo(canvas.width, scanLine);
-    ctx.stroke();
 
     requestAnimationFrame(render);
   }
@@ -663,28 +559,30 @@ function simulateFaceScan() {
   const label = document.getElementById('target-label');
   if (!box) return;
 
-  const randX = 20 + Math.floor(Math.random() * 35);
-  const randY = 20 + Math.floor(Math.random() * 25);
+  const randX = 25 + Math.floor(Math.random() * 25);
+  const randY = 20 + Math.floor(Math.random() * 20);
   box.style.left = `${randX}%`;
   box.style.top = `${randY}%`;
 
   if (label) {
-    label.innerText = 'VERIFYING...';
-    label.style.background = 'var(--purple-neon)';
+    label.innerText = 'Verifying Subject...';
+    label.style.background = 'var(--indigo)';
+    label.style.color = '#fff';
   }
 
   setTimeout(() => {
     if (label) {
-      label.innerText = 'ID: VASU // CLEAR (99.8%)';
-      label.style.background = 'var(--green-neon)';
+      label.innerText = 'Verified: Vasu (99.8%)';
+      label.style.background = 'var(--success)';
+      label.style.color = '#000';
     }
     playSFX('confirm');
-    speakAssistantResponse('Biometric optical scan confirmed. Subject Vasu identified.');
-    addAuditLog('action', 'Biometric Optical Sensor: Subject Vasu confirmed. Perimeter safe.');
-  }, 900);
+    speakAssistantResponse('Biometric verification confirmed. Subject identified as Vasu.');
+    addLog('highlight', 'Biometric scan: Subject Vasu confirmed.');
+  }, 800);
 }
 
 function simulateSnapshot() {
   playSFX('click');
-  addAuditLog('event', 'Perimeter Capture: Snapshot written to /data/snapshots/20261011_2204.jpg');
+  addLog('event', 'Snapshot captured to /data/snapshots/');
 }
