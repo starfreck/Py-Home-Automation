@@ -1305,6 +1305,8 @@ window.addEventListener('DOMContentLoaded', () => {
   initSpeechRecognition();
   connectWebSocket();
   loadSettings();
+  pingGateway();
+  setInterval(pingGateway, 10000);
 });
 
 
@@ -1578,6 +1580,15 @@ function handleServerMessage(msg) {
       if (msg.payload && msg.payload.telemetry) {
         updateTelemetry(msg.payload.telemetry);
       }
+      if (msg.payload && Array.isArray(msg.payload.activities)) {
+        initActivityLogs(msg.payload.activities);
+      }
+      if (msg.payload && Array.isArray(msg.payload.snapshots)) {
+        initSnapshots(msg.payload.snapshots);
+      }
+      if (msg.payload && msg.payload.status) {
+        updateGatewayStatusBadge(msg.payload.status);
+      }
       break;
 
     case 'device_update':
@@ -1605,9 +1616,109 @@ function handleServerMessage(msg) {
       updateTelemetry(msg.payload);
       break;
 
+    case 'activity_event':
+      if (msg.payload) {
+        addLog(msg.payload.category || 'event', msg.payload.message, new Date(msg.payload.timestamp));
+      }
+      break;
+
+    case 'activity_cleared':
+      clearLocalActivityLogs();
+      break;
+
+    case 'scene_activated':
+      if (msg.payload && msg.payload.id) {
+        highlightSceneButton(msg.payload.id);
+      }
+      break;
+
+    case 'camera_scan':
+      if (msg.payload) {
+        handleRemoteCameraScan(msg.payload);
+      }
+      break;
+
+    case 'camera_snapshot':
+      if (msg.payload) {
+        addSnapshotToGallery(msg.payload);
+      }
+      break;
+
     case 'event':
       addLog('event', msg.payload);
       break;
+  }
+}
+
+function updateGatewayStatusBadge(st) {
+  const statusEl = document.getElementById('header-hub-status');
+  if (statusEl && st) {
+    statusEl.innerText = `Gateway • Online`;
+  }
+}
+
+function highlightSceneButton(sceneId) {
+  document.querySelectorAll('.bento-scene-btn').forEach(btn => {
+    if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(sceneId)) {
+      btn.classList.add('scene-active-pulse');
+      setTimeout(() => btn.classList.remove('scene-active-pulse'), 1000);
+    }
+  });
+}
+
+function clearLocalActivityLogs() {
+  const miniLog = document.getElementById('event-log');
+  const fullLog = document.getElementById('full-event-log');
+  if (miniLog) miniLog.innerHTML = '';
+  if (fullLog) fullLog.innerHTML = '';
+  const cnt1 = document.getElementById('log-count');
+  const cnt2 = document.getElementById('full-log-count');
+  if (cnt1) cnt1.innerText = '0 events';
+  if (cnt2) cnt2.innerText = '0 events';
+  logCounter = 0;
+}
+
+function initActivityLogs(activities) {
+  if (!Array.isArray(activities)) return;
+  const miniLog = document.getElementById('event-log');
+  const fullLog = document.getElementById('full-event-log');
+  if (!miniLog && !fullLog) return;
+
+  if (miniLog) miniLog.innerHTML = '';
+  if (fullLog) fullLog.innerHTML = '';
+  logCounter = 0;
+
+  for (let i = activities.length - 1; i >= 0; i--) {
+    const act = activities[i];
+    addLog(act.category || 'event', act.message, new Date(act.timestamp));
+  }
+}
+
+function initSnapshots(snapshots) {
+  const strip = document.getElementById('snapshots-strip');
+  if (!strip || !Array.isArray(snapshots)) return;
+  strip.innerHTML = '';
+  if (snapshots.length === 0) {
+    strip.innerHTML = '<div class="empty-snapshot-hint">No snapshots captured yet. Tap "Take Snapshot" to capture current feed.</div>';
+    const countEl = document.getElementById('snapshot-count');
+    if (countEl) countEl.innerText = '0 snapshots';
+    return;
+  }
+  snapshots.forEach(s => addSnapshotToGallery(s));
+}
+
+async function pingGateway() {
+  try {
+    const t0 = performance.now();
+    const res = await fetch('/api/status');
+    const lat = Math.round(performance.now() - t0);
+    const statusEl = document.getElementById('header-hub-status');
+    if (res.ok && statusEl) {
+      statusEl.innerText = `Gateway • ${lat}ms`;
+    }
+  } catch (e) {
+    const statusEl = document.getElementById('header-hub-status');
+    if (statusEl) statusEl.innerText = 'Offline';
   }
 }
 
@@ -1728,16 +1839,24 @@ async function submitVoiceCommand(promptText) {
 
   getAudioContext();
   setOrbState('thinking');
-  addLog('ai', `Prompt: "${promptText}"`);
+  addLog('assistant', `Directive: "${promptText}"`);
   showSynapseBanner(promptText, 'Analyzing intent with Gemma 4...');
 
   try {
+    const t0 = performance.now();
     const res = await fetch('/api/voice', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ prompt: promptText })
     });
+    const lat = Math.round(performance.now() - t0);
     const data = await res.json();
+
+    const latencyEl = document.getElementById('synapse-latency');
+    if (latencyEl) {
+      const modelTag = data.model && data.model.includes('Ollama') ? 'Gemma Local' : 'Edge NLP';
+      latencyEl.innerText = `${modelTag} • ${lat}ms`;
+    }
 
     showSynapseBanner(promptText, data.speech_reply);
     addLog('highlight', `Action: ${data.speech_reply}`);
@@ -1896,8 +2015,8 @@ function updateSingleDevice(updatedDevice) {
     const cb = card.querySelector('input[type="checkbox"]');
     if (cb) cb.checked = updatedDevice.state;
 
-    const iconBtn = card.querySelector('.icon-btn');
-    if (iconBtn) iconBtn.innerHTML = getDeviceSVG(updatedDevice.type, updatedDevice.state);
+    const iconBadge = card.querySelector('.icon-btn, .device-icon-badge');
+    if (iconBadge) iconBadge.innerHTML = getDeviceSVG(updatedDevice.type, updatedDevice.state);
 
     const valEl = document.getElementById(`val-${updatedDevice.id}`);
     if (valEl) valEl.innerText = `${updatedDevice.value}%`;
@@ -1959,11 +2078,40 @@ function filterRoom(room) {
   renderDevices();
 }
 
-function clearEventLogs() {
-  clearActivityLog();
+async function clearEventLogs() {
+  playSFX('click');
+  try {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'clear_activity' }));
+    } else {
+      await fetch('/api/activity', { method: 'DELETE' });
+    }
+  } catch (e) {
+    console.warn('Clear activity API error:', e);
+  }
+  clearLocalActivityLogs();
+  showToast('Audit ledger cleared on gateway', 'info');
 }
 
-function exportAuditLog() {
+async function exportAuditLog() {
+  playSFX('click');
+  try {
+    const res = await fetch('/api/activity');
+    if (res.ok) {
+      const logs = await res.json();
+      const blob = new Blob([JSON.stringify(logs, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `omnihome-audit-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Audit log exported as JSON', 'success');
+      return;
+    }
+  } catch (e) {
+    console.warn('Export JSON error:', e);
+  }
   exportLogsCsv();
 }
 
@@ -1984,6 +2132,7 @@ async function loadSettings() {
     const speechEl = document.getElementById('setting-auto-speech');
 
     if (hubNameEl && s.hub_name) hubNameEl.value = s.hub_name;
+    if (s.hub_name) document.title = `${s.hub_name} • Cloud Gateway`;
     if (intervalEl && s.telemetry_interval) intervalEl.value = s.telemetry_interval;
     if (ollamaEl && s.ollama_host) ollamaEl.value = s.ollama_host;
     if (modelEl && s.gemma_model) modelEl.value = s.gemma_model;
@@ -2339,10 +2488,14 @@ function updateTelemetry(t) {
     const pct = Math.min(100, Math.max(5, Math.round((t.total_watts / 500) * 100)));
     powerBar.style.width = `${pct}%`;
   }
-  const climatePill = document.getElementById('greeting-climate');
-  if (climatePill) {
-    climatePill.innerText = `Living Room ${t.temperature.toFixed(1)}°C • ${Math.round(t.humidity)}%`;
+  const gwPill = document.getElementById('gateway-health-pill');
+  if (gwPill) {
+    gwPill.innerText = `Gateway Online • ${t.active_count}/${t.total_count} Relays Active • ${Math.round(t.total_watts)}W`;
   }
+  const devPill = document.getElementById('device-count-pill');
+  if (devPill) devPill.innerText = `${t.total_count} Devices`;
+  const viewDevCount = document.getElementById('devices-view-count');
+  if (viewDevCount) viewDevCount.innerText = `${t.total_count} Devices`;
 
   // Synchronize Holographic HUD Wing Telemetry
   const hudPiTemp = document.getElementById('hud-pi-temp');
@@ -2354,7 +2507,7 @@ function updateTelemetry(t) {
 }
 
 // AUDIT LOG
-function addLog(type, text) {
+function addLog(type, text, optDate) {
   const logStream = document.getElementById('event-log');
   const fullStream = document.getElementById('full-event-log');
   const counterEl = document.getElementById('log-count');
@@ -2365,12 +2518,16 @@ function addLog(type, text) {
   if (counterEl) counterEl.innerText = `${logCounter} events`;
   if (fullCounterEl) fullCounterEl.innerText = `${logCounter} events`;
 
-  const now = new Date();
+  const now = (optDate instanceof Date && !isNaN(optDate.getTime())) ? optDate : new Date();
   const timeStr = now.toTimeString().split(' ')[0];
 
+  const category = (type === 'hardware' || type === 'assistant' || type === 'security' || type === 'system')
+    ? type
+    : (text.toLowerCase().includes('gemma') || text.toLowerCase().includes('assistant') || text.toLowerCase().includes('directive') ? 'assistant' : (text.toLowerCase().includes('biometric') || text.toLowerCase().includes('door') || text.toLowerCase().includes('camera') || text.toLowerCase().includes('security') ? 'security' : 'hardware'));
+
   const line = document.createElement('div');
-  line.className = `activity-item ${type === 'highlight' ? 'highlight' : ''}`;
-  line.setAttribute('data-category', text.toLowerCase().includes('gemma') || text.toLowerCase().includes('assistant') ? 'assistant' : (text.toLowerCase().includes('biometric') || text.toLowerCase().includes('door') ? 'security' : 'hardware'));
+  line.className = `activity-item ${type === 'highlight' || type === 'security' ? 'highlight' : ''}`;
+  line.setAttribute('data-category', category);
   line.innerHTML = `
     <span class="ts">[${timeStr}]</span>
     <span class="msg">${escapeHtml(text)}</span>
@@ -2407,14 +2564,40 @@ function clearActivityLog() {
   showToast('Activity stream cleared', 'info');
 }
 
-function exportLogsCsv() {
+async function exportLogsCsv() {
   playSFX('click');
+  let csv = 'Timestamp,Category,Source,Message\n';
+  try {
+    const res = await fetch('/api/activity');
+    if (res.ok) {
+      const logs = await res.json();
+      logs.forEach(item => {
+        const ts = item.timestamp || '';
+        const cat = item.category || 'general';
+        const src = item.source || 'system';
+        const msg = (item.message || '').replace(/"/g, '""');
+        csv += `"${ts}","${cat}","${src}","${msg}"\n`;
+      });
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `omnihome-activity-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Audit log exported as CSV', 'success');
+      return;
+    }
+  } catch (e) {
+    console.warn('API export error:', e);
+  }
+
   const items = document.querySelectorAll('#full-event-log .activity-item, #event-log .activity-item');
-  let csv = 'Timestamp,Type,Message\n';
   items.forEach(item => {
     const ts = item.querySelector('.ts')?.innerText.replace(/[\[\]]/g, '') || '';
+    const cat = item.getAttribute('data-category') || 'hardware';
     const msg = item.querySelector('.msg')?.innerText.replace(/"/g, '""') || '';
-    csv += `"${ts}","event","${msg}"\n`;
+    csv += `"${ts}","${cat}","web","${msg}"\n`;
   });
   const blob = new Blob([csv], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
@@ -2581,36 +2764,55 @@ function initCameraCanvasFull() {
   // Handled by unified camera loop
 }
 
-function simulateFaceScan() {
+async function simulateFaceScan() {
   playSFX('scan');
-  const box = document.getElementById('ai-target-box');
-  const label = document.getElementById('target-label');
-  if (!box) return;
+  const boxes = document.querySelectorAll('.face-detect-box');
+  const labels = document.querySelectorAll('.face-name');
 
-  const randX = 25 + Math.floor(Math.random() * 25);
-  const randY = 20 + Math.floor(Math.random() * 20);
-  box.style.left = `${randX}%`;
-  box.style.top = `${randY}%`;
+  boxes.forEach(box => {
+    const randX = 25 + Math.floor(Math.random() * 25);
+    const randY = 20 + Math.floor(Math.random() * 20);
+    box.style.left = `${randX}%`;
+    box.style.top = `${randY}%`;
+  });
 
-  if (label) {
+  labels.forEach(label => {
     label.innerText = 'Verifying Subject...';
     label.style.background = 'var(--primary)';
     label.style.color = '#fff';
+  });
+
+  try {
+    const res = await fetch('/api/camera/scan', { method: 'POST' });
+    if (res.ok) {
+      const data = await res.json();
+      handleRemoteCameraScan(data);
+      return;
+    }
+  } catch (err) {
+    console.warn('Backend face scan error, using local fallback:', err);
   }
 
+  // Graceful fallback
   setTimeout(() => {
-    if (label) {
-      label.innerText = 'Vasu (99.8%)';
-      label.style.background = 'var(--accent-green)';
-      label.style.color = '#000';
-    }
-    playSFX('confirm');
-    speakAssistantResponse('Biometric verification confirmed. Subject identified as Vasu.');
-    addLog('highlight', 'Biometric scan: Subject Vasu confirmed.');
-  }, 750);
+    handleRemoteCameraScan({ success: true, subject: 'Vasu', confidence: 0.998 });
+  }, 700);
 }
 
-function simulateSnapshot() {
+function handleRemoteCameraScan(data) {
+  const labels = document.querySelectorAll('.face-name');
+  labels.forEach(label => {
+    label.innerText = `${data.subject || 'Vasu'} (${Math.round((data.confidence || 0.998) * 1000) / 10}%)`;
+    label.style.background = data.success ? 'var(--accent-green)' : 'var(--accent-amber)';
+    label.style.color = '#000';
+  });
+  playSFX('confirm');
+  const speech = `Biometric verification confirmed. Subject identified as ${data.subject || 'Vasu'}.`;
+  speakAssistantResponse(speech);
+  showToast(`Biometric match: ${data.subject || 'Vasu'} (${Math.round((data.confidence || 0.998) * 100)}%)`, 'success');
+}
+
+async function simulateSnapshot() {
   playSFX('click');
 
   // Trigger camera flash visual feedback
@@ -2622,37 +2824,71 @@ function simulateSnapshot() {
 
   // Capture frame from active canvas
   const canvas = document.getElementById('camera-canvas-full') || document.getElementById('camera-canvas');
+  let dataUrl = '';
   if (canvas) {
     try {
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-      const strip = document.getElementById('snapshots-strip');
-      const countEl = document.getElementById('snapshot-count');
-      if (strip) {
-        const emptyHint = strip.querySelector('.empty-snapshot-hint');
-        if (emptyHint) emptyHint.remove();
-
-        const timeStr = new Date().toLocaleTimeString();
-        const wrap = document.createElement('div');
-        wrap.className = 'snapshot-thumb-wrap';
-        wrap.title = `Snapshot captured at ${timeStr}`;
-        wrap.innerHTML = `
-          <img src="${dataUrl}" class="snapshot-thumb" alt="Captured Frame">
-          <span class="snapshot-time-tag">${timeStr}</span>
-        `;
-        wrap.onclick = () => {
-          showToast(`Snapshot from ${timeStr} inspected`, 'info');
-        };
-        strip.insertBefore(wrap, strip.firstChild);
-
-        const total = strip.querySelectorAll('.snapshot-thumb-wrap').length;
-        if (countEl) countEl.innerText = `${total} snapshot${total === 1 ? '' : 's'}`;
-      }
+      dataUrl = canvas.toDataURL('image/jpeg', 0.85);
     } catch (e) {
       console.warn('Snapshot capture warning:', e);
     }
   }
 
-  addLog('event', 'Snapshot captured to /data/snapshots/');
-  showToast('Snapshot saved to /data/snapshots/', 'success');
+  try {
+    const res = await fetch('/api/camera/snapshot', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        data_url: dataUrl,
+        source: 'CAM-01 (Front Porch CSI)',
+        width: canvas ? canvas.width : 480,
+        height: canvas ? canvas.height : 270
+      })
+    });
+    if (res.ok) {
+      const saved = await res.json();
+      addSnapshotToGallery(saved);
+      showToast('Camera snapshot saved to gateway', 'success');
+      return;
+    }
+  } catch (err) {
+    console.warn('Backend snapshot save failed:', err);
+  }
+
+  // Fallback locally
+  if (dataUrl) {
+    addSnapshotToGallery({
+      data_url: dataUrl,
+      timestamp: new Date().toISOString(),
+      source: 'CAM-01 (Front Porch CSI)'
+    });
+  }
+  showToast('Camera snapshot captured locally', 'success');
+}
+
+function addSnapshotToGallery(snap) {
+  const strip = document.getElementById('snapshots-strip');
+  const countEl = document.getElementById('snapshot-count');
+  if (!strip) return;
+
+  const emptyHint = strip.querySelector('.empty-snapshot-hint');
+  if (emptyHint) emptyHint.remove();
+
+  const d = snap.timestamp ? new Date(snap.timestamp) : new Date();
+  const timeStr = d.toLocaleTimeString();
+
+  const wrap = document.createElement('div');
+  wrap.className = 'snapshot-thumb-wrap';
+  wrap.title = `Snapshot captured at ${timeStr} from ${snap.source || 'CAM-01'}`;
+  wrap.innerHTML = `
+    <img src="${snap.data_url || ''}" class="snapshot-thumb" alt="Captured Frame">
+    <span class="snapshot-time-tag">${timeStr}</span>
+  `;
+  wrap.onclick = () => {
+    showToast(`Snapshot from ${timeStr} inspected`, 'info');
+  };
+  strip.insertBefore(wrap, strip.firstChild);
+
+  const total = strip.querySelectorAll('.snapshot-thumb-wrap').length;
+  if (countEl) countEl.innerText = `${total} snapshot${total === 1 ? '' : 's'}`;
 }
 

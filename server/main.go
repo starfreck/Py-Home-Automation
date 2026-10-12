@@ -36,6 +36,13 @@ func main() {
 		}
 	}
 
+	// Callback when an activity/audit log entry is generated
+	onActivity := func(act *model.ActivityItem) {
+		if eventHub != nil {
+			eventHub.BroadcastJSON("activity_event", act)
+		}
+	}
+
 	// Callback when a WebSocket client sends an inbound action
 	onClientMessage := func(msg model.WSMessage) {
 		switch msg.Type {
@@ -55,17 +62,24 @@ func main() {
 		case "scene":
 			if payload, ok := msg.Payload.(map[string]interface{}); ok {
 				if id, ok := payload["id"].(string); ok {
-					deviceMgr.ApplyScene(id)
-					eventHub.BroadcastJSON("event", fmt.Sprintf("Scene '%s' activated", id))
+					if err := deviceMgr.ApplyScene(id); err == nil {
+						eventHub.BroadcastJSON("scene_activated", map[string]string{"id": id})
+					}
 				}
 			}
+		case "camera_scan":
+			res := deviceMgr.PerformBiometricScan("CAM-01")
+			eventHub.BroadcastJSON("camera_scan", res)
+		case "clear_activity":
+			deviceMgr.ClearActivities()
+			eventHub.BroadcastJSON("activity_cleared", map[string]string{"status": "cleared"})
 		}
 	}
 
 	eventHub = hub.NewHub(onClientMessage)
 	go eventHub.Run()
 
-	deviceMgr = service.NewDeviceManager(onDeviceUpdate)
+	deviceMgr = service.NewDeviceManager(onDeviceUpdate, onActivity)
 
 	// Background ticker pushing live telemetry to all connected clients every 3 seconds
 	go func() {
@@ -83,8 +97,12 @@ func main() {
 	// WebSocket Endpoint
 	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		initialState := map[string]interface{}{
-			"devices":   deviceMgr.GetAllDevices(),
-			"telemetry": deviceMgr.GetTelemetry(),
+			"devices":    deviceMgr.GetAllDevices(),
+			"telemetry":  deviceMgr.GetTelemetry(),
+			"scenes":     deviceMgr.GetAllScenes(),
+			"activities": deviceMgr.GetActivities(50),
+			"snapshots":  deviceMgr.GetSnapshots(),
+			"status":     deviceMgr.GetSystemStatus(),
 		}
 		eventHub.HandleWebSocket(w, r, initialState)
 	})
@@ -204,7 +222,23 @@ func main() {
 		json.NewEncoder(w).Encode(deviceMgr.GetTelemetry())
 	})
 
-	// REST API: Scenes
+	// REST API: System Status & Node Health
+	mux.HandleFunc("/api/status", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(deviceMgr.GetSystemStatus())
+	})
+	mux.HandleFunc("/api/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(deviceMgr.GetSystemStatus())
+	})
+
+	// REST API: Scenes List
+	mux.HandleFunc("/api/scenes", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(deviceMgr.GetAllScenes())
+	})
+
+	// REST API: Scenes Activation
 	mux.HandleFunc("/api/scenes/", func(w http.ResponseWriter, r *http.Request) {
 		parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
 		if len(parts) >= 4 && parts[3] == "activate" && r.Method == http.MethodPost {
@@ -213,11 +247,71 @@ func main() {
 				http.Error(w, err.Error(), http.StatusNotFound)
 				return
 			}
+			eventHub.BroadcastJSON("scene_activated", map[string]string{"id": sceneID})
 			w.WriteHeader(http.StatusOK)
-			json.NewEncoder(w).Encode(map[string]string{"status": "activated"})
+			json.NewEncoder(w).Encode(map[string]string{"status": "activated", "id": sceneID})
 			return
 		}
 		http.NotFound(w, r)
+	})
+
+	// REST API: Audit & Activity Ledger
+	mux.HandleFunc("/api/activity", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method == http.MethodDelete {
+			deviceMgr.ClearActivities()
+			eventHub.BroadcastJSON("activity_cleared", map[string]string{"status": "cleared"})
+			json.NewEncoder(w).Encode(map[string]string{"status": "cleared"})
+			return
+		}
+		if r.Method == http.MethodPost {
+			var body struct {
+				Category string `json:"category"`
+				Message  string `json:"message"`
+				Source   string `json:"source"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&body); err == nil && body.Message != "" {
+				act := deviceMgr.LogActivity(body.Category, body.Message, body.Source)
+				json.NewEncoder(w).Encode(act)
+				return
+			}
+			http.Error(w, "invalid payload", http.StatusBadRequest)
+			return
+		}
+		json.NewEncoder(w).Encode(deviceMgr.GetActivities(100))
+	})
+
+	// REST API: Camera & Biometric Intelligence
+	mux.HandleFunc("/api/camera/scan", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		res := deviceMgr.PerformBiometricScan("CAM-01")
+		eventHub.BroadcastJSON("camera_scan", res)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(res)
+	})
+
+	mux.HandleFunc("/api/camera/snapshot", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method == http.MethodPost {
+			var snap model.CameraSnapshot
+			if err := json.NewDecoder(r.Body).Decode(&snap); err != nil {
+				http.Error(w, "invalid snapshot payload", http.StatusBadRequest)
+				return
+			}
+			saved := deviceMgr.AddSnapshot(snap)
+			eventHub.BroadcastJSON("camera_snapshot", saved)
+			json.NewEncoder(w).Encode(saved)
+			return
+		}
+		json.NewEncoder(w).Encode(deviceMgr.GetSnapshots())
+	})
+
+	mux.HandleFunc("/api/camera/snapshots", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(deviceMgr.GetSnapshots())
 	})
 
 	// REST API: Voice Assistant (Gemma 4 integration)

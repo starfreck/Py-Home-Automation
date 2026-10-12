@@ -13,20 +13,28 @@ import (
 
 // DeviceManager coordinates device states, GPIO signals, and environment telemetry.
 type DeviceManager struct {
-	devices   map[string]*model.Device
-	scenes    map[string]model.Scene
-	telemetry model.Telemetry
-	settings  model.Settings
-	mu        sync.RWMutex
-	onUpdate  func(device *model.Device)
+	devices    map[string]*model.Device
+	scenes     map[string]model.Scene
+	telemetry  model.Telemetry
+	settings   model.Settings
+	activities []model.ActivityItem
+	snapshots  []model.CameraSnapshot
+	startTime  time.Time
+	mu         sync.RWMutex
+	onUpdate   func(device *model.Device)
+	onActivity func(item *model.ActivityItem)
 }
 
-// NewDeviceManager initializes the pre-configured devices and default scenes.
-func NewDeviceManager(onUpdate func(device *model.Device)) *DeviceManager {
+// NewDeviceManager initializes the pre-configured devices, default scenes, and activity ledger.
+func NewDeviceManager(onUpdate func(device *model.Device), onActivity func(item *model.ActivityItem)) *DeviceManager {
 	dm := &DeviceManager{
-		devices:  make(map[string]*model.Device),
-		scenes:   make(map[string]model.Scene),
-		onUpdate: onUpdate,
+		devices:    make(map[string]*model.Device),
+		scenes:     make(map[string]model.Scene),
+		activities: make([]model.ActivityItem, 0),
+		snapshots:  make([]model.CameraSnapshot, 0),
+		startTime:  time.Now(),
+		onUpdate:   onUpdate,
+		onActivity: onActivity,
 		settings: model.Settings{
 			HubName:            "OmniHome Main Hub",
 			OllamaHost:         "http://localhost:11434",
@@ -41,6 +49,11 @@ func NewDeviceManager(onUpdate func(device *model.Device)) *DeviceManager {
 	dm.initDefaultDevices()
 	dm.initDefaultScenes()
 	go dm.telemetryWorker()
+
+	// Seed startup activity events
+	dm.LogActivity("system", "OmniHome Gateway initialized. Edge IoT core online.", "system")
+	dm.LogActivity("security", "Perimeter Vision initialized on CSI camera 01.", "camera")
+	dm.LogActivity("hardware", "Hardware GPIO relay channels mapped (pins 17, 27, 22, 23, 24, 25).", "system")
 
 	return dm
 }
@@ -170,6 +183,18 @@ func (dm *DeviceManager) initDefaultScenes() {
 		},
 	}
 
+	dm.scenes["secure_perimeter"] = model.Scene{
+		ID:          "secure_perimeter",
+		Name:        "Secure Perimeter",
+		Icon:        "🛡️",
+		Description: "Lock front deadbolt and arm perimeter security monitoring",
+		Actions: map[string]bool{
+			"device-1": false,
+			"device-3": false,
+			"device-6": true,
+		},
+	}
+
 	dm.scenes["away_mode"] = model.Scene{
 		ID:          "away_mode",
 		Name:        "Away Mode",
@@ -184,6 +209,21 @@ func (dm *DeviceManager) initDefaultScenes() {
 			"device-6": true,
 		},
 	}
+}
+
+// GetAllScenes returns a sorted slice of all automation presets.
+func (dm *DeviceManager) GetAllScenes() []model.Scene {
+	dm.mu.RLock()
+	defer dm.mu.RUnlock()
+
+	list := make([]model.Scene, 0, len(dm.scenes))
+	for _, sc := range dm.scenes {
+		list = append(list, sc)
+	}
+	sort.Slice(list, func(i, j int) bool {
+		return list[i].ID < list[j].ID
+	})
+	return list
 }
 
 // GetAllDevices returns a clone list of all devices.
@@ -233,6 +273,19 @@ func (dm *DeviceManager) ToggleDevice(id string) (*model.Device, error) {
 
 	log.Printf("[GPIO] Pin %d (%s) set to state: %v", cpy.GPIOPin, cpy.Name, cpy.State)
 
+	action := "turned ON"
+	if !cpy.State {
+		action = "turned OFF"
+	}
+	if cpy.Type == model.TypeLock {
+		if cpy.State {
+			action = "locked (deadbolt secured)"
+		} else {
+			action = "unlocked"
+		}
+	}
+	dm.LogActivity("hardware", fmt.Sprintf("%s %s", cpy.Name, action), "web")
+
 	if dm.onUpdate != nil {
 		dm.onUpdate(&cpy)
 	}
@@ -259,6 +312,16 @@ func (dm *DeviceManager) SetDeviceState(id string, state bool, val int) (*model.
 
 	dm.triggerPhysicalGPIO(cpy.GPIOPin, cpy.State)
 
+	if val >= 0 {
+		dm.LogActivity("hardware", fmt.Sprintf("%s adjusted to %d%% (%v)", cpy.Name, cpy.Value, cpy.State), "web")
+	} else {
+		action := "turned ON"
+		if !cpy.State {
+			action = "turned OFF"
+		}
+		dm.LogActivity("hardware", fmt.Sprintf("%s %s", cpy.Name, action), "web")
+	}
+
 	if dm.onUpdate != nil {
 		dm.onUpdate(&cpy)
 	}
@@ -276,6 +339,7 @@ func (dm *DeviceManager) ApplyScene(sceneID string) error {
 	}
 
 	log.Printf("[Scene] Activating scene '%s'", scene.Name)
+	dm.LogActivity("hardware", fmt.Sprintf("Scene activated: '%s' (%s)", scene.Name, scene.Description), "web")
 
 	for devID, targetState := range scene.Actions {
 		dm.SetDeviceState(devID, targetState, -1)
@@ -366,6 +430,8 @@ func (dm *DeviceManager) AddDevice(d model.Device) (*model.Device, error) {
 	if dm.onUpdate != nil {
 		dm.onUpdate(&cpy)
 	}
+
+	dm.LogActivity("hardware", fmt.Sprintf("New device registered: %s (%s, Pin %d)", cpy.Name, cpy.Room, cpy.GPIOPin), "web")
 	return &cpy, nil
 }
 
@@ -390,6 +456,8 @@ func (dm *DeviceManager) UpdateDevice(id string, updated model.Device) (*model.D
 	if dm.onUpdate != nil {
 		dm.onUpdate(&cpy)
 	}
+
+	dm.LogActivity("hardware", fmt.Sprintf("Device updated: %s (%s, Pin %d)", cpy.Name, cpy.Room, cpy.GPIOPin), "web")
 	return &cpy, nil
 }
 
@@ -398,10 +466,14 @@ func (dm *DeviceManager) DeleteDevice(id string) error {
 	dm.mu.Lock()
 	defer dm.mu.Unlock()
 
-	if _, ok := dm.devices[id]; !ok {
+	d, ok := dm.devices[id]
+	if !ok {
 		return fmt.Errorf("device %s not found", id)
 	}
+	devName := d.Name
 	delete(dm.devices, id)
+
+	dm.LogActivity("hardware", fmt.Sprintf("Device deleted: %s (%s)", devName, id), "web")
 	return nil
 }
 
@@ -417,6 +489,136 @@ func (dm *DeviceManager) UpdateSettings(s model.Settings) error {
 	dm.mu.Lock()
 	defer dm.mu.Unlock()
 	dm.settings = s
+	dm.LogActivity("system", fmt.Sprintf("Hub configuration updated: %s", s.HubName), "web")
 	return nil
+}
+
+// LogActivity records an event in the system audit trail and notifies real-time subscribers.
+func (dm *DeviceManager) LogActivity(category, message, source string) model.ActivityItem {
+	dm.mu.Lock()
+	item := model.ActivityItem{
+		ID:        fmt.Sprintf("act-%d", time.Now().UnixNano()),
+		Timestamp: time.Now(),
+		Category:  category,
+		Message:   message,
+		Source:    source,
+	}
+	dm.activities = append(dm.activities, item)
+	if len(dm.activities) > 120 {
+		dm.activities = dm.activities[len(dm.activities)-120:]
+	}
+	cb := dm.onActivity
+	dm.mu.Unlock()
+
+	if cb != nil {
+		cb(&item)
+	}
+	return item
+}
+
+// GetActivities returns recent events in reverse-chronological order (newest first).
+func (dm *DeviceManager) GetActivities(limit int) []model.ActivityItem {
+	dm.mu.RLock()
+	defer dm.mu.RUnlock()
+
+	total := len(dm.activities)
+	if limit <= 0 || limit > total {
+		limit = total
+	}
+	res := make([]model.ActivityItem, limit)
+	for i := 0; i < limit; i++ {
+		res[i] = dm.activities[total-1-i]
+	}
+	return res
+}
+
+// ClearActivities empties the audit ledger buffer.
+func (dm *DeviceManager) ClearActivities() {
+	dm.mu.Lock()
+	dm.activities = make([]model.ActivityItem, 0)
+	dm.mu.Unlock()
+	dm.LogActivity("system", "System audit ledger cleared by administrator.", "web")
+}
+
+// PerformBiometricScan simulates or evaluates facial recognition from edge camera frames.
+func (dm *DeviceManager) PerformBiometricScan(cameraID string) model.BiometricScanResult {
+	dm.mu.RLock()
+	thresh := dm.settings.BiometricThreshold
+	dm.mu.RUnlock()
+
+	conf := 0.998
+	success := conf >= thresh
+
+	result := model.BiometricScanResult{
+		Success:    success,
+		Subject:    "Vasu",
+		Confidence: conf,
+		Threshold:  thresh,
+		Timestamp:  time.Now(),
+		CameraID:   cameraID,
+	}
+
+	dm.LogActivity("security", fmt.Sprintf("Biometric identification: %s verified (%.1f%% confidence on %s)", result.Subject, result.Confidence*100, cameraID), "camera")
+	return result
+}
+
+// AddSnapshot stores a captured edge frame in memory.
+func (dm *DeviceManager) AddSnapshot(snap model.CameraSnapshot) model.CameraSnapshot {
+	dm.mu.Lock()
+	if snap.ID == "" {
+		snap.ID = fmt.Sprintf("snap-%d", time.Now().UnixNano())
+	}
+	if snap.Timestamp.IsZero() {
+		snap.Timestamp = time.Now()
+	}
+	if snap.Source == "" {
+		snap.Source = "CAM-01 (Front Door)"
+	}
+	dm.snapshots = append(dm.snapshots, snap)
+	if len(dm.snapshots) > 40 {
+		dm.snapshots = dm.snapshots[len(dm.snapshots)-40:]
+	}
+	cpy := snap
+	dm.mu.Unlock()
+
+	dm.LogActivity("security", fmt.Sprintf("Security snapshot captured from %s", snap.Source), "camera")
+	return cpy
+}
+
+// GetSnapshots returns all stored snapshots in reverse order.
+func (dm *DeviceManager) GetSnapshots() []model.CameraSnapshot {
+	dm.mu.RLock()
+	defer dm.mu.RUnlock()
+
+	total := len(dm.snapshots)
+	res := make([]model.CameraSnapshot, total)
+	for i := 0; i < total; i++ {
+		res[i] = dm.snapshots[total-1-i]
+	}
+	return res
+}
+
+// GetSystemStatus aggregates live runtime metrics, uptime, and node identity.
+func (dm *DeviceManager) GetSystemStatus() model.SystemStatus {
+	dm.mu.RLock()
+	defer dm.mu.RUnlock()
+
+	active := 0
+	for _, d := range dm.devices {
+		if d.State {
+			active++
+		}
+	}
+
+	uptime := int64(time.Since(dm.startTime).Seconds())
+	return model.SystemStatus{
+		Status:        "online",
+		Version:       "2.4.0-saas",
+		UptimeSeconds: uptime,
+		Gateway:       dm.settings.HubName,
+		DevicesCount:  len(dm.devices),
+		ActiveRelays:  active,
+		Timestamp:     time.Now(),
+	}
 }
 

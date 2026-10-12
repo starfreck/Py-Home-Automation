@@ -50,11 +50,14 @@ func (dm *DeviceManager) ProcessVoiceCommand(prompt string) VoiceCommandResponse
 	}
 
 	if resp, err := dm.queryGemmaLLM(ollamaHost, modelName, cleanPrompt); err == nil && resp.Success {
+		dm.LogActivity("assistant", fmt.Sprintf("Directive: \"%s\" -> %s", cleanPrompt, resp.SpeechReply), "voice")
 		return resp
 	}
 
 	// 2. High-speed Built-in Neural Parser (Runs in < 2ms with zero dependencies)
-	return dm.fallbackNeuralParse(cleanPrompt)
+	resp := dm.fallbackNeuralParse(cleanPrompt)
+	dm.LogActivity("assistant", fmt.Sprintf("Directive: \"%s\" -> %s", cleanPrompt, resp.SpeechReply), "voice")
+	return resp
 }
 
 // queryGemmaLLM sends prompt to local Ollama instance running Gemma 4.

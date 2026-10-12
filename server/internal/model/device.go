@@ -66,3 +66,43 @@ type Settings struct {
 	AutoSpeechReply    bool    `json:"auto_speech_reply"`
 }
 
+// ActivityItem represents an entry in the system activity and audit ledger.
+type ActivityItem struct {
+	ID        string    `json:"id"`
+	Timestamp time.Time `json:"timestamp"`
+	Category  string    `json:"category"` // "hardware", "assistant", "security", "system"
+	Message   string    `json:"message"`
+	Source    string    `json:"source"`   // "web", "voice", "gpio", "camera"
+}
+
+// CameraSnapshot represents a frame captured from edge surveillance feeds.
+type CameraSnapshot struct {
+	ID        string    `json:"id"`
+	Timestamp time.Time `json:"timestamp"`
+	DataURL   string    `json:"data_url,omitempty"`
+	Source    string    `json:"source"`
+	Width     int       `json:"width"`
+	Height    int       `json:"height"`
+}
+
+// BiometricScanResult represents facial recognition output from edge cameras.
+type BiometricScanResult struct {
+	Success    bool      `json:"success"`
+	Subject    string    `json:"subject"`
+	Confidence float64   `json:"confidence"`
+	Threshold  float64   `json:"threshold"`
+	Timestamp  time.Time `json:"timestamp"`
+	CameraID   string    `json:"camera_id"`
+}
+
+// SystemStatus represents gateway uptime, runtime health, and metrics.
+type SystemStatus struct {
+	Status        string    `json:"status"`
+	Version       string    `json:"version"`
+	UptimeSeconds int64     `json:"uptime_seconds"`
+	Gateway       string    `json:"gateway"`
+	DevicesCount  int       `json:"devices_count"`
+	ActiveRelays  int       `json:"active_relays"`
+	Timestamp     time.Time `json:"timestamp"`
+}
+
