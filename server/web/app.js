@@ -165,6 +165,241 @@ let bentoWidgetPrefs = (() => {
   };
 })();
 
+// EDIT MODE & DRAG-AND-DROP REORDER ENGINE
+let isEditMode = false;
+let draggedCardEl = null;
+
+function toggleEditMode() {
+  isEditMode = !isEditMode;
+  playSFX('click');
+  updateEditModeUI();
+}
+
+function updateEditModeUI() {
+  const grid = document.getElementById('bento-grid');
+  const banner = document.getElementById('edit-mode-banner');
+  const editBtn = document.getElementById('btn-edit-mode');
+  const editLabel = document.getElementById('edit-mode-btn-label');
+
+  if (!grid) return;
+
+  if (isEditMode) {
+    grid.classList.add('edit-mode');
+    if (banner) banner.style.display = 'flex';
+    if (editBtn) editBtn.classList.add('active-edit');
+    if (editLabel) editLabel.textContent = 'Done Editing';
+    showToast('Edit Mode active: drag cards to reorder, tap ✕ to hide', 'info');
+  } else {
+    grid.classList.remove('edit-mode');
+    if (banner) banner.style.display = 'none';
+    if (editBtn) editBtn.classList.remove('active-edit');
+    if (editLabel) editLabel.textContent = 'Edit Layout';
+    grid.querySelectorAll('.bento-card').forEach(c => {
+      c.classList.remove('is-dragging', 'drag-over');
+    });
+    showToast('Dashboard layout saved', 'success');
+  }
+
+  setupBentoDragAndDrop();
+}
+
+function hideWidgetFromGrid(id, e) {
+  if (e) {
+    e.stopPropagation();
+    e.preventDefault();
+  }
+  if (!bentoWidgetPrefs.hidden.includes(id)) {
+    bentoWidgetPrefs.hidden.push(id);
+    saveDashboardPreferences();
+    applyWidgetPreferences();
+    if (document.getElementById('modal-customize') && document.getElementById('modal-customize').style.display === 'flex') {
+      renderCustomizeModalContent();
+    }
+    const def = allWidgetDefinitions.find(w => w.id === id);
+    const name = def ? def.label : 'Widget';
+    showToast(`${name} hidden. Restore anytime in Customize.`, 'info');
+  }
+}
+
+function saveCurrentGridOrder() {
+  const grid = document.getElementById('bento-grid');
+  if (!grid) return;
+  const cards = Array.from(grid.children).filter(c => c.classList.contains('bento-card'));
+  const newOrder = cards.map(c => c.id);
+  allWidgetDefinitions.forEach(w => {
+    if (!newOrder.includes(w.id)) {
+      newOrder.push(w.id);
+    }
+  });
+  bentoWidgetPrefs.order = newOrder;
+  saveDashboardPreferences();
+  if (document.getElementById('modal-customize') && document.getElementById('modal-customize').style.display === 'flex') {
+    renderCustomizeModalContent();
+  }
+}
+
+function setupBentoDragAndDrop() {
+  const grid = document.getElementById('bento-grid');
+  if (!grid) return;
+
+  const cards = grid.querySelectorAll('.bento-card');
+  cards.forEach(card => {
+    card.setAttribute('draggable', isEditMode ? 'true' : 'false');
+
+    // Ensure edit bar exists
+    if (!card.querySelector('.bento-edit-bar')) {
+      const editBar = document.createElement('div');
+      editBar.className = 'bento-edit-bar';
+      editBar.innerHTML = `
+        <div class="bento-drag-handle" title="Drag to reorder widget">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="9" cy="5" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="9" cy="19" r="1.5"/><circle cx="15" cy="5" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="15" cy="19" r="1.5"/></svg>
+          <span>Drag to move</span>
+        </div>
+        <button type="button" class="bento-hide-btn" onclick="hideWidgetFromGrid('${card.id}', event)" title="Hide widget">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      `;
+      card.insertBefore(editBar, card.firstChild);
+    }
+  });
+
+  if (grid.dataset.dragInitialized === 'true') return;
+  grid.dataset.dragInitialized = 'true';
+
+  // Desktop HTML5 Drag & Drop
+  grid.addEventListener('dragstart', (e) => {
+    if (!isEditMode) {
+      e.preventDefault();
+      return;
+    }
+    const card = e.target.closest('.bento-card');
+    if (!card) return;
+
+    if (e.target.closest('button, input, textarea, select, .bento-hide-btn')) {
+      e.preventDefault();
+      return;
+    }
+
+    draggedCardEl = card;
+    card.classList.add('is-dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', card.id);
+  });
+
+  grid.addEventListener('dragend', (e) => {
+    const card = e.target.closest('.bento-card');
+    if (card) card.classList.remove('is-dragging');
+    if (draggedCardEl) draggedCardEl.classList.remove('is-dragging');
+    draggedCardEl = null;
+    grid.querySelectorAll('.bento-card').forEach(c => c.classList.remove('drag-over'));
+  });
+
+  grid.addEventListener('dragover', (e) => {
+    if (!isEditMode || !draggedCardEl) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+
+    const targetCard = e.target.closest('.bento-card');
+    grid.querySelectorAll('.bento-card').forEach(c => {
+      if (c !== targetCard) c.classList.remove('drag-over');
+    });
+
+    if (targetCard && targetCard !== draggedCardEl) {
+      targetCard.classList.add('drag-over');
+    }
+  });
+
+  grid.addEventListener('dragleave', (e) => {
+    const targetCard = e.target.closest('.bento-card');
+    if (targetCard && !targetCard.contains(e.relatedTarget)) {
+      targetCard.classList.remove('drag-over');
+    }
+  });
+
+  grid.addEventListener('drop', (e) => {
+    if (!isEditMode || !draggedCardEl) return;
+    e.preventDefault();
+    grid.querySelectorAll('.bento-card').forEach(c => c.classList.remove('drag-over'));
+
+    const targetCard = e.target.closest('.bento-card');
+    if (targetCard && targetCard !== draggedCardEl) {
+      const rect = targetCard.getBoundingClientRect();
+      const isAfter = (e.clientY > rect.top + rect.height / 2) || (e.clientX > rect.left + rect.width / 2);
+      if (isAfter) {
+        targetCard.after(draggedCardEl);
+      } else {
+        targetCard.before(draggedCardEl);
+      }
+      saveCurrentGridOrder();
+      playSFX('click');
+      showToast('Dashboard layout updated', 'info');
+    }
+    draggedCardEl.classList.remove('is-dragging');
+    draggedCardEl = null;
+  });
+
+  // Touch Support for tablets and mobile
+  let touchCard = null;
+  let touchTarget = null;
+
+  grid.addEventListener('touchstart', (e) => {
+    if (!isEditMode) return;
+    const handleOrHeader = e.target.closest('.bento-drag-handle, .bento-card-header');
+    if (!handleOrHeader) return;
+    if (e.target.closest('button, input, select, .bento-hide-btn')) return;
+
+    touchCard = handleOrHeader.closest('.bento-card');
+    if (touchCard) {
+      touchCard.classList.add('is-dragging');
+    }
+  }, { passive: true });
+
+  grid.addEventListener('touchmove', (e) => {
+    if (!isEditMode || !touchCard) return;
+    const touch = e.touches[0];
+    const elem = document.elementFromPoint(touch.clientX, touch.clientY);
+    const target = elem ? elem.closest('.bento-card') : null;
+
+    grid.querySelectorAll('.bento-card').forEach(c => {
+      if (c !== target) c.classList.remove('drag-over');
+    });
+
+    if (target && target !== touchCard) {
+      target.classList.add('drag-over');
+      touchTarget = target;
+    } else {
+      touchTarget = null;
+    }
+  }, { passive: true });
+
+  grid.addEventListener('touchend', (e) => {
+    if (!isEditMode || !touchCard) return;
+    if (touchTarget && touchTarget !== touchCard) {
+      const rect = touchTarget.getBoundingClientRect();
+      const touch = e.changedTouches[0];
+      const isAfter = (touch.clientY > rect.top + rect.height / 2);
+      if (isAfter) {
+        touchTarget.after(touchCard);
+      } else {
+        touchTarget.before(touchCard);
+      }
+      saveCurrentGridOrder();
+      playSFX('click');
+      showToast('Dashboard layout updated', 'info');
+    }
+    grid.querySelectorAll('.bento-card').forEach(c => c.classList.remove('is-dragging', 'drag-over'));
+    touchCard = null;
+    touchTarget = null;
+  });
+}
+
+// Global escape key listener to exit edit mode
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && isEditMode) {
+    toggleEditMode();
+  }
+});
+
 function applyWidgetPreferences() {
   const container = document.getElementById('bento-grid');
   if (!container) return;
@@ -184,6 +419,8 @@ function applyWidgetPreferences() {
       }
     }
   });
+
+  setupBentoDragAndDrop();
 }
 
 function openCustomizeModal() {
