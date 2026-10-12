@@ -12,7 +12,31 @@ let availableVoices = [];
 let selectedVoiceURI = localStorage.getItem('pyhome_voice_uri') || '';
 let audioCtx = null;
 
+// THEME MANAGEMENT (DARK / LIGHT)
+let currentTheme = localStorage.getItem('pyhome_theme') || 'dark';
+
+function initTheme() {
+  document.documentElement.setAttribute('data-theme', currentTheme);
+  updateThemeButtonUI();
+}
+
+function toggleTheme() {
+  currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', currentTheme);
+  localStorage.setItem('pyhome_theme', currentTheme);
+  updateThemeButtonUI();
+  playSFX('click');
+}
+
+function updateThemeButtonUI() {
+  const textEl = document.getElementById('theme-toggle-text');
+  if (textEl) {
+    textEl.innerText = currentTheme === 'dark' ? 'Dark' : 'Light';
+  }
+}
+
 window.addEventListener('DOMContentLoaded', () => {
+  initTheme();
   initClock();
   initVoices();
   initCameraCanvas();
@@ -425,6 +449,17 @@ function activateScene(sceneId) {
   }
 }
 
+// COLOR THEME MAPPER PER DEVICE TYPE
+function getDeviceColorClass(d) {
+  if (d.id === 'device-1') return 'type-relay device-light';
+  if (d.id === 'device-2') return 'type-fan';
+  if (d.id === 'device-3') return 'device-tv';
+  if (d.id === 'device-4') return 'device-ac';
+  if (d.id === 'device-5') return 'type-dimmer';
+  if (d.id === 'device-6') return 'type-lock';
+  return `type-${d.type}`;
+}
+
 // DEVICE GRID & CONTROLS (APPLE HOME / MUSHROOM STYLE)
 function renderDevices() {
   const grid = document.getElementById('devices-grid');
@@ -437,8 +472,10 @@ function renderDevices() {
   const countPill = document.getElementById('device-count-pill');
   if (countPill) countPill.innerText = `${filtered.length} Devices`;
 
-  grid.innerHTML = filtered.map(d => `
-    <div id="card-${d.id}" class="device-card ${d.state ? 'active' : ''}">
+  grid.innerHTML = filtered.map(d => {
+    const colorClass = getDeviceColorClass(d);
+    return `
+    <div id="card-${d.id}" class="device-card ${colorClass} ${d.state ? 'active' : ''}">
       <div class="card-top">
         <button class="icon-btn" onclick="toggleDevice('${d.id}')" title="Click to toggle">
           ${getDeviceSVG(d.type, d.state)}
@@ -470,7 +507,8 @@ function renderDevices() {
         </div>
       ` : ''}
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 function updateSingleDevice(updatedDevice) {
@@ -480,10 +518,11 @@ function updateSingleDevice(updatedDevice) {
 
   const card = document.getElementById(`card-${updatedDevice.id}`);
   if (card) {
+    const colorClass = getDeviceColorClass(updatedDevice);
+    card.className = `device-card ${colorClass} ${updatedDevice.state ? 'active' : ''}`;
+
     const cb = card.querySelector('input[type="checkbox"]');
     if (cb) cb.checked = updatedDevice.state;
-    if (updatedDevice.state) card.classList.add('active');
-    else card.classList.remove('active');
 
     const iconBtn = card.querySelector('.icon-btn');
     if (iconBtn) iconBtn.innerHTML = getDeviceSVG(updatedDevice.type, updatedDevice.state);
