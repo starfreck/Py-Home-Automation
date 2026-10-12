@@ -58,6 +58,13 @@
             </svg>
             Activity Log
           </button>
+          <button class="nav-item" id="nav-btn-settings" onclick="switchNav('settings', this)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+              <circle cx="12" cy="13" r="3"/>
+            </svg>
+            Settings
+          </button>
         </nav>
       </div>
 
@@ -314,8 +321,459 @@
           </div>
         </div>
       </div>
+
+      <!-- VIEW: ALL DEVICES -->
+      <div class="page-content" id="view-devices" style="display: none;">
+        <div class="view-header">
+          <div>
+            <h2>Smart Devices & Relays</h2>
+            <p class="view-subtitle">Real-time state and pin actuation for all connected hardware endpoints.</p>
+          </div>
+          <button class="btn-action primary" onclick="openDeviceModal()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Add Device
+          </button>
+        </div>
+
+        <!-- QUICK SCENES ROW -->
+        <div class="quick-scenes-card">
+          <span class="scenes-title">Automation Scenes:</span>
+          <div class="scenes-buttons">
+            <button class="scene-btn" onclick="activateScene('all_on')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/></svg>
+              All On
+            </button>
+            <button class="scene-btn" onclick="activateScene('all_off')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+              All Off
+            </button>
+            <button class="scene-btn" onclick="activateScene('movie_night')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="15" x="2" y="7" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg>
+              Movie Night
+            </button>
+            <button class="scene-btn" onclick="activateScene('secure_perimeter')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              Secure Perimeter
+            </button>
+          </div>
+        </div>
+
+        <!-- ROOM FILTERS -->
+        <div class="pane-header">
+          <div class="segment-control">
+            <button class="segment-btn active" data-room="all" onclick="filterRoom('all')">All</button>
+            <button class="segment-btn" data-room="Living Room" onclick="filterRoom('Living Room')">Living Room</button>
+            <button class="segment-btn" data-room="Bedroom" onclick="filterRoom('Bedroom')">Bedroom</button>
+            <button class="segment-btn" data-room="Security" onclick="filterRoom('Security')">Security</button>
+          </div>
+          <span class="item-count" id="devices-view-count">6 Devices</span>
+        </div>
+
+        <div id="devices-view-grid" class="cards-grid">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+      <!-- VIEW: CAMERAS -->
+      <div class="page-content" id="view-cameras" style="display: none;">
+        <div class="view-header">
+          <div>
+            <h2>Perimeter Vision & Surveillance</h2>
+            <p class="view-subtitle">Edge AI facial identification, CSI camera feeds, and multi-angle security coverage.</p>
+          </div>
+          <div class="header-actions">
+            <button class="btn-action primary" onclick="simulateFaceScan()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/></svg>
+              Scan Primary Feed
+            </button>
+            <button class="btn-action secondary" onclick="simulateSnapshot()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+              All Snapshots
+            </button>
+          </div>
+        </div>
+
+        <div class="camera-surveillance-grid">
+          <!-- CAM 1: FRONT DOOR -->
+          <div class="content-card camera-feed-card">
+            <div class="card-title-bar">
+              <div class="title-with-badge">
+                <span class="rec-dot"></span>
+                <h4>CAM-01 • Front Door (Primary CSI)</h4>
+              </div>
+              <span class="badge-subtle">1080p • 30fps</span>
+            </div>
+            <div class="camera-frame">
+              <canvas id="camera-canvas-full" width="480" height="270"></canvas>
+              <div class="face-detect-box" style="left: 35%; top: 25%;">
+                <span class="face-name">Vasu (99.8%)</span>
+              </div>
+              <div class="cam-overlay-footer">
+                <span>Front Entrance Deadbolt</span>
+                <span class="cam-clock">LIVE</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- CAM 2: LIVING ROOM -->
+          <div class="content-card camera-feed-card">
+            <div class="card-title-bar">
+              <div class="title-with-badge">
+                <span class="rec-dot"></span>
+                <h4>CAM-02 • Living Room Interior</h4>
+              </div>
+              <span class="badge-subtle">720p • Motion Active</span>
+            </div>
+            <div class="camera-frame placeholder-frame">
+              <div class="frame-center-info">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+                <span>Motion Detection: Clear</span>
+              </div>
+              <div class="cam-overlay-footer">
+                <span>Living Room Wide</span>
+                <span>LIVE</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- CAM 3: DRIVEWAY -->
+          <div class="content-card camera-feed-card">
+            <div class="card-title-bar">
+              <div class="title-with-badge">
+                <span class="rec-dot"></span>
+                <h4>CAM-03 • Driveway & Gate</h4>
+              </div>
+              <span class="badge-subtle">1080p • IR Night Vision</span>
+            </div>
+            <div class="camera-frame placeholder-frame">
+              <div class="frame-center-info">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                <span>Perimeter Barrier Secured</span>
+              </div>
+              <div class="cam-overlay-footer">
+                <span>Driveway / North Gate</span>
+                <span>LIVE</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- CAM 4: BACKYARD -->
+          <div class="content-card camera-feed-card">
+            <div class="card-title-bar">
+              <div class="title-with-badge">
+                <span class="rec-dot"></span>
+                <h4>CAM-04 • Backyard Garden</h4>
+              </div>
+              <span class="badge-subtle">1080p • 30fps</span>
+            </div>
+            <div class="camera-frame placeholder-frame">
+              <div class="frame-center-info">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <span>Rear Perimeter Sensor Active</span>
+              </div>
+              <div class="cam-overlay-footer">
+                <span>Back Patio Zone</span>
+                <span>LIVE</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW: ACTIVITY LOG -->
+      <div class="page-content" id="view-activity" style="display: none;">
+        <div class="view-header">
+          <div>
+            <h2>Audit & Activity Logs</h2>
+            <p class="view-subtitle">Chronological ledger of device actuations, Gemma AI commands, and biometric security alerts.</p>
+          </div>
+          <div class="header-actions">
+            <button class="btn-action secondary" onclick="exportLogsCsv()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Export CSV
+            </button>
+            <button class="btn-action secondary" onclick="clearActivityLog()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              Clear Feed
+            </button>
+          </div>
+        </div>
+
+        <div class="content-card full-log-card">
+          <div class="activity-filter-bar">
+            <button class="filter-pill active" onclick="filterLogs('all', this)">All Events</button>
+            <button class="filter-pill" onclick="filterLogs('hardware', this)">Hardware Actuations</button>
+            <button class="filter-pill" onclick="filterLogs('assistant', this)">AI Voice & Assistant</button>
+            <button class="filter-pill" onclick="filterLogs('security', this)">Security & Biometrics</button>
+          </div>
+          <div id="full-event-log" class="full-activity-stream">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW: SETTINGS & CONFIGURATION -->
+      <div class="page-content" id="view-settings" style="display: none;">
+        <div class="view-header">
+          <div>
+            <h2>System & Hub Settings</h2>
+            <p class="view-subtitle">Configure local Gemma AI models, camera streams, telemetry intervals, and physical GPIO devices.</p>
+          </div>
+          <div class="header-actions">
+            <button class="btn-action secondary" onclick="exportConfigJson()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Export JSON
+            </button>
+            <button class="btn-action primary" onclick="saveSettings()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              Save Configuration
+            </button>
+          </div>
+        </div>
+
+        <div class="settings-grid">
+          <!-- CARD 1: GENERAL & HUB -->
+          <div class="content-card settings-card">
+            <div class="settings-card-header">
+              <div class="settings-card-icon hub-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"/><rect width="20" height="8" x="2" y="14" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+              </div>
+              <div>
+                <h3>General Hub Settings</h3>
+                <span class="settings-card-desc">Hub identity and telemetry broadcast frequency</span>
+              </div>
+            </div>
+
+            <div class="settings-card-body">
+              <div class="form-group">
+                <label for="setting-hub-name">Hub Display Name</label>
+                <input type="text" id="setting-hub-name" class="input-control" value="PyHome Main Hub">
+              </div>
+
+              <div class="form-group">
+                <label for="setting-telemetry-interval">Telemetry Broadcast Interval</label>
+                <select id="setting-telemetry-interval" class="input-control">
+                  <option value="1">1 second (High responsiveness)</option>
+                  <option value="3" selected>3 seconds (Balanced default)</option>
+                  <option value="5">5 seconds (Low power mode)</option>
+                  <option value="10">10 seconds (Eco mode)</option>
+                </select>
+              </div>
+
+              <div class="hub-info-pills">
+                <div class="info-pill">
+                  <span class="info-pill-label">Hardware Architecture</span>
+                  <span class="info-pill-val">Raspberry Pi 4 / Linux ARM64</span>
+                </div>
+                <div class="info-pill">
+                  <span class="info-pill-label">HTTP/WS Gateway</span>
+                  <span class="info-pill-val">0.0.0.0:8080</span>
+                </div>
+                <div class="info-pill">
+                  <span class="info-pill-label">GPIO Hardware State</span>
+                  <span class="info-pill-val">Ready (Direct Pin Control)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- CARD 2: AI & VOICE ENGINE -->
+          <div class="content-card settings-card">
+            <div class="settings-card-header">
+              <div class="settings-card-icon ai-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              </div>
+              <div>
+                <h3>Gemma 4 Edge AI & Voice</h3>
+                <span class="settings-card-desc">Local Ollama inference and voice synthesis</span>
+              </div>
+            </div>
+
+            <div class="settings-card-body">
+              <div class="form-group">
+                <label for="setting-ollama-host">Ollama Server Endpoint</label>
+                <div class="input-with-button">
+                  <input type="text" id="setting-ollama-host" class="input-control" value="http://127.0.0.1:11434">
+                  <button type="button" class="btn-subtle" onclick="testOllamaEndpoint()">Test Ping</button>
+                </div>
+                <span class="ping-status" id="ollama-ping-status">Ready</span>
+              </div>
+
+              <div class="form-group">
+                <label for="setting-gemma-model">Language Model</label>
+                <select id="setting-gemma-model" class="input-control">
+                  <option value="gemma4" selected>gemma4 (Recommended Edge AI)</option>
+                  <option value="gemma4:e4b-instruct">gemma4:e4b-instruct (Edge Quantized)</option>
+                  <option value="gemma:2b">gemma:2b (Ultra lightweight)</option>
+                  <option value="gemma:7b">gemma:7b (High precision)</option>
+                  <option value="llama3:8b">llama3:8b (Alternative)</option>
+                </select>
+              </div>
+
+              <div class="form-switch-row">
+                <div class="switch-label-group">
+                  <span class="switch-title">Auto-Speech Voice Feedback</span>
+                  <span class="switch-desc">Read Gemma AI responses aloud automatically</span>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="setting-auto-speech" checked>
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- CARD 3: CAMERA & BIOMETRICS -->
+          <div class="content-card settings-card">
+            <div class="settings-card-header">
+              <div class="settings-card-icon cam-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+              </div>
+              <div>
+                <h3>Camera & Biometric Perimeter</h3>
+                <span class="settings-card-desc">CSI camera inputs and facial verification threshold</span>
+              </div>
+            </div>
+
+            <div class="settings-card-body">
+              <div class="form-group">
+                <label for="setting-camera-source">Video Stream Device Source</label>
+                <input type="text" id="setting-camera-source" class="input-control" value="CSI Camera 01 (/dev/video0)">
+                <span class="field-hint">Supports /dev/video0, CSI camera, or RTSP streaming url</span>
+              </div>
+
+              <div class="form-group">
+                <div class="slider-header">
+                  <label for="setting-biometric-threshold">Biometric Verification Confidence</label>
+                  <span class="slider-val-badge" id="biometric-val-badge">85%</span>
+                </div>
+                <input type="range" id="setting-biometric-threshold" min="50" max="99" value="85" class="range-slider" oninput="updateBiometricBadge(this.value)">
+                <span class="field-hint">Minimum match score to trigger automated deadbolt unlock</span>
+              </div>
+
+              <div class="form-switch-row">
+                <div class="switch-label-group">
+                  <span class="switch-title">Intruder Snapshot Alert</span>
+                  <span class="switch-desc">Capture timestamped frame on unidentified face</span>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="setting-intruder-alert" checked>
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CARD 4: DEVICE INVENTORY & HARDWARE GPIO PIN MANAGER -->
+        <div class="content-card hardware-inventory-card">
+          <div class="inventory-header">
+            <div>
+              <h3>Device Hardware & GPIO Mapping</h3>
+              <p class="settings-card-desc">Assign physical Raspberry Pi relay pins, rooms, and rated power consumption.</p>
+            </div>
+            <button class="btn-action primary" onclick="openDeviceModal()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Add New Device
+            </button>
+          </div>
+
+          <div class="table-responsive">
+            <table class="inventory-table">
+              <thead>
+                <tr>
+                  <th>Device Name</th>
+                  <th>Device Type</th>
+                  <th>Room / Zone</th>
+                  <th>GPIO Pin</th>
+                  <th>Rated Power</th>
+                  <th>Current State</th>
+                  <th style="text-align: right;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="settings-device-table-body">
+                <!-- Populated dynamically by app.js -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
+
+  <!-- MODAL: ADD / EDIT SMART DEVICE -->
+  <div class="modal-overlay" id="device-modal" style="display: none;" onclick="closeModalOnBackdrop(event)">
+    <div class="modal-card" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          <h3 id="device-modal-title">Add Smart Device</h3>
+        </div>
+        <button class="btn-close" onclick="closeDeviceModal()" title="Close">&times;</button>
+      </div>
+
+      <form id="device-form" onsubmit="submitDeviceForm(event)">
+        <input type="hidden" id="modal-device-id" value="">
+
+        <div class="form-group">
+          <label for="modal-device-name">Device Name</label>
+          <input type="text" id="modal-device-name" class="input-control" required placeholder="e.g. Kitchen Pendant Light">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="modal-device-type">Device Type</label>
+            <select id="modal-device-type" class="input-control" required>
+              <option value="relay">Relay / Switch</option>
+              <option value="dimmer">Dimmer Light (0-100%)</option>
+              <option value="fan">Ceiling / Exhaust Fan</option>
+              <option value="lock">Smart Deadbolt Lock</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="modal-device-room">Room / Area</label>
+            <input type="text" id="modal-device-room" class="input-control" required placeholder="e.g. Living Room, Bedroom" list="room-options">
+            <datalist id="room-options">
+              <option value="Living Room">
+              <option value="Bedroom">
+              <option value="Kitchen">
+              <option value="Security">
+              <option value="Office">
+              <option value="Outdoor">
+              <option value="Balcony">
+              <option value="Garage">
+            </datalist>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="modal-device-pin">Raspberry Pi GPIO Pin</label>
+            <input type="number" id="modal-device-pin" class="input-control" min="2" max="27" required placeholder="e.g. 17">
+            <span class="field-hint">BCM Pin 2 to 27</span>
+          </div>
+
+          <div class="form-group">
+            <label for="modal-device-watts">Rated Power (Watts)</label>
+            <input type="number" id="modal-device-watts" class="input-control" step="0.5" min="0" required placeholder="e.g. 15.0">
+            <span class="field-hint">Used for live load calculation</span>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-action secondary" onclick="closeDeviceModal()">Cancel</button>
+          <button type="submit" class="btn-action primary">Save Device</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION POPUP -->
+  <div id="toast-container" class="toast-container"></div>
 
   <script src="app.js"></script>
 </body>

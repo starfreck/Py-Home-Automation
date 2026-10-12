@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"sort"
 	"sync"
 	"time"
 
@@ -15,6 +16,7 @@ type DeviceManager struct {
 	devices   map[string]*model.Device
 	scenes    map[string]model.Scene
 	telemetry model.Telemetry
+	settings  model.Settings
 	mu        sync.RWMutex
 	onUpdate  func(device *model.Device)
 }
@@ -25,6 +27,15 @@ func NewDeviceManager(onUpdate func(device *model.Device)) *DeviceManager {
 		devices:  make(map[string]*model.Device),
 		scenes:   make(map[string]model.Scene),
 		onUpdate: onUpdate,
+		settings: model.Settings{
+			HubName:            "PyHome Main Hub",
+			OllamaHost:         "http://localhost:11434",
+			GemmaModel:         "gemma4",
+			CameraSource:       "CSI Camera 01 (/dev/video0)",
+			BiometricThreshold: 0.85,
+			TelemetryInterval:  3,
+			AutoSpeechReply:    true,
+		},
 	}
 
 	dm.initDefaultDevices()
@@ -184,6 +195,9 @@ func (dm *DeviceManager) GetAllDevices() []model.Device {
 	for _, d := range dm.devices {
 		list = append(list, *d)
 	}
+	sort.Slice(list, func(i, j int) bool {
+		return list[i].ID < list[j].ID
+	})
 	return list
 }
 
@@ -319,3 +333,90 @@ func (dm *DeviceManager) triggerPhysicalGPIO(pin int, state bool) {
 	// Path: /sys/class/gpio/gpio{pin}/value
 	// For dev/demo mode, this runs in zero-crash Mock mode.
 }
+
+// AddDevice registers a new device in the system.
+func (dm *DeviceManager) AddDevice(d model.Device) (*model.Device, error) {
+	dm.mu.Lock()
+	defer dm.mu.Unlock()
+
+	if d.ID == "" {
+		d.ID = fmt.Sprintf("device-%d", time.Now().UnixNano()%100000)
+	}
+	if d.Icon == "" {
+		switch d.Type {
+		case model.TypeFan:
+			d.Icon = "🌀"
+		case model.TypeDimmer:
+			d.Icon = "🎛️"
+		case model.TypeLock:
+			d.Icon = "🔒"
+		default:
+			d.Icon = "💡"
+		}
+	}
+	if d.Value == 0 && d.Type == model.TypeDimmer {
+		d.Value = 50
+	} else if d.Value == 0 && d.Type == model.TypeFan {
+		d.Value = 50
+	}
+	d.LastUpdated = time.Now()
+	dm.devices[d.ID] = &d
+	cpy := d
+
+	if dm.onUpdate != nil {
+		dm.onUpdate(&cpy)
+	}
+	return &cpy, nil
+}
+
+// UpdateDevice updates an existing device's metadata.
+func (dm *DeviceManager) UpdateDevice(id string, updated model.Device) (*model.Device, error) {
+	dm.mu.Lock()
+	defer dm.mu.Unlock()
+
+	d, ok := dm.devices[id]
+	if !ok {
+		return nil, fmt.Errorf("device %s not found", id)
+	}
+
+	d.Name = updated.Name
+	d.Room = updated.Room
+	d.Type = updated.Type
+	d.GPIOPin = updated.GPIOPin
+	d.PowerWatts = updated.PowerWatts
+	d.LastUpdated = time.Now()
+	cpy := *d
+
+	if dm.onUpdate != nil {
+		dm.onUpdate(&cpy)
+	}
+	return &cpy, nil
+}
+
+// DeleteDevice removes a device from the manager.
+func (dm *DeviceManager) DeleteDevice(id string) error {
+	dm.mu.Lock()
+	defer dm.mu.Unlock()
+
+	if _, ok := dm.devices[id]; !ok {
+		return fmt.Errorf("device %s not found", id)
+	}
+	delete(dm.devices, id)
+	return nil
+}
+
+// GetSettings retrieves current hub settings.
+func (dm *DeviceManager) GetSettings() model.Settings {
+	dm.mu.RLock()
+	defer dm.mu.RUnlock()
+	return dm.settings
+}
+
+// UpdateSettings updates hub configuration settings.
+func (dm *DeviceManager) UpdateSettings(s model.Settings) error {
+	dm.mu.Lock()
+	defer dm.mu.Unlock()
+	dm.settings = s
+	return nil
+}
+

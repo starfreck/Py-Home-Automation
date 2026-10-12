@@ -54,3 +54,15 @@ type WSMessage struct {
 	Type    string      `json:"type"`    // "init", "device_update", "telemetry", "event", "toggle"
 	Payload interface{} `json:"payload"`
 }
+
+// Settings holds configurable hub, AI, and hardware parameters.
+type Settings struct {
+	HubName            string  `json:"hub_name"`
+	OllamaHost         string  `json:"ollama_host"`
+	GemmaModel         string  `json:"gemma_model"`
+	CameraSource       string  `json:"camera_source"`
+	BiometricThreshold float64 `json:"biometric_threshold"`
+	TelemetryInterval  int     `json:"telemetry_interval"`
+	AutoSpeechReply    bool    `json:"auto_speech_reply"`
+}
+

@@ -89,21 +89,65 @@ func main() {
 		eventHub.HandleWebSocket(w, r, initialState)
 	})
 
-	// REST API: Devices List
+	// REST API: Devices List & Creation
 	mux.HandleFunc("/api/devices", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+		if r.Method == http.MethodPost {
+			var newDev model.Device
+			if err := json.NewDecoder(r.Body).Decode(&newDev); err != nil {
+				http.Error(w, "invalid device payload", http.StatusBadRequest)
+				return
+			}
+			created, err := deviceMgr.AddDevice(newDev)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			eventHub.BroadcastJSON("device_added", created)
+			w.WriteHeader(http.StatusCreated)
+			json.NewEncoder(w).Encode(created)
+			return
+		}
 		json.NewEncoder(w).Encode(deviceMgr.GetAllDevices())
 	})
 
-	// REST API: Toggle Device & Set State
+	// REST API: Toggle, Update & Delete Device
 	mux.HandleFunc("/api/devices/", func(w http.ResponseWriter, r *http.Request) {
 		parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
-		// Expecting: /api/devices/{id}/toggle or /api/devices/{id}/state
 		if len(parts) < 3 {
 			http.NotFound(w, r)
 			return
 		}
 		deviceID := parts[2]
+
+		// DELETE /api/devices/{id}
+		if r.Method == http.MethodDelete {
+			if err := deviceMgr.DeleteDevice(deviceID); err != nil {
+				http.Error(w, err.Error(), http.StatusNotFound)
+				return
+			}
+			eventHub.BroadcastJSON("device_deleted", map[string]string{"id": deviceID})
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]string{"status": "deleted", "id": deviceID})
+			return
+		}
+
+		// PUT /api/devices/{id} (Update metadata)
+		if r.Method == http.MethodPut {
+			var updatedDev model.Device
+			if err := json.NewDecoder(r.Body).Decode(&updatedDev); err != nil {
+				http.Error(w, "invalid payload", http.StatusBadRequest)
+				return
+			}
+			res, err := deviceMgr.UpdateDevice(deviceID, updatedDev)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusNotFound)
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(res)
+			return
+		}
 
 		if len(parts) >= 4 && parts[3] == "toggle" && r.Method == http.MethodPost {
 			dev, err := deviceMgr.ToggleDevice(deviceID)
@@ -136,6 +180,22 @@ func main() {
 		}
 
 		http.NotFound(w, r)
+	})
+
+	// REST API: System Settings
+	mux.HandleFunc("/api/settings", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method == http.MethodPost {
+			var s model.Settings
+			if err := json.NewDecoder(r.Body).Decode(&s); err != nil {
+				http.Error(w, "invalid settings payload", http.StatusBadRequest)
+				return
+			}
+			deviceMgr.UpdateSettings(s)
+			json.NewEncoder(w).Encode(map[string]string{"status": "saved"})
+			return
+		}
+		json.NewEncoder(w).Encode(deviceMgr.GetSettings())
 	})
 
 	// REST API: Telemetry
