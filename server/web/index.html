@@ -141,33 +141,167 @@
         </div>
       </header>
 
-      <!-- INTELLIGENT ASSISTANT RESPONSE DRAWER (OPENS WHEN SPOKEN TO) -->
-      <section class="assistant-response-card" id="assistant-banner">
-        <div class="assistant-lead">
-          <div class="spark-badge">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-            </svg>
-            <span>Gemma 4 Assistant</span>
+      <!-- JARVIS HOLOGRAPHIC NEURAL CORE & MOVING GLOB (SIRI X JARVIS) -->
+      <section class="jarvis-core-hero" id="jarvis-core-hero">
+        <div class="hologram-backdrop-glow"></div>
+
+        <!-- TOP HOLOGRAPHIC TELEMETRY STRIP -->
+        <div class="core-telemetry-header">
+          <div class="hud-tag">
+            <span class="hud-status-blink"></span>
+            <span class="hud-tag-title">MK-IV NEURAL CORE</span>
+            <span class="hud-tag-sub">SYS ID: PH-GEMMA-4B</span>
           </div>
-          <div class="voice-picker">
-            <label>Voice:</label>
-            <select id="voice-select" onchange="onVoiceChange(this.value)"></select>
+
+          <div class="core-status-pill" id="core-state-badge">
+            <span class="core-pulse-dot"></span>
+            <span id="core-status-text">STANDBY // READY</span>
+          </div>
+
+          <div class="core-header-actions">
+            <div class="voice-picker-minimal">
+              <label>VOICE:</label>
+              <select id="voice-select" onchange="onVoiceChange(this.value)"></select>
+            </div>
+            <button class="btn-hud-mode" id="btn-toggle-immersion" onclick="toggleCoreImmersion()" title="Toggle full immersion mode">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+              <span>Hologram View</span>
+            </button>
           </div>
         </div>
 
-        <div class="assistant-dialogue">
-          <div class="query-text" id="voice-transcript">"What is the system status?"</div>
-          <div class="reply-text" id="voice-reply">All systems operating normally. 4 devices active. Total energy draw 155 Watts.</div>
+        <!-- MAIN HOLOGRAPHIC STAGE: LEFT METRICS + MOVING GLOB + RIGHT METRICS -->
+        <div class="holographic-stage">
+          <!-- LEFT HUD TELEMETRY WING -->
+          <div class="hud-wing wing-left">
+            <div class="hud-metric-box">
+              <span class="metric-cap">NEURAL ACTIVITY</span>
+              <div class="metric-val-row">
+                <span class="metric-big" id="core-neural-pct">99.4</span>
+                <span class="metric-unit">%</span>
+              </div>
+              <div class="hud-mini-bar"><div class="hud-mini-fill" style="width: 99.4%;"></div></div>
+            </div>
+
+            <div class="hud-metric-box">
+              <span class="metric-cap">CORE FREQUENCY</span>
+              <div class="metric-val-row">
+                <span class="metric-big" id="core-freq-hz">432</span>
+                <span class="metric-unit">Hz</span>
+              </div>
+              <span class="hud-mini-sub">Harmonic sync locked</span>
+            </div>
+
+            <div class="hud-metric-box">
+              <span class="metric-cap">INPUT BEAMFORMING</span>
+              <div class="metric-val-row">
+                <span class="metric-big">48.0</span>
+                <span class="metric-unit">kHz</span>
+              </div>
+              <span class="hud-mini-sub">Array sensitivity high</span>
+            </div>
+          </div>
+
+          <!-- CENTER: MOVING GLOB CANVAS (INTERACTIVE SIRI X JARVIS ORB) -->
+          <div class="glob-stage-center" onclick="handleGlobClick()">
+            <div class="glob-canvas-wrapper" id="glob-canvas-container">
+              <canvas id="jarvis-glob-canvas" width="480" height="480"></canvas>
+              <!-- Holographic HUD reticle ring corners -->
+              <div class="hud-reticle-corner corner-tl"></div>
+              <div class="hud-reticle-corner corner-tr"></div>
+              <div class="hud-reticle-corner corner-bl"></div>
+              <div class="hud-reticle-corner corner-br"></div>
+              
+              <!-- Tap to speak prompt overlay -->
+              <div class="glob-center-hint" id="glob-hint-overlay">
+                <span class="hint-pulse-ring"></span>
+                <span class="hint-text" id="glob-hint-text">TAP TO SPEAK</span>
+              </div>
+            </div>
+
+            <div class="glob-interaction-cue">
+              <span id="glob-state-caption">Gemma 4 Neural Core • Tap orb or press Enter</span>
+            </div>
+          </div>
+
+          <!-- RIGHT HUD TELEMETRY WING -->
+          <div class="hud-wing wing-right">
+            <div class="hud-metric-box">
+              <span class="metric-cap">THERMAL SINK</span>
+              <div class="metric-val-row">
+                <span class="metric-big" id="hud-pi-temp">41.8</span>
+                <span class="metric-unit">°C</span>
+              </div>
+              <span class="hud-mini-sub">Broadcom BCM2711</span>
+            </div>
+
+            <div class="hud-metric-box">
+              <span class="metric-cap">ACTIVE RELAYS</span>
+              <div class="metric-val-row">
+                <span class="metric-big" id="hud-relays-active">4</span>
+                <span class="metric-unit">/ 6 ACT</span>
+              </div>
+              <div class="hud-mini-bar"><div class="hud-mini-fill" style="width: 66%;"></div></div>
+            </div>
+
+            <div class="hud-metric-box">
+              <span class="metric-cap">TOTAL DRAW</span>
+              <div class="metric-val-row">
+                <span class="metric-big" id="hud-watts-draw">155</span>
+                <span class="metric-unit">W</span>
+              </div>
+              <span class="hud-mini-sub">Live bus telemetry</span>
+            </div>
+          </div>
         </div>
 
-        <div class="quick-chips">
-          <button class="chip" onclick="submitTextCommand('Movie night')">Cinema Mode</button>
-          <button class="chip" onclick="submitTextCommand('Lock front door and turn off all lights')">Secure Perimeter</button>
-          <button class="chip" onclick="submitTextCommand('Turn on air conditioner')">Climate On</button>
-          <button class="chip" onclick="submitTextCommand('Turn off all devices')">All Off</button>
+        <!-- HOLOGRAPHIC DIALOGUE & SPEECH STREAM -->
+        <div class="hologram-dialogue-card" id="hologram-dialogue-card">
+          <div class="dialogue-query-row">
+            <div class="query-avatar">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+            <div class="query-content">
+              <span class="query-label">DIRECTIVE:</span>
+              <div class="query-text" id="voice-transcript">"What is the system status?"</div>
+            </div>
+          </div>
+
+          <div class="dialogue-reply-row">
+            <div class="reply-avatar">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/><line x1="14.83" y1="9.17" x2="19.07" y2="4.93"/><line x1="4.93" y1="19.07" x2="9.17" y2="14.83"/></svg>
+            </div>
+            <div class="reply-content">
+              <span class="reply-label">GEMMA 4:</span>
+              <div class="reply-text" id="voice-reply">All systems nominal. 4 devices active. Perimeter secured. Ambient power draw 155 Watts.</div>
+            </div>
+          </div>
+
+          <div class="hologram-quick-actions">
+            <button class="hologram-chip" onclick="submitTextCommand('Movie night')">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="15" x="2" y="7" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg>
+              Cinema Mode
+            </button>
+            <button class="hologram-chip" onclick="submitTextCommand('Lock front door and turn off all lights')">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              Secure Perimeter
+            </button>
+            <button class="hologram-chip" onclick="submitTextCommand('Turn on air conditioner')">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
+              Climate On
+            </button>
+            <button class="hologram-chip" onclick="submitTextCommand('Turn off all devices')">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+              All Off
+            </button>
+            <button class="hologram-chip highlight" onclick="submitTextCommand('Run diagnostic on all connected endpoints')">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+              Diagnostics
+            </button>
+          </div>
         </div>
       </section>
+
 
       <!-- DASHBOARD OVERVIEW PAGE -->
       <div class="page-content" id="view-dashboard">

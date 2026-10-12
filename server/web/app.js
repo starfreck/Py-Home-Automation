@@ -609,7 +609,553 @@ function clearMemo() {
 }
 
 // ==========================================
-// 6. APPLICATION BOOTSTRAPPER
+// 6. JARVIS HOLOGRAPHIC MOVING GLOB ENGINE (SIRI X JARVIS)
+// ==========================================
+let orbState = 'idle'; // 'idle', 'listening', 'thinking', 'speaking'
+let orbAudioEnergy = 0.08;
+let orbTargetEnergy = 0.08;
+let orbTime = 0;
+let isCoreImmersion = false;
+let globCanvas = null;
+let globCtx = null;
+let globAnimFrame = null;
+
+let shockwaves = [];
+let orbParticles = [];
+let mouseTilt = { x: 0, y: 0, targetX: 0, targetY: 0, isHovered: false };
+
+function initJarvisGlob() {
+  globCanvas = document.getElementById('jarvis-glob-canvas');
+  if (!globCanvas) return;
+  globCtx = globCanvas.getContext('2d');
+
+  // Initialize 3D quantum particles
+  initOrbParticles();
+
+  // Handle HiDPI scaling
+  resizeJarvisGlob();
+  window.addEventListener('resize', resizeJarvisGlob);
+
+  // Mouse interactivity on container
+  const container = document.getElementById('glob-canvas-container');
+  if (container) {
+    container.addEventListener('mouseenter', () => {
+      mouseTilt.isHovered = true;
+    });
+
+    container.addEventListener('mousemove', (e) => {
+      const rect = container.getBoundingClientRect();
+      const x = (e.clientX - rect.left) / rect.width - 0.5;
+      const y = (e.clientY - rect.top) / rect.height - 0.5;
+      mouseTilt.targetX = x * 22;
+      mouseTilt.targetY = y * 22;
+    });
+
+    container.addEventListener('mouseleave', () => {
+      mouseTilt.isHovered = false;
+      mouseTilt.targetX = 0;
+      mouseTilt.targetY = 0;
+    });
+  }
+
+  // Start animation loop
+  if (globAnimFrame) cancelAnimationFrame(globAnimFrame);
+  renderJarvisGlob();
+}
+
+function initOrbParticles() {
+  orbParticles = [];
+  const count = 72;
+  for (let i = 0; i < count; i++) {
+    orbParticles.push({
+      angle: Math.random() * Math.PI * 2,
+      orbitRadius: 80 + Math.random() * 65,
+      speed: (0.006 + Math.random() * 0.012) * (Math.random() > 0.4 ? 1 : -1),
+      yOffset: (Math.random() - 0.5) * 35,
+      size: 1.2 + Math.random() * 2.2,
+      baseAlpha: 0.35 + Math.random() * 0.55
+    });
+  }
+}
+
+function resizeJarvisGlob() {
+  if (!globCanvas) return;
+  const rect = globCanvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const size = rect.width > 0 ? rect.width : (isCoreImmersion ? 440 : 320);
+
+  globCanvas.width = size * dpr;
+  globCanvas.height = size * dpr;
+  globCtx = globCanvas.getContext('2d');
+  globCtx.scale(dpr, dpr);
+}
+
+function spawnShockwave(color) {
+  shockwaves.push({
+    radius: 25,
+    maxRadius: isCoreImmersion ? 220 : 160,
+    alpha: 0.85,
+    speed: 4.8,
+    color: color || '0, 240, 255'
+  });
+}
+
+function setOrbState(newState) {
+  if (orbState === newState) return;
+  orbState = newState;
+
+  const badge = document.getElementById('core-state-badge');
+  const statusText = document.getElementById('core-status-text');
+  const hintText = document.getElementById('glob-hint-text');
+  const caption = document.getElementById('glob-state-caption');
+  const neuralPct = document.getElementById('core-neural-pct');
+
+  if (badge) {
+    badge.className = `core-status-pill ${newState}`;
+  }
+
+  if (newState === 'listening') {
+    if (statusText) statusText.innerText = 'VOICE CAPTURE ACTIVE';
+    if (hintText) hintText.innerText = 'LISTENING...';
+    if (caption) caption.innerText = 'Listening to microphone • Speak instruction clearly';
+    if (neuralPct) neuralPct.innerText = '99.8';
+    spawnShockwave('16, 185, 129');
+  } else if (newState === 'thinking') {
+    if (statusText) statusText.innerText = 'GEMMA SYNAPSE IN PROGRESS';
+    if (hintText) hintText.innerText = 'REASONING...';
+    if (caption) caption.innerText = 'Gemma 4 processing intent & calculating device parameters...';
+    if (neuralPct) neuralPct.innerText = (97.5 + Math.random() * 2.4).toFixed(1);
+    spawnShockwave('168, 85, 247');
+  } else if (newState === 'speaking') {
+    if (statusText) statusText.innerText = 'TRANSMITTING AUDIO';
+    if (hintText) hintText.innerText = 'SPEAKING...';
+    if (caption) caption.innerText = 'Gemma 4 voice response transmitting';
+    if (neuralPct) neuralPct.innerText = '99.2';
+    spawnShockwave('0, 240, 255');
+  } else {
+    // idle
+    if (statusText) statusText.innerText = 'STANDBY // READY';
+    if (hintText) hintText.innerText = 'TAP TO SPEAK';
+    if (caption) caption.innerText = 'Gemma 4 Neural Core • Tap orb or press Enter';
+    if (neuralPct) neuralPct.innerText = '99.4';
+  }
+}
+
+function toggleCoreImmersion() {
+  isCoreImmersion = !isCoreImmersion;
+  playSFX('confirm');
+
+  const hero = document.getElementById('jarvis-core-hero');
+  const btn = document.getElementById('btn-toggle-immersion');
+
+  if (hero) {
+    if (isCoreImmersion) {
+      hero.classList.add('immersion-mode');
+    } else {
+      hero.classList.remove('immersion-mode');
+    }
+  }
+
+  if (btn) {
+    btn.innerHTML = isCoreImmersion ? `
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      <span>Exit View</span>
+    ` : `
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+      <span>Hologram View</span>
+    `;
+  }
+
+  setTimeout(resizeJarvisGlob, 150);
+}
+
+function handleGlobClick() {
+  getAudioContext();
+  playSFX('click');
+  spawnShockwave();
+  toggleSpeechRecognition();
+}
+
+function renderJarvisGlob() {
+  if (!globCanvas || !globCtx) {
+    globAnimFrame = requestAnimationFrame(renderJarvisGlob);
+    return;
+  }
+
+  const rect = globCanvas.getBoundingClientRect();
+  const width = rect.width || (isCoreImmersion ? 440 : 320);
+  const height = rect.height || (isCoreImmersion ? 440 : 320);
+
+  // Time & Easing
+  orbTime += 0.016;
+
+  // Smooth mouse tilt
+  mouseTilt.x += (mouseTilt.targetX - mouseTilt.x) * 0.12;
+  mouseTilt.y += (mouseTilt.targetY - mouseTilt.y) * 0.12;
+
+  // State-based audio energy modulation
+  if (orbState === 'listening') {
+    orbTargetEnergy = 0.42 + 0.35 * Math.abs(Math.sin(orbTime * 7.5)) * Math.cos(orbTime * 4.2);
+  } else if (orbState === 'thinking') {
+    orbTargetEnergy = 0.38 + 0.32 * Math.sin(orbTime * 14.0) * Math.sin(orbTime * 6.5);
+  } else if (orbState === 'speaking') {
+    orbTargetEnergy = 0.48 + 0.38 * Math.sin(orbTime * 6.0) * Math.cos(orbTime * 3.2);
+  } else {
+    // idle breathing
+    orbTargetEnergy = 0.07 + 0.035 * Math.sin(orbTime * 1.4);
+  }
+  orbAudioEnergy += (orbTargetEnergy - orbAudioEnergy) * 0.15;
+
+  const ctx = globCtx;
+  ctx.clearRect(0, 0, width, height);
+
+  const cx = width / 2 + mouseTilt.x;
+  const cy = height / 2 + mouseTilt.y;
+  const R0 = Math.min(width, height) * 0.22;
+
+  // 1. Ambient Volumetric Radial Glow
+  const bgGrad = ctx.createRadialGradient(cx, cy, R0 * 0.15, cx, cy, R0 * 1.95);
+  if (orbState === 'listening') {
+    bgGrad.addColorStop(0, 'rgba(16, 185, 129, 0.28)');
+    bgGrad.addColorStop(0.45, 'rgba(6, 182, 212, 0.12)');
+  } else if (orbState === 'thinking') {
+    bgGrad.addColorStop(0, 'rgba(168, 85, 247, 0.30)');
+    bgGrad.addColorStop(0.45, 'rgba(56, 189, 248, 0.10)');
+  } else if (orbState === 'speaking') {
+    bgGrad.addColorStop(0, 'rgba(0, 240, 255, 0.32)');
+    bgGrad.addColorStop(0.45, 'rgba(99, 102, 241, 0.14)');
+  } else {
+    bgGrad.addColorStop(0, 'rgba(0, 240, 255, 0.18)');
+    bgGrad.addColorStop(0.45, 'rgba(30, 64, 175, 0.06)');
+  }
+  bgGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, width, height);
+
+  // 2. Holographic Concentric Coordinate Grid (JARVIS Guides)
+  ctx.save();
+  ctx.strokeStyle = 'rgba(56, 189, 248, 0.12)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([2, 5]);
+
+  [0.45, 0.72, 1.0, 1.25, 1.45].forEach(scale => {
+    ctx.beginPath();
+    ctx.arc(cx, cy, R0 * scale, 0, Math.PI * 2);
+    ctx.stroke();
+  });
+  ctx.restore();
+
+  // 3. Precision Cardinal Radial Ticks
+  ctx.save();
+  ctx.strokeStyle = 'rgba(56, 189, 248, 0.28)';
+  const tickRadius = R0 * 1.15;
+  for (let i = 0; i < 60; i++) {
+    const angle = (i * Math.PI * 2) / 60;
+    const isMajor = i % 5 === 0;
+    const isCardinal = i % 15 === 0;
+    const len = isCardinal ? 8 : (isMajor ? 5 : 2.5);
+    const cosA = Math.cos(angle);
+    const sinA = Math.sin(angle);
+
+    ctx.beginPath();
+    ctx.lineWidth = isCardinal ? 1.5 : 1;
+    ctx.strokeStyle = isCardinal ? 'rgba(0, 240, 255, 0.65)' : 'rgba(56, 189, 248, 0.25)';
+    ctx.moveTo(cx + cosA * tickRadius, cy + sinA * tickRadius);
+    ctx.lineTo(cx + cosA * (tickRadius + len), cy + sinA * (tickRadius + len));
+    ctx.stroke();
+  }
+
+  // Cardinal Degree Labels
+  ctx.fillStyle = 'rgba(56, 189, 248, 0.55)';
+  ctx.font = '7px "JetBrains Mono", monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('000°', cx, cy - tickRadius - 13);
+  ctx.fillText('090°', cx + tickRadius + 14, cy);
+  ctx.fillText('180°', cx, cy + tickRadius + 13);
+  ctx.fillText('270°', cx - tickRadius - 14, cy);
+  ctx.restore();
+
+  // 4. Rotating Outer Orbital HUD Rings (JARVIS Reticle Rings)
+  // Ring A: Clockwise 3-Segment Arc Ring
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(orbTime * 0.55);
+  const ringA_Radius = R0 * 1.28;
+  ctx.lineWidth = 1.5;
+  for (let s = 0; s < 3; s++) {
+    const startA = (s * Math.PI * 2) / 3;
+    const arcLen = Math.PI * 0.38;
+    ctx.beginPath();
+    ctx.strokeStyle = 'rgba(0, 240, 255, 0.5)';
+    ctx.arc(0, 0, ringA_Radius, startA, startA + arcLen);
+    ctx.stroke();
+
+    // Glowing Node at arc tip
+    const endX = Math.cos(startA + arcLen) * ringA_Radius;
+    const endY = Math.sin(startA + arcLen) * ringA_Radius;
+    ctx.beginPath();
+    ctx.fillStyle = '#ffffff';
+    ctx.arc(endX, endY, 2.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // Ring B: Counter-Clockwise 4-Segment Dashed Ring
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(-orbTime * 0.42);
+  const ringB_Radius = R0 * 1.42;
+  ctx.strokeStyle = 'rgba(129, 140, 248, 0.45)';
+  ctx.lineWidth = 1.2;
+  ctx.setLineDash([4, 6]);
+  ctx.beginPath();
+  ctx.arc(0, 0, ringB_Radius, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+
+  // 5. Radial Equalizer Frequency Bars (Audio-Reactive Wave)
+  ctx.save();
+  const eqRadius = R0 * 1.08;
+  const pinCount = 48;
+  for (let p = 0; p < pinCount; p++) {
+    const angle = (p * Math.PI * 2) / pinCount;
+    const waveNoise = Math.sin(p * 0.42 + orbTime * 6.5) * 0.5 + 0.5;
+    const pinH = 3 + orbAudioEnergy * 26 * waveNoise;
+    const cosP = Math.cos(angle);
+    const sinP = Math.sin(angle);
+
+    ctx.beginPath();
+    ctx.lineWidth = 1.5;
+    ctx.lineCap = 'round';
+    if (orbState === 'listening') {
+      ctx.strokeStyle = 'rgba(16, 185, 129, 0.65)';
+    } else if (orbState === 'thinking') {
+      ctx.strokeStyle = 'rgba(192, 132, 252, 0.65)';
+    } else {
+      ctx.strokeStyle = 'rgba(0, 240, 255, 0.55)';
+    }
+    ctx.moveTo(cx + cosP * eqRadius, cy + sinP * eqRadius);
+    ctx.lineTo(cx + cosP * (eqRadius + pinH), cy + sinP * (eqRadius + pinH));
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // 6. Background 3D Orbiting Quantum Particles (z < 0)
+  ctx.save();
+  orbParticles.forEach(pt => {
+    pt.angle += pt.speed;
+    const rad = pt.orbitRadius;
+    const z = Math.sin(pt.angle) * 0.85;
+
+    if (z < 0) {
+      const px = cx + Math.cos(pt.angle) * rad;
+      const py = cy + Math.sin(pt.angle) * rad * 0.38 + pt.yOffset;
+      const alpha = pt.baseAlpha * (0.35 + (z + 1) * 0.35);
+
+      ctx.beginPath();
+      ctx.fillStyle = `rgba(56, 189, 248, ${alpha})`;
+      ctx.arc(px, py, pt.size * 0.8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  });
+  ctx.restore();
+
+  // 7. Shockwaves Rendering
+  ctx.save();
+  for (let i = shockwaves.length - 1; i >= 0; i--) {
+    const sw = shockwaves[i];
+    sw.radius += sw.speed;
+    sw.alpha *= 0.94;
+
+    if (sw.alpha <= 0.02 || sw.radius >= sw.maxRadius) {
+      shockwaves.splice(i, 1);
+      continue;
+    }
+
+    ctx.beginPath();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = `rgba(${sw.color}, ${sw.alpha})`;
+    ctx.arc(cx, cy, sw.radius, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // 8. THE MULTI-LAYER SIRI FLUID ORGANIC MORPHING GLOB (CORE)
+  // Layer 0: Deep Plasma Shell (Cobalt-Violet)
+  drawFluidGlobLayer(ctx, cx, cy, R0, 0, orbTime, orbAudioEnergy, orbState);
+
+  // Layer 1: Chromasphere Mid Shell (Neon Cyan-Azure)
+  drawFluidGlobLayer(ctx, cx, cy, R0, 1, orbTime, orbAudioEnergy, orbState);
+
+  // Layer 2: Inner Radiant Plasma Nucleus (White-Cyan High Energy)
+  drawFluidGlobLayer(ctx, cx, cy, R0, 2, orbTime, orbAudioEnergy, orbState);
+
+  // 9. Core Twisting Flux Ribbons (Arc Reactor Filaments)
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  ctx.lineWidth = 1.8;
+  for (let f = 0; f < 3; f++) {
+    const fAngle = orbTime * (1.8 + f * 0.4) + f * (Math.PI * 2 / 3);
+    const rFlux = R0 * (0.42 + 0.12 * Math.sin(orbTime * 3 + f));
+    ctx.beginPath();
+    ctx.strokeStyle = f === 0 ? 'rgba(255, 255, 255, 0.75)' : (f === 1 ? 'rgba(0, 240, 255, 0.65)' : 'rgba(168, 85, 247, 0.55)');
+    ctx.ellipse(cx, cy, rFlux, rFlux * 0.45, fAngle, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // 10. 3D Glass Spherical Specular Highlight (Curved Glint)
+  ctx.save();
+  const glintGrad = ctx.createRadialGradient(cx - R0 * 0.35, cy - R0 * 0.35, 4, cx - R0 * 0.35, cy - R0 * 0.35, R0 * 0.7);
+  glintGrad.addColorStop(0, 'rgba(255, 255, 255, 0.75)');
+  glintGrad.addColorStop(0.35, 'rgba(255, 255, 255, 0.18)');
+  glintGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  ctx.fillStyle = glintGrad;
+  ctx.beginPath();
+  ctx.arc(cx - R0 * 0.25, cy - R0 * 0.25, R0 * 0.65, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  // 11. Foreground 3D Orbiting Quantum Particles (z >= 0)
+  ctx.save();
+  orbParticles.forEach(pt => {
+    const rad = pt.orbitRadius;
+    const z = Math.sin(pt.angle) * 0.85;
+
+    if (z >= 0) {
+      const px = cx + Math.cos(pt.angle) * rad;
+      const py = cy + Math.sin(pt.angle) * rad * 0.38 + pt.yOffset;
+      const alpha = pt.baseAlpha * (0.7 + z * 0.3);
+
+      // Core particle
+      ctx.beginPath();
+      ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+      ctx.arc(px, py, pt.size * 1.1, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Cyan particle glow
+      ctx.beginPath();
+      ctx.fillStyle = `rgba(0, 240, 255, ${alpha * 0.45})`;
+      ctx.arc(px, py, pt.size * 2.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  });
+  ctx.restore();
+
+  // 12. Central Focal Holographic Reticle / Iris
+  ctx.save();
+  const irisRadius = R0 * (0.16 + orbAudioEnergy * 0.08);
+  ctx.beginPath();
+  ctx.lineWidth = 1.5;
+  if (orbState === 'listening') {
+    ctx.strokeStyle = '#34d399';
+    ctx.fillStyle = 'rgba(16, 185, 129, 0.25)';
+  } else if (orbState === 'thinking') {
+    ctx.strokeStyle = '#c084fc';
+    ctx.fillStyle = 'rgba(168, 85, 247, 0.25)';
+  } else {
+    ctx.strokeStyle = '#00f0ff';
+    ctx.fillStyle = 'rgba(0, 240, 255, 0.2)';
+  }
+  ctx.arc(cx, cy, irisRadius, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fill();
+
+  // Center white pinpoint
+  ctx.beginPath();
+  ctx.fillStyle = '#ffffff';
+  ctx.arc(cx, cy, 2.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+
+  globAnimFrame = requestAnimationFrame(renderJarvisGlob);
+}
+
+function drawFluidGlobLayer(ctx, cx, cy, R0, layerIdx, time, energy, state) {
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+
+  const pointCount = layerIdx === 2 ? 100 : 140;
+  ctx.beginPath();
+
+  for (let i = 0; i <= pointCount; i++) {
+    const angle = (i * Math.PI * 2) / pointCount;
+    let r = R0;
+
+    if (layerIdx === 0) {
+      // Outer deep plasma shell
+      r *= (1.0 + 0.12 * Math.sin(3 * angle + time * 1.8) 
+                + 0.08 * Math.cos(5 * angle - time * 1.4) 
+                + energy * 0.24 * Math.sin(7 * angle + time * 3.6));
+    } else if (layerIdx === 1) {
+      // Mid chromasphere shell
+      r *= (0.88 + 0.15 * Math.cos(4 * angle - time * 2.2) 
+                 + 0.09 * Math.sin(6 * angle + time * 1.7) 
+                 + energy * 0.28 * Math.cos(3 * angle - time * 4.2));
+    } else {
+      // Inner radiant nucleus
+      r *= (0.58 + 0.08 * Math.sin(5 * angle + time * 3.0) 
+                 + energy * 0.18 * Math.sin(8 * angle - time * 5.2));
+    }
+
+    const x = cx + Math.cos(angle) * r;
+    const y = cy + Math.sin(angle) * r;
+
+    if (i === 0) {
+      ctx.moveTo(x, y);
+    } else {
+      ctx.lineTo(x, y);
+    }
+  }
+
+  ctx.closePath();
+
+  // Create layer gradient
+  const grad = ctx.createRadialGradient(cx - R0 * 0.15, cy - R0 * 0.15, 5, cx, cy, R0 * 1.2);
+
+  if (layerIdx === 0) {
+    if (state === 'listening') {
+      grad.addColorStop(0, 'rgba(6, 182, 212, 0.85)');
+      grad.addColorStop(0.5, 'rgba(16, 185, 129, 0.6)');
+      grad.addColorStop(1, 'rgba(5, 150, 105, 0.15)');
+    } else if (state === 'thinking') {
+      grad.addColorStop(0, 'rgba(168, 85, 247, 0.85)');
+      grad.addColorStop(0.5, 'rgba(99, 102, 241, 0.6)');
+      grad.addColorStop(1, 'rgba(67, 56, 202, 0.15)');
+    } else {
+      grad.addColorStop(0, 'rgba(30, 64, 175, 0.85)');
+      grad.addColorStop(0.5, 'rgba(124, 58, 237, 0.6)');
+      grad.addColorStop(1, 'rgba(6, 182, 212, 0.15)');
+    }
+  } else if (layerIdx === 1) {
+    if (state === 'listening') {
+      grad.addColorStop(0, 'rgba(52, 211, 153, 0.95)');
+      grad.addColorStop(0.6, 'rgba(6, 182, 212, 0.7)');
+      grad.addColorStop(1, 'rgba(16, 185, 129, 0)');
+    } else if (state === 'thinking') {
+      grad.addColorStop(0, 'rgba(192, 132, 252, 0.95)');
+      grad.addColorStop(0.6, 'rgba(56, 189, 248, 0.7)');
+      grad.addColorStop(1, 'rgba(147, 51, 234, 0)');
+    } else {
+      grad.addColorStop(0, 'rgba(0, 240, 255, 0.95)');
+      grad.addColorStop(0.6, 'rgba(56, 189, 248, 0.7)');
+      grad.addColorStop(1, 'rgba(129, 140, 248, 0)');
+    }
+  } else {
+    // Nucleus
+    grad.addColorStop(0, 'rgba(255, 255, 255, 0.98)');
+    grad.addColorStop(0.5, 'rgba(56, 189, 248, 0.75)');
+    grad.addColorStop(1, 'rgba(0, 240, 255, 0)');
+  }
+
+  ctx.fillStyle = grad;
+  ctx.fill();
+  ctx.restore();
+}
+
+// ==========================================
+// 7. APPLICATION BOOTSTRAPPER
 // ==========================================
 window.addEventListener('DOMContentLoaded', () => {
   initTheme();
@@ -617,12 +1163,14 @@ window.addEventListener('DOMContentLoaded', () => {
   initAestheticClock();
   initDashboardLayout();
   initHomeMemo();
+  initJarvisGlob();
   initVoices();
   initCameraCanvas();
   initSpeechRecognition();
   connectWebSocket();
   loadSettings();
 });
+
 
 
 // CLEAN VECTOR SVG ICONS FOR DEVICES (ZERO EMOJIS)
@@ -800,7 +1348,10 @@ function testVoiceOutput() {
 }
 
 function speakAssistantResponse(text) {
-  if (!speechAudioEnabled || !window.speechSynthesis) return;
+  if (!speechAudioEnabled || !window.speechSynthesis) {
+    setOrbState('idle');
+    return;
+  }
 
   if (window.speechSynthesis.paused) {
     window.speechSynthesis.resume();
@@ -815,6 +1366,16 @@ function speakAssistantResponse(text) {
     const v = availableVoices.find(x => x.voiceURI === selectedVoiceURI);
     if (v) utterance.voice = v;
   }
+
+  utterance.onstart = () => {
+    setOrbState('speaking');
+  };
+  utterance.onend = () => {
+    setOrbState('idle');
+  };
+  utterance.onerror = () => {
+    setOrbState('idle');
+  };
 
   window.speechSynthesis.speak(utterance);
 }
@@ -919,6 +1480,7 @@ function initSpeechRecognition() {
 
   speechRecognizer.onstart = () => {
     isListening = true;
+    setOrbState('listening');
     playSFX('listen');
     const trigger = document.getElementById('mic-trigger');
     if (trigger) trigger.classList.add('listening');
@@ -940,10 +1502,14 @@ function initSpeechRecognition() {
   speechRecognizer.onerror = (event) => {
     console.warn('Speech error:', event.error);
     stopListening();
+    setOrbState('idle');
   };
 
   speechRecognizer.onend = () => {
     stopListening();
+    if (orbState === 'listening') {
+      setOrbState('idle');
+    }
   };
 }
 
@@ -960,8 +1526,10 @@ function toggleSpeechRecognition() {
   } else {
     try {
       speechRecognizer.start();
+      setOrbState('listening');
     } catch (e) {
       speechRecognizer.stop();
+      stopListening();
     }
   }
 }
@@ -970,6 +1538,9 @@ function stopListening() {
   isListening = false;
   const trigger = document.getElementById('mic-trigger');
   if (trigger) trigger.classList.remove('listening');
+  if (orbState === 'listening') {
+    setOrbState('idle');
+  }
 }
 
 function focusVoiceInput() {
@@ -982,6 +1553,7 @@ async function submitVoiceCommand(promptText) {
   if (!promptText || !promptText.trim()) return;
 
   getAudioContext();
+  setOrbState('thinking');
   addLog('ai', `Prompt: "${promptText}"`);
 
   const replyEl = document.getElementById('voice-reply');
@@ -999,11 +1571,13 @@ async function submitVoiceCommand(promptText) {
     addLog('highlight', `Action: ${data.speech_reply}`);
 
     playSFX('confirm');
+    setOrbState('speaking');
     speakAssistantResponse(data.speech_reply);
 
   } catch (err) {
     console.error('Voice error:', err);
     if (replyEl) replyEl.innerText = 'Unable to reach local intelligence endpoint.';
+    setOrbState('idle');
   }
 }
 
@@ -1565,6 +2139,14 @@ function updateTelemetry(t) {
   if (activeEl) activeEl.innerText = t.active_count;
   if (totalEl) totalEl.innerText = t.total_count;
   if (piTempEl) piTempEl.innerText = `${t.cpu_temp.toFixed(1)}°C`;
+
+  // Synchronize Holographic HUD Wing Telemetry
+  const hudPiTemp = document.getElementById('hud-pi-temp');
+  const hudWatts = document.getElementById('hud-watts-draw');
+  const hudRelays = document.getElementById('hud-relays-active');
+  if (hudPiTemp) hudPiTemp.innerText = t.cpu_temp.toFixed(1);
+  if (hudWatts) hudWatts.innerText = Math.round(t.total_watts);
+  if (hudRelays) hudRelays.innerText = `${t.active_count}`;
 }
 
 // AUDIT LOG
