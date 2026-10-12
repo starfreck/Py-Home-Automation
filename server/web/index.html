@@ -92,7 +92,12 @@
 
       <div class="header-pill status-pill" title="Gateway Realtime Ping">
         <span class="status-indicator"></span>
-        <span id="header-hub-status">US-East • 11ms</span>
+        <span id="header-hub-status">Cloud Online</span>
+      </div>
+
+      <div class="header-pill status-pill" id="header-edge-pill" title="Raspberry Pi Edge Device Reverse Tunnel">
+        <span class="status-indicator" id="edge-status-dot" style="background: #eab308;"></span>
+        <span id="header-edge-status">Edge: Checking...</span>
       </div>
 
       <button class="btn-subtle" id="audio-toggle-btn" onclick="toggleAudioSpeech()" title="Toggle voice feedback audio">
@@ -130,9 +135,20 @@
         </div>
       </div>
 
-      <div class="user-profile-badge" title="Tenant Administrator">
-        <span class="user-avatar-circle">VK</span>
-        <span class="user-name-tag">Vasu</span>
+      <div class="theme-dropdown-wrap" style="position: relative;">
+        <div class="user-profile-badge" id="user-profile-badge" onclick="toggleUserDropdown(event)" title="Current Tenant Account" style="cursor: pointer;">
+          <span class="user-avatar-circle" id="user-avatar-circle">VK</span>
+          <span class="user-name-tag" id="user-name-tag">User</span>
+        </div>
+        <div class="theme-dropdown-menu" id="user-dropdown-menu" style="display: none; right: 0; min-width: 200px; padding: 10px;">
+          <div style="padding: 4px 8px 8px 8px; border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.1));">
+            <div id="user-dropdown-name" style="font-weight: 600; font-size: 13px; color: var(--text-primary, #fff);">OmniHome Tenant</div>
+            <div id="user-dropdown-email" style="font-size: 11px; opacity: 0.7; color: var(--text-secondary, #aaa);">tenant@example.com</div>
+          </div>
+          <button type="button" class="theme-dropdown-item" onclick="logoutTenant()" style="width: 100%; margin-top: 6px; color: #ef4444; justify-content: flex-start; gap: 8px;">
+            <span>🚪 Sign Out</span>
+          </button>
+        </div>
       </div>
 
       <div class="clock-display" id="clock">00:00:00</div>
@@ -981,8 +997,47 @@
   <!-- CAMERA FLASH OVERLAY EFFECT -->
   <div id="cam-flash" class="camera-flash-overlay"></div>
 
-  <!-- TOAST NOTIFICATION CONTAINER -->
-  <div id="toast-container" class="toast-container"></div>
+  <!-- MODAL: MULTI-TENANT AUTH (SIGN IN / REGISTER) -->
+  <div class="modal-overlay" id="auth-modal" style="display: none; z-index: 9999;" onclick="event.stopPropagation()">
+    <div class="modal-card" style="max-width: 420px; border: 1px solid var(--border-color, rgba(255,255,255,0.15)); box-shadow: 0 20px 40px rgba(0,0,0,0.6);" onclick="event.stopPropagation()">
+      <div class="modal-header" style="text-align: center; display: block; border-bottom: none; padding-bottom: 8px;">
+        <div style="font-size: 32px; margin-bottom: 6px;">🏠</div>
+        <h3 id="auth-modal-title" style="font-size: 20px; font-weight: 700; margin: 0;">Welcome to OmniHome</h3>
+        <p class="modal-subtitle" style="margin-top: 4px; font-size: 13px; opacity: 0.75;">Secure Cloud Automation & Edge Control</p>
+      </div>
+
+      <!-- Auth Mode Tabs -->
+      <div style="display: flex; gap: 8px; margin: 12px 0 18px 0; background: var(--bg-hover, rgba(255,255,255,0.05)); padding: 4px; border-radius: 8px;">
+        <button type="button" id="auth-tab-login" class="nav-pill active" style="flex: 1; text-align: center; justify-content: center;" onclick="switchAuthTab('login')">Sign In</button>
+        <button type="button" id="auth-tab-register" class="nav-pill" style="flex: 1; text-align: center; justify-content: center;" onclick="switchAuthTab('register')">Create Account</button>
+      </div>
+
+      <div id="auth-error-box" style="display: none; padding: 10px 14px; background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; color: #fca5a5; border-radius: 8px; font-size: 13px; margin-bottom: 14px;"></div>
+
+      <form id="auth-form" onsubmit="handleAuthSubmit(event)">
+        <div class="form-group" id="auth-name-group" style="display: none; margin-bottom: 12px;">
+          <label for="auth-name" style="font-size: 12px; font-weight: 500; display: block; margin-bottom: 4px;">Full Name</label>
+          <input type="text" id="auth-name" class="input-control" placeholder="e.g. Alice Cooper" autocomplete="name">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label for="auth-email" style="font-size: 12px; font-weight: 500; display: block; margin-bottom: 4px;">Email Address</label>
+          <input type="email" id="auth-email" class="input-control" required placeholder="name@domain.com" autocomplete="email">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 18px;">
+          <label for="auth-password" style="font-size: 12px; font-weight: 500; display: block; margin-bottom: 4px;">Password</label>
+          <input type="password" id="auth-password" class="input-control" required placeholder="••••••••" autocomplete="current-password">
+        </div>
+
+        <div class="modal-actions" style="border-top: none; padding: 0;">
+          <button type="submit" id="auth-submit-btn" class="btn-action primary" style="width: 100%; justify-content: center; padding: 12px; font-size: 14px; font-weight: 600;">
+            Sign In to Dashboard
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>

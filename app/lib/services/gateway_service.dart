@@ -6,6 +6,8 @@ import '../models/device.dart';
 
 class GatewayService {
   String baseUrl;
+  String? authToken;
+  AuthUser? currentUser;
   WebSocketChannel? _channel;
   StreamSubscription? _subscription;
   bool _isConnected = false;
@@ -21,9 +23,12 @@ class GatewayService {
   final void Function(Map<String, dynamic>)? onCameraScan;
   final void Function(CameraSnapshot)? onCameraSnapshot;
   final void Function(bool)? onConnectionChange;
+  final void Function(bool)? onEdgeStatus;
 
   GatewayService({
     this.baseUrl = 'http://localhost:8080',
+    this.authToken,
+    this.currentUser,
     this.onInit,
     this.onDeviceUpdate,
     this.onDeviceAdded,
@@ -34,14 +39,28 @@ class GatewayService {
     this.onCameraScan,
     this.onCameraSnapshot,
     this.onConnectionChange,
+    this.onEdgeStatus,
   });
 
   bool get isConnected => _isConnected;
+  bool get isAuthenticated => authToken != null && authToken!.isNotEmpty;
+
+  Map<String, String> get authHeaders {
+    final headers = {'Content-Type': 'application/json'};
+    if (authToken != null && authToken!.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $authToken';
+    }
+    return headers;
+  }
 
   String get wsUrl {
     final uri = Uri.parse(baseUrl);
     final wsScheme = uri.scheme == 'https' ? 'wss' : 'ws';
-    return '$wsScheme://${uri.host}:${uri.port}/ws';
+    final tokenParam = (authToken != null && authToken!.isNotEmpty)
+        ? '?token=${Uri.encodeComponent(authToken!)}'
+        : '';
+    final portPart = uri.hasPort ? ':${uri.port}' : '';
+    return '$wsScheme://${uri.host}$portPart/ws$tokenParam';
   }
 
   void updateBaseUrl(String newUrl) {
@@ -50,7 +69,61 @@ class GatewayService {
     }
     baseUrl = newUrl;
     disconnect();
-    connectWebSocket();
+    if (isAuthenticated) {
+      connectWebSocket();
+    }
+  }
+
+  // AUTHENTICATION
+
+  Future<AuthUser> login(String email, String password) async {
+    final res = await http.post(
+      Uri.parse('$baseUrl/api/auth/login'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'email': email, 'password': password}),
+    );
+
+    if (res.statusCode == 200) {
+      final data = json.decode(res.body) as Map<String, dynamic>;
+      final token = data['token'] as String;
+      final user = AuthUser.fromJson(data, token: token);
+      authToken = token;
+      currentUser = user;
+      disconnect();
+      connectWebSocket();
+      return user;
+    } else {
+      final err = json.decode(res.body);
+      throw Exception(err['error'] ?? 'Authentication failed');
+    }
+  }
+
+  Future<AuthUser> register(String name, String email, String password) async {
+    final res = await http.post(
+      Uri.parse('$baseUrl/api/auth/register'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'name': name, 'email': email, 'password': password}),
+    );
+
+    if (res.statusCode == 201 || res.statusCode == 200) {
+      final data = json.decode(res.body) as Map<String, dynamic>;
+      final token = data['token'] as String;
+      final user = AuthUser.fromJson(data, token: token);
+      authToken = token;
+      currentUser = user;
+      disconnect();
+      connectWebSocket();
+      return user;
+    } else {
+      final err = json.decode(res.body);
+      throw Exception(err['error'] ?? 'Registration failed');
+    }
+  }
+
+  void logout() {
+    authToken = null;
+    currentUser = null;
+    disconnect();
   }
 
   void connectWebSocket() {
@@ -68,7 +141,7 @@ class GatewayService {
             if (decoded is Map<String, dynamic>) {
               _handleMessage(decoded);
             }
-          } catch (e) {
+          } catch (_) {
             // parse error
           }
         },
@@ -79,7 +152,7 @@ class GatewayService {
           _handleDisconnect();
         },
       );
-    } catch (e) {
+    } catch (_) {
       _handleDisconnect();
     }
   }
@@ -90,7 +163,9 @@ class GatewayService {
     _subscription?.cancel();
     _reconnectTimer?.cancel();
     _reconnectTimer = Timer(const Duration(seconds: 3), () {
-      connectWebSocket();
+      if (isAuthenticated) {
+        connectWebSocket();
+      }
     });
   }
 
@@ -110,6 +185,17 @@ class GatewayService {
       case 'init':
         if (payload is Map<String, dynamic>) {
           onInit?.call(payload);
+          if (payload['status'] is Map<String, dynamic>) {
+            final st = payload['status'] as Map<String, dynamic>;
+            if (st['edge_connected'] != null) {
+              onEdgeStatus?.call(st['edge_connected'] == true);
+            }
+          }
+        }
+        break;
+      case 'edge_status':
+        if (payload is Map<String, dynamic>) {
+          onEdgeStatus?.call(payload['online'] == true);
         }
         break;
       case 'device_update':
@@ -164,7 +250,10 @@ class GatewayService {
         'payload': {'id': id}
       }));
     } else {
-      http.post(Uri.parse('$baseUrl/api/devices/$id/toggle'));
+      http.post(
+        Uri.parse('$baseUrl/api/devices/$id/toggle'),
+        headers: authHeaders,
+      );
     }
   }
 
@@ -177,7 +266,7 @@ class GatewayService {
     } else {
       http.post(
         Uri.parse('$baseUrl/api/devices/$id/state'),
-        headers: {'Content-Type': 'application/json'},
+        headers: authHeaders,
         body: json.encode({'state': state, 'value': value}),
       );
     }
@@ -192,7 +281,7 @@ class GatewayService {
     } else {
       http.post(
         Uri.parse('$baseUrl/api/devices'),
-        headers: {'Content-Type': 'application/json'},
+        headers: authHeaders,
         body: json.encode(dev.toJson()),
       );
     }
@@ -205,7 +294,10 @@ class GatewayService {
         'payload': {'id': id},
       }));
     } else {
-      http.delete(Uri.parse('$baseUrl/api/devices/$id'));
+      http.delete(
+        Uri.parse('$baseUrl/api/devices/$id'),
+        headers: authHeaders,
+      );
     }
   }
 
@@ -216,14 +308,17 @@ class GatewayService {
         'payload': {'id': sceneId}
       }));
     } else {
-      http.post(Uri.parse('$baseUrl/api/scenes/$sceneId/activate'));
+      http.post(
+        Uri.parse('$baseUrl/api/scenes/$sceneId/activate'),
+        headers: authHeaders,
+      );
     }
   }
 
   Future<Map<String, dynamic>> submitVoicePrompt(String prompt) async {
     final res = await http.post(
       Uri.parse('$baseUrl/api/voice'),
-      headers: {'Content-Type': 'application/json'},
+      headers: authHeaders,
       body: json.encode({'prompt': prompt}),
     );
     if (res.statusCode == 200) {
@@ -233,7 +328,10 @@ class GatewayService {
   }
 
   Future<Map<String, dynamic>> scanCameraFace() async {
-    final res = await http.post(Uri.parse('$baseUrl/api/camera/scan'));
+    final res = await http.post(
+      Uri.parse('$baseUrl/api/camera/scan'),
+      headers: authHeaders,
+    );
     if (res.statusCode == 200) {
       return json.decode(res.body);
     }
@@ -243,7 +341,7 @@ class GatewayService {
   Future<CameraSnapshot> saveSnapshot(String dataUrl, String source) async {
     final res = await http.post(
       Uri.parse('$baseUrl/api/camera/snapshot'),
-      headers: {'Content-Type': 'application/json'},
+      headers: authHeaders,
       body: json.encode({'data_url': dataUrl, 'source': source}),
     );
     if (res.statusCode == 200) {
@@ -253,7 +351,10 @@ class GatewayService {
   }
 
   Future<List<Device>> fetchDevices() async {
-    final res = await http.get(Uri.parse('$baseUrl/api/devices'));
+    final res = await http.get(
+      Uri.parse('$baseUrl/api/devices'),
+      headers: authHeaders,
+    );
     if (res.statusCode == 200) {
       final list = json.decode(res.body) as List;
       return list.map((e) => Device.fromJson(e)).toList();
@@ -263,7 +364,10 @@ class GatewayService {
 
   Future<GatewayStatus?> fetchStatus() async {
     try {
-      final res = await http.get(Uri.parse('$baseUrl/api/status'));
+      final res = await http.get(
+        Uri.parse('$baseUrl/api/status'),
+        headers: authHeaders,
+      );
       if (res.statusCode == 200) {
         return GatewayStatus.fromJson(json.decode(res.body));
       }
@@ -275,7 +379,10 @@ class GatewayService {
     if (_isConnected && _channel != null) {
       _channel!.sink.add(json.encode({'type': 'clear_activity'}));
     } else {
-      await http.delete(Uri.parse('$baseUrl/api/activity'));
+      await http.delete(
+        Uri.parse('$baseUrl/api/activities'),
+        headers: authHeaders,
+      );
     }
   }
 }

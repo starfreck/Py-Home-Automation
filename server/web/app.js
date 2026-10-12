@@ -1,10 +1,213 @@
-// OMNIHOME — PRODUCTION SMART HOME CONTROLLER & GEMMA 4 ASSISTANT
+// OMNIHOME — PRODUCTION MULTI-TENANT CLOUD GATEWAY & EDGE CONTROLLER
 let ws = null;
 let devices = [];
 let currentFilter = 'all';
 let logCounter = 0;
 let isListening = false;
 let speechRecognizer = null;
+
+// ==========================================
+// MULTI-TENANT AUTHENTICATION ENGINE
+// ==========================================
+let authToken = localStorage.getItem('omnihome_token') || '';
+let currentUser = null;
+try {
+  currentUser = JSON.parse(localStorage.getItem('omnihome_user') || 'null');
+} catch (e) {
+  currentUser = null;
+}
+
+// Global fetch interceptor to attach JWT bearer token & detect 401s
+const _nativeFetch = window.fetch;
+window.fetch = async function(url, options = {}) {
+  const strUrl = typeof url === 'string' ? url : (url.url || '');
+  options = options || {};
+  options.headers = options.headers || {};
+
+  if (authToken) {
+    if (options.headers instanceof Headers) {
+      if (!options.headers.has('Authorization')) {
+        options.headers.set('Authorization', `Bearer ${authToken}`);
+      }
+    } else if (Array.isArray(options.headers)) {
+      options.headers.push(['Authorization', `Bearer ${authToken}`]);
+    } else {
+      if (!options.headers['Authorization']) {
+        options.headers['Authorization'] = `Bearer ${authToken}`;
+      }
+    }
+  }
+
+  const response = await _nativeFetch(url, options);
+
+  if (response.status === 401 && !strUrl.includes('/api/auth/login') && !strUrl.includes('/api/auth/register')) {
+    authToken = '';
+    localStorage.removeItem('omnihome_token');
+    showAuthModal();
+  }
+
+  return response;
+};
+
+let currentAuthMode = 'login';
+
+function showAuthModal() {
+  const modal = document.getElementById('auth-modal');
+  if (modal) {
+    modal.style.display = 'flex';
+    const errBox = document.getElementById('auth-error-box');
+    if (errBox) errBox.style.display = 'none';
+  }
+}
+
+function hideAuthModal() {
+  const modal = document.getElementById('auth-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+function switchAuthTab(mode) {
+  currentAuthMode = mode;
+  const tabLogin = document.getElementById('auth-tab-login');
+  const tabRegister = document.getElementById('auth-tab-register');
+  const nameGroup = document.getElementById('auth-name-group');
+  const nameInput = document.getElementById('auth-name');
+  const title = document.getElementById('auth-modal-title');
+  const submitBtn = document.getElementById('auth-submit-btn');
+  const errBox = document.getElementById('auth-error-box');
+  if (errBox) errBox.style.display = 'none';
+
+  if (mode === 'register') {
+    if (tabLogin) tabLogin.classList.remove('active');
+    if (tabRegister) tabRegister.classList.add('active');
+    if (nameGroup) nameGroup.style.display = 'block';
+    if (nameInput) nameInput.required = true;
+    if (title) title.innerText = 'Create OmniHome Account';
+    if (submitBtn) submitBtn.innerText = 'Register & Launch Hub';
+  } else {
+    if (tabLogin) tabLogin.classList.add('active');
+    if (tabRegister) tabRegister.classList.remove('active');
+    if (nameGroup) nameGroup.style.display = 'none';
+    if (nameInput) nameInput.required = false;
+    if (title) title.innerText = 'Welcome to OmniHome';
+    if (submitBtn) submitBtn.innerText = 'Sign In to Dashboard';
+  }
+}
+
+async function handleAuthSubmit(e) {
+  e.preventDefault();
+  const emailInput = document.getElementById('auth-email');
+  const passInput = document.getElementById('auth-password');
+  const nameInput = document.getElementById('auth-name');
+  const errBox = document.getElementById('auth-error-box');
+  const submitBtn = document.getElementById('auth-submit-btn');
+
+  if (!emailInput || !passInput) return;
+  const email = emailInput.value.trim();
+  const password = passInput.value.trim();
+  const name = nameInput ? nameInput.value.trim() : '';
+
+  if (errBox) errBox.style.display = 'none';
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerText = 'Authenticating...';
+  }
+
+  const endpoint = currentAuthMode === 'register' ? '/api/auth/register' : '/api/auth/login';
+  const body = { email, password };
+  if (currentAuthMode === 'register') body.name = name || 'Home Admin';
+
+  try {
+    const res = await _nativeFetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Authentication failed');
+    }
+
+    authToken = data.token;
+    currentUser = data.user;
+    localStorage.setItem('omnihome_token', authToken);
+    localStorage.setItem('omnihome_user', JSON.stringify(currentUser));
+
+    hideAuthModal();
+    updateUserProfileUI();
+    initGreeting();
+    showToast(`Signed in as ${currentUser.name}`, 'info');
+
+    // Bootstrap realtime channel and data
+    connectWebSocket();
+    loadSettings();
+    pingGateway();
+  } catch (err) {
+    if (errBox) {
+      errBox.innerText = err.message || 'Login failed. Please check your credentials.';
+      errBox.style.display = 'block';
+    }
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerText = currentAuthMode === 'register' ? 'Register & Launch Hub' : 'Sign In to Dashboard';
+    }
+  }
+}
+
+function updateUserProfileUI() {
+  if (!currentUser) return;
+  const nameTag = document.getElementById('user-name-tag');
+  const avatar = document.getElementById('user-avatar-circle');
+  const dropName = document.getElementById('user-dropdown-name');
+  const dropEmail = document.getElementById('user-dropdown-email');
+
+  if (nameTag) nameTag.innerText = currentUser.name || 'User';
+  if (dropName) dropName.innerText = currentUser.name || 'User';
+  if (dropEmail) dropEmail.innerText = currentUser.email || '';
+
+  if (avatar) {
+    const parts = (currentUser.name || 'User').split(' ').filter(Boolean);
+    let initials = 'U';
+    if (parts.length >= 2) {
+      initials = (parts[0][0] + parts[1][0]).toUpperCase();
+    } else if (parts.length === 1 && parts[0].length > 0) {
+      initials = parts[0].substring(0, 2).toUpperCase();
+    }
+    avatar.innerText = initials;
+  }
+}
+
+function toggleUserDropdown(e) {
+  if (e) e.stopPropagation();
+  const menu = document.getElementById('user-dropdown-menu');
+  if (menu) {
+    const shown = menu.style.display === 'block';
+    menu.style.display = shown ? 'none' : 'block';
+  }
+}
+
+function closeUserDropdown() {
+  const menu = document.getElementById('user-dropdown-menu');
+  if (menu) menu.style.display = 'none';
+}
+
+function logoutTenant() {
+  authToken = '';
+  currentUser = null;
+  localStorage.removeItem('omnihome_token');
+  localStorage.removeItem('omnihome_user');
+  if (ws) {
+    try { ws.close(); } catch (e) {}
+  }
+  closeUserDropdown();
+  showAuthModal();
+  showToast('Logged out securely.', 'info');
+}
+
+window.addEventListener('click', () => {
+  closeUserDropdown();
+  closeThemeDropdown();
+});
 
 // AUDIO ENGINE STATE
 let speechAudioEnabled = true;
@@ -767,7 +970,8 @@ function initGreeting() {
   else if (hour >= 17 && hour < 22) greet = 'Good evening';
   else greet = 'Good night';
 
-  if (titleEl) titleEl.innerText = `${greet}, Vasu`;
+  const userName = currentUser ? currentUser.name : 'Welcome';
+  if (titleEl) titleEl.innerText = `${greet}, ${userName}`;
 
   if (dateEl) {
     const options = { weekday: 'long', month: 'long', day: 'numeric' };
@@ -1303,9 +1507,16 @@ window.addEventListener('DOMContentLoaded', () => {
   initVoices();
   initCameraCanvas();
   initSpeechRecognition();
-  connectWebSocket();
-  loadSettings();
-  pingGateway();
+
+  if (authToken) {
+    updateUserProfileUI();
+    connectWebSocket();
+    loadSettings();
+    pingGateway();
+  } else {
+    showAuthModal();
+  }
+
   setInterval(pingGateway, 10000);
 });
 
@@ -1532,18 +1743,27 @@ function speakAssistantResponse(text) {
 
 // WEBSOCKET HUB CONNECTION
 function connectWebSocket() {
+  if (!authToken) {
+    showAuthModal();
+    return;
+  }
+
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const wsUrl = `${protocol}//${window.location.host}/ws`;
+  const wsUrl = `${protocol}//${window.location.host}/ws?token=${encodeURIComponent(authToken)}`;
 
   addLog('system', `Connecting to WebSocket Gateway: ${wsUrl}`);
   const statusLabel = document.querySelector('.hub-label');
 
   try {
+    if (ws) {
+      try { ws.close(); } catch (e) {}
+    }
     ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
       if (statusLabel) statusLabel.innerText = 'Hub: Online';
-      addLog('event', 'Local real-time channel established.');
+      addLog('event', 'Authenticated real-time channel established.');
+      updateGatewayStatusBadge({ status: 'online' });
     };
 
     ws.onmessage = (event) => {
@@ -1558,14 +1778,18 @@ function connectWebSocket() {
     ws.onclose = () => {
       if (statusLabel) statusLabel.innerText = 'Hub: Reconnecting...';
       addLog('warn', 'Connection interrupted. Re-establishing link...');
-      setTimeout(connectWebSocket, 2000);
+      if (authToken) {
+        setTimeout(connectWebSocket, 2000);
+      }
     };
 
     ws.onerror = (err) => {
       console.error('WS Error:', err);
     };
   } catch (e) {
-    setTimeout(connectWebSocket, 2000);
+    if (authToken) {
+      setTimeout(connectWebSocket, 2000);
+    }
   }
 }
 
@@ -1588,7 +1812,12 @@ function handleServerMessage(msg) {
       }
       if (msg.payload && msg.payload.status) {
         updateGatewayStatusBadge(msg.payload.status);
+        updateEdgeStatusUI(msg.payload.status);
       }
+      break;
+
+    case 'edge_status':
+      updateEdgeStatusUI(msg.payload);
       break;
 
     case 'device_update':
@@ -1650,10 +1879,20 @@ function handleServerMessage(msg) {
   }
 }
 
+function updateEdgeStatusUI(data) {
+  const isOnline = Boolean(data && (data.edge_connected || data.online));
+  const dot = document.getElementById('edge-status-dot');
+  const label = document.getElementById('header-edge-status');
+  const pill = document.getElementById('header-edge-pill');
+  if (dot) dot.style.background = isOnline ? '#22c55e' : '#ef4444';
+  if (label) label.innerText = isOnline ? 'Edge: Online' : 'Edge: Offline';
+  if (pill) pill.title = isOnline ? `Edge Hardware Connected (${data.hub_id || 'Raspberry Pi'})` : 'No Edge Device Connected';
+}
+
 function updateGatewayStatusBadge(st) {
   const statusEl = document.getElementById('header-hub-status');
   if (statusEl && st) {
-    statusEl.innerText = `Gateway • Online`;
+    statusEl.innerText = `Cloud • Online`;
   }
 }
 
@@ -1708,13 +1947,18 @@ function initSnapshots(snapshots) {
 }
 
 async function pingGateway() {
+  if (!authToken) return;
   try {
     const t0 = performance.now();
     const res = await fetch('/api/status');
     const lat = Math.round(performance.now() - t0);
     const statusEl = document.getElementById('header-hub-status');
-    if (res.ok && statusEl) {
-      statusEl.innerText = `Gateway • ${lat}ms`;
+    if (res.ok) {
+      const data = await res.json();
+      if (statusEl) {
+        statusEl.innerText = `Cloud • ${lat}ms`;
+      }
+      updateEdgeStatusUI(data);
     }
   } catch (e) {
     const statusEl = document.getElementById('header-hub-status');

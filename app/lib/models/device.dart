@@ -273,6 +273,7 @@ class GatewayStatus {
   final String gateway;
   final int devicesCount;
   final int activeRelays;
+  final bool edgeConnected;
   final DateTime timestamp;
 
   GatewayStatus({
@@ -282,6 +283,7 @@ class GatewayStatus {
     required this.gateway,
     required this.devicesCount,
     required this.activeRelays,
+    this.edgeConnected = false,
     required this.timestamp,
   });
 
@@ -290,12 +292,44 @@ class GatewayStatus {
       status: json['status'] ?? 'offline',
       version: json['version'] ?? '2.4.0',
       uptimeSeconds: (json['uptime_seconds'] is num) ? (json['uptime_seconds'] as num).toInt() : 0,
-      gateway: json['gateway'] ?? 'OmniHome Main Hub',
+      gateway: json['gateway'] ?? 'OmniHome Cloud Hub',
       devicesCount: (json['devices_count'] is num) ? (json['devices_count'] as num).toInt() : 0,
       activeRelays: (json['active_relays'] is num) ? (json['active_relays'] as num).toInt() : 0,
+      edgeConnected: json['edge_connected'] == true,
       timestamp: json['timestamp'] != null
           ? DateTime.tryParse(json['timestamp']) ?? DateTime.now()
           : DateTime.now(),
     );
   }
+}
+
+class AuthUser {
+  final String id;
+  final String email;
+  final String name;
+  final String token;
+
+  AuthUser({
+    required this.id,
+    required this.email,
+    required this.name,
+    required this.token,
+  });
+
+  factory AuthUser.fromJson(Map<String, dynamic> json, {String token = ''}) {
+    final userMap = json['user'] is Map<String, dynamic> ? json['user'] as Map<String, dynamic> : json;
+    return AuthUser(
+      id: userMap['id'] ?? '',
+      email: userMap['email'] ?? '',
+      name: userMap['name'] ?? '',
+      token: token.isNotEmpty ? token : (json['token'] ?? ''),
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'email': email,
+    'name': name,
+    'token': token,
+  };
 }

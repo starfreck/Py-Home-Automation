@@ -72,6 +72,54 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // TENANT ACCOUNT CARD
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppTheme.card,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: AppTheme.cardBorder),
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 22,
+                    backgroundColor: AppTheme.accentCyan.withValues(alpha: 0.2),
+                    child: Text(
+                      (provider.currentUser?.name.isNotEmpty == true)
+                          ? provider.currentUser!.name.substring(0, 1).toUpperCase()
+                          : 'U',
+                      style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.accentCyan),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          provider.currentUser?.name ?? 'Authenticated Tenant',
+                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppTheme.textMain),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          provider.currentUser?.email ?? 'tenant@omnihome.cloud',
+                          style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => provider.logout(),
+                    icon: const Icon(Icons.logout_rounded, color: Colors.redAccent, size: 20),
+                    tooltip: 'Sign Out',
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
             // GATEWAY CONNECTION CARD
             Container(
               padding: const EdgeInsets.all(16),
@@ -204,6 +252,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _buildSpecRow('Firmware Version', status?.version ?? '2.4.0 (Synapse Engine)'),
                   const Divider(color: AppTheme.cardBorder, height: 16),
                   _buildSpecRow('System Uptime', _formatUptime(status?.uptimeSeconds ?? 1420)),
+                  const Divider(color: AppTheme.cardBorder, height: 16),
+                  _buildSpecRow(
+                    'Edge Reverse Tunnel',
+                    provider.isEdgeOnline ? '🟢 Connected (Raspberry Pi Online)' : '🔴 Offline (Run omnihome-edge start)',
+                  ),
                   const Divider(color: AppTheme.cardBorder, height: 16),
                   _buildSpecRow('CPU Temp', '${provider.telemetry.cpuTemp.toStringAsFixed(1)} °C'),
                   const Divider(color: AppTheme.cardBorder, height: 16),

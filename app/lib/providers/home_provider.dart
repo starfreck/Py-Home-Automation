@@ -20,10 +20,28 @@ class HomeProvider extends ChangeNotifier {
   String _lastVoiceTranscript = 'System diagnostic status';
   String _lastAssistantReply = 'All systems nominal • 4 relays active • Energy draw 181 Watts';
   bool _isAiThinking = false;
+  bool _isEdgeOnline = false;
 
-  HomeProvider({String initialUrl = 'http://localhost:8080', bool autoConnect = true}) {
+  HomeProvider({
+    String initialUrl = 'http://localhost:8080',
+    String? token = 'dev-token-default',
+    AuthUser? user,
+    bool autoConnect = true,
+  }) {
+    final effectiveUser = user ??
+        (token != null
+            ? AuthUser(
+                id: 'usr-admin',
+                email: 'admin@omnihome.cloud',
+                name: 'Home Admin',
+                token: token,
+              )
+            : null);
+
     _gateway = GatewayService(
       baseUrl: initialUrl,
+      authToken: token,
+      currentUser: effectiveUser,
       onInit: _handleInit,
       onDeviceUpdate: _handleDeviceUpdate,
       onDeviceAdded: _handleDeviceAdded,
@@ -37,6 +55,10 @@ class HomeProvider extends ChangeNotifier {
         _isConnected = connected;
         notifyListeners();
       },
+      onEdgeStatus: (online) {
+        _isEdgeOnline = online;
+        notifyListeners();
+      },
     );
     _initDefaultScenes();
     if (autoConnect) {
@@ -46,6 +68,9 @@ class HomeProvider extends ChangeNotifier {
   }
 
   // GETTERS
+  bool get isEdgeOnline => _isEdgeOnline;
+  bool get isAuthenticated => _gateway.isAuthenticated;
+  AuthUser? get currentUser => _gateway.currentUser;
   List<Device> get devices => _devices;
   Telemetry get telemetry => _telemetry;
   List<AutomationScene> get scenes => _scenes;
@@ -99,9 +124,29 @@ class HomeProvider extends ChangeNotifier {
     sw.stop();
     if (st != null) {
       _status = st;
+      _isEdgeOnline = st.edgeConnected;
       _latencyMs = sw.elapsedMilliseconds;
       notifyListeners();
     }
+  }
+
+  Future<void> login(String email, String password) async {
+    await _gateway.login(email, password);
+    await pingStatus();
+    notifyListeners();
+  }
+
+  Future<void> register(String name, String email, String password) async {
+    await _gateway.register(name, email, password);
+    await pingStatus();
+    notifyListeners();
+  }
+
+  void logout() {
+    _gateway.logout();
+    _devices.clear();
+    _isEdgeOnline = false;
+    notifyListeners();
   }
 
   // ACTIONS

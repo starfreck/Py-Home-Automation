@@ -28,6 +28,7 @@ Thumbs.db
 # Build artifacts
 server/bin/
 bin/
+!bin/omnihome-edge
 
 # Agent & CLI internal workspace directories
 .gemini/

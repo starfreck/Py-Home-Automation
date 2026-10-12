@@ -5,6 +5,7 @@ import 'screens/activity_screen.dart';
 import 'screens/cameras_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/devices_screen.dart';
+import 'screens/login_screen.dart';
 import 'screens/settings_screen.dart';
 import 'theme/app_theme.dart';
 
@@ -28,7 +29,14 @@ class OmniHomeApp extends StatelessWidget {
         title: 'OmniHome Synapse',
         debugShowCheckedModeBanner: false,
         theme: AppTheme.darkTheme,
-        home: const MainNavigationShell(),
+        home: Consumer<HomeProvider>(
+          builder: (context, home, child) {
+            if (!home.isAuthenticated) {
+              return const LoginScreen();
+            }
+            return const MainNavigationShell();
+          },
+        ),
       ),
     );
   }

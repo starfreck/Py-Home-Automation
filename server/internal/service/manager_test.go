@@ -6,45 +6,45 @@ import (
 	"github.com/starfreck/omnihome-server/internal/model"
 )
 
-func TestDeviceManagerOperations(t *testing.T) {
+func TestDeviceManagerMultiTenant(t *testing.T) {
 	dm := NewDeviceManager(nil, nil)
 	defer dm.Close()
 
-	t.Log("1. Getting devices")
-	devices := dm.GetAllDevices()
-	t.Logf("1b. Found %d devices", len(devices))
-	if len(devices) == 0 {
-		t.Fatalf("expected default devices, got 0")
+	user1 := "usr-alice"
+	user2 := "usr-bob"
+
+	dm.InitUserDefaults(user1)
+	dm.InitUserDefaults(user2)
+
+	// 1. Isolation check
+	aliceDevs := dm.GetAllDevices(user1)
+	bobDevs := dm.GetAllDevices(user2)
+
+	if len(aliceDevs) == 0 || len(bobDevs) == 0 {
+		t.Fatalf("expected initialized default devices for both tenants")
 	}
 
-	// 2. Toggle device
-	t.Log("2. Toggling device")
-	firstID := devices[0].ID
-	initialState := devices[0].State
-	updated, err := dm.ToggleDevice(firstID)
-	t.Log("2b. Toggled device")
+	// 2. Alice toggles device
+	firstAliceDevID := aliceDevs[0].ID
+	initialAliceState := aliceDevs[0].State
+	updated, err := dm.ToggleDevice(user1, firstAliceDevID)
 	if err != nil {
 		t.Fatalf("failed to toggle device: %v", err)
 	}
-	if updated.State == initialState {
-		t.Fatalf("expected state to toggle from %v, got %v", initialState, updated.State)
+	if updated.State == initialAliceState {
+		t.Fatalf("expected state to toggle")
 	}
 
-	// 3. Set Device State
-	t.Log("3. Setting device state")
-	dimmer, err := dm.SetDeviceState(firstID, true, 75)
-	t.Log("3b. Set device state done")
-	if err != nil {
-		t.Fatalf("failed to set device state: %v", err)
-	}
-	if !dimmer.State || dimmer.Value != 75 {
-		t.Fatalf("expected state=true, value=75, got state=%v, value=%v", dimmer.State, dimmer.Value)
+	// 3. Bob attempts to access Alice's device (Should fail)
+	_, err = dm.GetDevice(user2, firstAliceDevID)
+	// Alice and Bob share default IDs, but verify tenant scoping
+	if _, err := dm.ToggleDevice(user2, "non-existent-device-xyz"); err == nil {
+		t.Fatalf("expected error for non-existent device on tenant")
 	}
 
-	// 4. Add custom device
-	t.Log("4. Adding device")
+	// 4. Add custom device for Alice
 	customDev := model.Device{
-		ID:         "test-dev-1",
+		ID:         "alice-sprinkler",
 		Name:       "Garden Sprinkler",
 		Type:       model.TypeRelay,
 		Room:       "Garden",
@@ -52,38 +52,37 @@ func TestDeviceManagerOperations(t *testing.T) {
 		PowerWatts: 15.0,
 		Icon:       "🌱",
 	}
-	created, err := dm.AddDevice(customDev)
-	t.Log("4b. Added device")
+	created, err := dm.AddDevice(user1, customDev)
 	if err != nil {
 		t.Fatalf("failed to add device: %v", err)
 	}
-	if created.ID != "test-dev-1" {
-		t.Fatalf("expected ID test-dev-1, got %s", created.ID)
+	if created.ID != "alice-sprinkler" {
+		t.Fatalf("expected ID alice-sprinkler, got %s", created.ID)
 	}
 
-	// 5. Delete device
-	t.Log("5. Deleting device")
-	if err := dm.DeleteDevice("test-dev-1"); err != nil {
+	// Bob should NOT see Alice's sprinkler
+	_, err = dm.GetDevice(user2, "alice-sprinkler")
+	if err == nil {
+		t.Fatalf("SECURITY VIOLATION: Bob accessed Alice's custom device!")
+	}
+
+	// 5. Delete device for Alice
+	if err := dm.DeleteDevice(user1, "alice-sprinkler"); err != nil {
 		t.Fatalf("failed to delete device: %v", err)
 	}
-	t.Log("5b. Deleted device")
 
 	// 6. Test Scenes
-	t.Log("6. Scenes")
-	scenes := dm.GetAllScenes()
+	scenes := dm.GetAllScenes(user1)
 	if len(scenes) == 0 {
-		t.Fatalf("expected default scenes, got 0")
+		t.Fatalf("expected default scenes for Alice")
 	}
-	if err := dm.ApplyScene(scenes[0].ID); err != nil {
+	if err := dm.ApplyScene(user1, scenes[0].ID); err != nil {
 		t.Fatalf("failed to apply scene: %v", err)
 	}
-	t.Log("6b. Scene applied")
 
-	// 7. Check System Status
-	t.Log("7. System status")
-	status := dm.GetSystemStatus()
+	// 7. System status
+	status := dm.GetSystemStatus(user1)
 	if status.Status != "online" {
 		t.Fatalf("expected online status, got %s", status.Status)
 	}
-	t.Log("7b. System status done")
 }

@@ -2,7 +2,6 @@ package service
 
 import (
 	"fmt"
-	"log"
 	"math/rand"
 	"sort"
 	"sync"
@@ -11,89 +10,119 @@ import (
 	"github.com/starfreck/omnihome-server/internal/model"
 )
 
-// DeviceManager coordinates device states, GPIO signals, and environment telemetry.
+// DeviceManager coordinates multi-tenant device states, edge hardware channels, and telemetry.
 type DeviceManager struct {
-	devices    map[string]*model.Device
-	scenes     map[string]model.Scene
-	telemetry  model.Telemetry
-	settings   model.Settings
-	activities []model.ActivityItem
-	snapshots  []model.CameraSnapshot
+	// UserID -> DeviceID -> Device
+	devices map[string]map[string]*model.Device
+
+	// UserID -> SceneID -> Scene
+	scenes map[string]map[string]model.Scene
+
+	// UserID -> Telemetry
+	telemetry map[string]model.Telemetry
+
+	// UserID -> Settings
+	settings map[string]model.Settings
+
+	// UserID -> []ActivityItem
+	activities map[string][]model.ActivityItem
+
+	// UserID -> []CameraSnapshot
+	snapshots map[string][]model.CameraSnapshot
+
+	// UserID -> HubNode
+	hubNodes map[string]*model.HubNode
+
 	startTime  time.Time
 	mu         sync.RWMutex
-	onUpdate   func(device *model.Device)
-	onActivity func(item *model.ActivityItem)
+	onUpdate   func(userID string, device *model.Device)
+	onActivity func(userID string, item *model.ActivityItem)
 	stopChan   chan struct{}
 }
 
-// NewDeviceManager initializes the pre-configured devices, default scenes, and activity ledger.
-func NewDeviceManager(onUpdate func(device *model.Device), onActivity func(item *model.ActivityItem)) *DeviceManager {
+// NewDeviceManager initializes the multi-tenant manager.
+func NewDeviceManager(
+	onUpdate func(userID string, device *model.Device),
+	onActivity func(userID string, item *model.ActivityItem),
+) *DeviceManager {
 	dm := &DeviceManager{
-		devices:    make(map[string]*model.Device),
-		scenes:     make(map[string]model.Scene),
-		activities: make([]model.ActivityItem, 0),
-		snapshots:  make([]model.CameraSnapshot, 0),
+		devices:    make(map[string]map[string]*model.Device),
+		scenes:     make(map[string]map[string]model.Scene),
+		telemetry:  make(map[string]model.Telemetry),
+		settings:   make(map[string]model.Settings),
+		activities: make(map[string][]model.ActivityItem),
+		snapshots:  make(map[string][]model.CameraSnapshot),
+		hubNodes:   make(map[string]*model.HubNode),
 		startTime:  time.Now(),
 		onUpdate:   onUpdate,
 		onActivity: onActivity,
 		stopChan:   make(chan struct{}),
-		settings: model.Settings{
-			HubName:            "OmniHome Main Hub",
-			OllamaHost:         "http://localhost:11434",
-			GemmaModel:         "gemma4",
-			CameraSource:       "CSI Camera 01 (/dev/video0)",
-			BiometricThreshold: 0.85,
-			TelemetryInterval:  3,
-			AutoSpeechReply:    true,
-		},
 	}
 
-	dm.initDefaultDevices()
-	dm.initDefaultScenes()
+	// Seed default administrator tenant
+	dm.InitUserDefaults("usr-admin-default")
+
 	go dm.telemetryWorker()
-
-	// Seed startup activity events
-	dm.LogActivity("system", "OmniHome Gateway initialized. Edge IoT core online.", "system")
-	dm.LogActivity("security", "Perimeter Vision initialized on CSI camera 01.", "camera")
-	dm.LogActivity("hardware", "Hardware GPIO relay channels mapped (pins 17, 27, 22, 23, 24, 25).", "system")
-
 	return dm
 }
 
-func (dm *DeviceManager) initDefaultDevices() {
+// InitUserDefaults populates initial sample devices and presets for a new tenant.
+func (dm *DeviceManager) InitUserDefaults(userID string) {
+	dm.mu.Lock()
+	defer dm.mu.Unlock()
+
+	if _, exists := dm.devices[userID]; exists {
+		return
+	}
+
+	dm.devices[userID] = make(map[string]*model.Device)
+	dm.scenes[userID] = make(map[string]model.Scene)
+	dm.activities[userID] = make([]model.ActivityItem, 0)
+	dm.snapshots[userID] = make([]model.CameraSnapshot, 0)
+	dm.settings[userID] = model.Settings{
+		HubName:            "OmniHome Edge Controller",
+		AIProvider:         "local",
+		CameraSource:       "CSI Camera 01 (/dev/video0)",
+		BiometricThreshold: 0.85,
+		TelemetryInterval:  4,
+	}
+
 	now := time.Now()
 	defaults := []*model.Device{
 		{
 			ID:          "device-1",
+			UserID:      userID,
 			Name:        "Living Room Light",
 			Type:        model.TypeRelay,
 			Room:        "Living Room",
 			State:       true,
 			Value:       100,
 			GPIOPin:     17,
-			PowerWatts:  18.5,
+			PowerWatts:  45.0,
 			Icon:        "💡",
 			LastUpdated: now,
 		},
 		{
 			ID:          "device-2",
+			UserID:      userID,
 			Name:        "Ceiling Fan",
 			Type:        model.TypeFan,
-			Room:        "Bedroom",
-			State:       false,
+			Room:        "Living Room",
+			State:       true,
 			Value:       60,
 			GPIOPin:     27,
-			PowerWatts:  45.0,
+			PowerWatts:  55.0,
 			Icon:        "🌀",
 			LastUpdated: now,
 		},
 		{
 			ID:          "device-3",
-			Name:        "Home Theater & TV",
+			UserID:      userID,
+			Name:        "Smart Television",
 			Type:        model.TypeRelay,
 			Room:        "Living Room",
-			State:       true,
-			Value:       100,
+			State:       false,
+			Value:       0,
 			GPIOPin:     22,
 			PowerWatts:  120.0,
 			Icon:        "📺",
@@ -101,6 +130,7 @@ func (dm *DeviceManager) initDefaultDevices() {
 		},
 		{
 			ID:          "device-4",
+			UserID:      userID,
 			Name:        "Air Conditioner",
 			Type:        model.TypeRelay,
 			Room:        "Bedroom",
@@ -113,6 +143,7 @@ func (dm *DeviceManager) initDefaultDevices() {
 		},
 		{
 			ID:          "device-5",
+			UserID:      userID,
 			Name:        "Ambient Accent Strip",
 			Type:        model.TypeDimmer,
 			Room:        "Living Room",
@@ -125,10 +156,11 @@ func (dm *DeviceManager) initDefaultDevices() {
 		},
 		{
 			ID:          "device-6",
+			UserID:      userID,
 			Name:        "Front Door Lock",
 			Type:        model.TypeLock,
 			Room:        "Security",
-			State:       true, // true = Locked
+			State:       true, // Locked
 			Value:       100,
 			GPIOPin:     25,
 			PowerWatts:  2.5,
@@ -138,13 +170,12 @@ func (dm *DeviceManager) initDefaultDevices() {
 	}
 
 	for _, d := range defaults {
-		dm.devices[d.ID] = d
+		dm.devices[userID][d.ID] = d
 	}
-}
 
-func (dm *DeviceManager) initDefaultScenes() {
-	dm.scenes["all_on"] = model.Scene{
+	dm.scenes[userID]["all_on"] = model.Scene{
 		ID:          "all_on",
+		UserID:      userID,
 		Name:        "All On",
 		Icon:        "☀️",
 		Description: "Turn on all lights and climate",
@@ -157,8 +188,9 @@ func (dm *DeviceManager) initDefaultScenes() {
 		},
 	}
 
-	dm.scenes["all_off"] = model.Scene{
+	dm.scenes[userID]["all_off"] = model.Scene{
 		ID:          "all_off",
+		UserID:      userID,
 		Name:        "All Off",
 		Icon:        "🌙",
 		Description: "Turn off all active appliances",
@@ -171,9 +203,10 @@ func (dm *DeviceManager) initDefaultScenes() {
 		},
 	}
 
-	dm.scenes["movie_night"] = model.Scene{
+	dm.scenes[userID]["movie_night"] = model.Scene{
 		ID:          "movie_night",
-		Name:        "Movie Night",
+		UserID:      userID,
+		Name:        "Cinema Mode",
 		Icon:        "🎬",
 		Description: "Dim lights, activate TV and ambient strip",
 		Actions: map[string]bool{
@@ -185,11 +218,12 @@ func (dm *DeviceManager) initDefaultScenes() {
 		},
 	}
 
-	dm.scenes["secure_perimeter"] = model.Scene{
+	dm.scenes[userID]["secure_perimeter"] = model.Scene{
 		ID:          "secure_perimeter",
+		UserID:      userID,
 		Name:        "Secure Perimeter",
 		Icon:        "🛡️",
-		Description: "Lock front deadbolt and arm perimeter security monitoring",
+		Description: "Lock front deadbolt and arm perimeter cameras",
 		Actions: map[string]bool{
 			"device-1": false,
 			"device-3": false,
@@ -197,72 +231,83 @@ func (dm *DeviceManager) initDefaultScenes() {
 		},
 	}
 
-	dm.scenes["away_mode"] = model.Scene{
-		ID:          "away_mode",
-		Name:        "Away Mode",
-		Icon:        "🛡️",
-		Description: "Turn off appliances & engage front lock",
-		Actions: map[string]bool{
-			"device-1": false,
-			"device-2": false,
-			"device-3": false,
-			"device-4": false,
-			"device-5": false,
-			"device-6": true,
-		},
+	dm.telemetry[userID] = model.Telemetry{
+		UserID:      userID,
+		Temperature: 22.4,
+		Humidity:    48.0,
+		TotalWatts:  181.5,
+		CPUUsage:    4.8,
+		MemoryUsage: 22.5,
+		CPUTemp:     38.5,
+		ActiveCount: 4,
+		TotalCount:  6,
+		Timestamp:   time.Now(),
 	}
-}
 
-// GetAllScenes returns a sorted slice of all automation presets.
-func (dm *DeviceManager) GetAllScenes() []model.Scene {
-	dm.mu.RLock()
-	defer dm.mu.RUnlock()
-
-	list := make([]model.Scene, 0, len(dm.scenes))
-	for _, sc := range dm.scenes {
-		list = append(list, sc)
-	}
-	sort.Slice(list, func(i, j int) bool {
-		return list[i].ID < list[j].ID
+	dm.activities[userID] = append(dm.activities[userID], model.ActivityItem{
+		ID:        fmt.Sprintf("act-%d", time.Now().UnixNano()),
+		UserID:    userID,
+		Timestamp: time.Now(),
+		Category:  "system",
+		Message:   "Cloud tenant initialized. Awaiting Edge CLI connection.",
+		Source:    "cloud",
 	})
-	return list
 }
 
-// GetAllDevices returns a clone list of all devices.
-func (dm *DeviceManager) GetAllDevices() []model.Device {
+// GetAllDevices returns all devices belonging to a user.
+func (dm *DeviceManager) GetAllDevices(userID string) []*model.Device {
 	dm.mu.RLock()
 	defer dm.mu.RUnlock()
 
-	list := make([]model.Device, 0, len(dm.devices))
-	for _, d := range dm.devices {
-		list = append(list, *d)
-	}
-	sort.Slice(list, func(i, j int) bool {
-		return list[i].ID < list[j].ID
-	})
-	return list
-}
-
-// GetDevice returns a single device by ID.
-func (dm *DeviceManager) GetDevice(id string) (*model.Device, error) {
-	dm.mu.RLock()
-	defer dm.mu.RUnlock()
-
-	d, ok := dm.devices[id]
+	userDevs, ok := dm.devices[userID]
 	if !ok {
-		return nil, fmt.Errorf("device %s not found", id)
+		return []*model.Device{}
 	}
+
+	list := make([]*model.Device, 0, len(userDevs))
+	for _, d := range userDevs {
+		cpy := *d
+		list = append(list, &cpy)
+	}
+
+	sort.Slice(list, func(i, j int) bool {
+		return list[i].ID < list[j].ID
+	})
+	return list
+}
+
+// GetDevice retrieves a device ensuring ownership.
+func (dm *DeviceManager) GetDevice(userID, deviceID string) (*model.Device, error) {
+	dm.mu.RLock()
+	defer dm.mu.RUnlock()
+
+	userDevs, ok := dm.devices[userID]
+	if !ok {
+		return nil, fmt.Errorf("device not found")
+	}
+
+	d, ok := userDevs[deviceID]
+	if !ok {
+		return nil, fmt.Errorf("device not found")
+	}
+
 	cpy := *d
 	return &cpy, nil
 }
 
-// ToggleDevice flips the on/off state of a device.
-func (dm *DeviceManager) ToggleDevice(id string) (*model.Device, error) {
+// ToggleDevice flips a device state.
+func (dm *DeviceManager) ToggleDevice(userID, deviceID string) (*model.Device, error) {
 	dm.mu.Lock()
-	d, ok := dm.devices[id]
+	userDevs, ok := dm.devices[userID]
 	if !ok {
 		dm.mu.Unlock()
-		return nil, fmt.Errorf("device %s not found", id)
+		return nil, fmt.Errorf("device not found")
+	}
+
+	d, ok := userDevs[deviceID]
+	if !ok {
+		dm.mu.Unlock()
+		return nil, fmt.Errorf("device not found")
 	}
 
 	d.State = !d.State
@@ -270,38 +315,40 @@ func (dm *DeviceManager) ToggleDevice(id string) (*model.Device, error) {
 	cpy := *d
 	dm.mu.Unlock()
 
-	// Simulate/Execute physical GPIO trigger
-	dm.triggerPhysicalGPIO(cpy.GPIOPin, cpy.State)
-
-	log.Printf("[GPIO] Pin %d (%s) set to state: %v", cpy.GPIOPin, cpy.Name, cpy.State)
-
 	action := "turned ON"
 	if !cpy.State {
 		action = "turned OFF"
 	}
 	if cpy.Type == model.TypeLock {
 		if cpy.State {
-			action = "locked (deadbolt secured)"
+			action = "locked (secured)"
 		} else {
 			action = "unlocked"
 		}
 	}
-	dm.LogActivity("hardware", fmt.Sprintf("%s %s", cpy.Name, action), "web")
+
+	dm.LogActivity(userID, "hardware", fmt.Sprintf("%s %s", cpy.Name, action), "cloud")
 
 	if dm.onUpdate != nil {
-		dm.onUpdate(&cpy)
+		dm.onUpdate(userID, &cpy)
 	}
 
 	return &cpy, nil
 }
 
 // SetDeviceState sets a specific state and optional slider value.
-func (dm *DeviceManager) SetDeviceState(id string, state bool, val int) (*model.Device, error) {
+func (dm *DeviceManager) SetDeviceState(userID, deviceID string, state bool, val int) (*model.Device, error) {
 	dm.mu.Lock()
-	d, ok := dm.devices[id]
+	userDevs, ok := dm.devices[userID]
 	if !ok {
 		dm.mu.Unlock()
-		return nil, fmt.Errorf("device %s not found", id)
+		return nil, fmt.Errorf("device not found")
+	}
+
+	d, ok := userDevs[deviceID]
+	if !ok {
+		dm.mu.Unlock()
+		return nil, fmt.Errorf("device not found")
 	}
 
 	d.State = state
@@ -312,115 +359,35 @@ func (dm *DeviceManager) SetDeviceState(id string, state bool, val int) (*model.
 	cpy := *d
 	dm.mu.Unlock()
 
-	dm.triggerPhysicalGPIO(cpy.GPIOPin, cpy.State)
-
 	if val >= 0 {
-		dm.LogActivity("hardware", fmt.Sprintf("%s adjusted to %d%% (%v)", cpy.Name, cpy.Value, cpy.State), "web")
+		dm.LogActivity(userID, "hardware", fmt.Sprintf("%s adjusted to %d%% (%v)", cpy.Name, cpy.Value, cpy.State), "cloud")
 	} else {
 		action := "turned ON"
 		if !cpy.State {
 			action = "turned OFF"
 		}
-		dm.LogActivity("hardware", fmt.Sprintf("%s %s", cpy.Name, action), "web")
+		dm.LogActivity(userID, "hardware", fmt.Sprintf("%s %s", cpy.Name, action), "cloud")
 	}
 
 	if dm.onUpdate != nil {
-		dm.onUpdate(&cpy)
+		dm.onUpdate(userID, &cpy)
 	}
 
 	return &cpy, nil
 }
 
-// ApplyScene triggers multiple device state changes atomically.
-func (dm *DeviceManager) ApplyScene(sceneID string) error {
-	dm.mu.RLock()
-	scene, ok := dm.scenes[sceneID]
-	dm.mu.RUnlock()
-	if !ok {
-		return fmt.Errorf("scene %s not found", sceneID)
-	}
-
-	log.Printf("[Scene] Activating scene '%s'", scene.Name)
-	dm.LogActivity("hardware", fmt.Sprintf("Scene activated: '%s' (%s)", scene.Name, scene.Description), "web")
-
-	for devID, targetState := range scene.Actions {
-		dm.SetDeviceState(devID, targetState, -1)
-	}
-	return nil
-}
-
-// GetTelemetry aggregates current energy, temperature, and hardware metrics.
-func (dm *DeviceManager) GetTelemetry() model.Telemetry {
-	dm.mu.RLock()
-	defer dm.mu.RUnlock()
-
-	var totalWatts float64
-	active := 0
-	for _, d := range dm.devices {
-		if d.State {
-			totalWatts += d.PowerWatts
-			active++
-		}
-	}
-
-	t := dm.telemetry
-	t.TotalWatts = totalWatts
-	t.ActiveCount = active
-	t.TotalCount = len(dm.devices)
-	t.Timestamp = time.Now()
-	return t
-}
-
-func (dm *DeviceManager) telemetryWorker() {
-	ticker := time.NewTicker(3 * time.Second)
-	defer ticker.Stop()
-
-	// Base environmental values with natural fluctuations
-	baseTemp := 22.4
-	baseHumidity := 48.0
-
-	for {
-		select {
-		case <-dm.stopChan:
-			return
-		case <-ticker.C:
-			dm.mu.Lock()
-			dm.telemetry = model.Telemetry{
-				Temperature: baseTemp + (rand.Float64()*0.4 - 0.2),
-				Humidity:    baseHumidity + (rand.Float64()*0.8 - 0.4),
-				CPUUsage:    4.0 + rand.Float64()*6.0,
-				MemoryUsage: 22.5,
-				CPUTemp:     38.2 + (rand.Float64()*1.2 - 0.6),
-			}
-			dm.mu.Unlock()
-		}
-	}
-}
-
-// Close gracefully stops background goroutines.
-func (dm *DeviceManager) Close() {
-	select {
-	case <-dm.stopChan:
-	default:
-		close(dm.stopChan)
-	}
-}
-
-// triggerPhysicalGPIO writes to real hardware if running on Raspberry Pi,
-// or cleanly logs in Mock mode on desktop/dev machines.
-func (dm *DeviceManager) triggerPhysicalGPIO(pin int, state bool) {
-	// If running on a real Raspberry Pi with sysfs GPIO exported:
-	// Path: /sys/class/gpio/gpio{pin}/value
-	// For dev/demo mode, this runs in zero-crash Mock mode.
-}
-
-// AddDevice registers a new device in the system.
-func (dm *DeviceManager) AddDevice(d model.Device) (*model.Device, error) {
+// AddDevice registers a new device scoped to a user.
+func (dm *DeviceManager) AddDevice(userID string, d model.Device) (*model.Device, error) {
 	dm.mu.Lock()
+	if _, ok := dm.devices[userID]; !ok {
+		dm.devices[userID] = make(map[string]*model.Device)
+	}
 
 	if d.ID == "" {
 		d.ID = fmt.Sprintf("device-%d", time.Now().UnixNano()%100000)
 	}
+	d.UserID = userID
+
 	if d.Icon == "" {
 		switch d.Type {
 		case model.TypeFan:
@@ -439,26 +406,31 @@ func (dm *DeviceManager) AddDevice(d model.Device) (*model.Device, error) {
 		d.Value = 50
 	}
 	d.LastUpdated = time.Now()
-	dm.devices[d.ID] = &d
+	dm.devices[userID][d.ID] = &d
 	cpy := d
 	dm.mu.Unlock()
 
 	if dm.onUpdate != nil {
-		dm.onUpdate(&cpy)
+		dm.onUpdate(userID, &cpy)
 	}
 
-	dm.LogActivity("hardware", fmt.Sprintf("New device registered: %s (%s, Pin %d)", cpy.Name, cpy.Room, cpy.GPIOPin), "web")
+	dm.LogActivity(userID, "hardware", fmt.Sprintf("New device enrolled: %s (%s, Pin %d)", cpy.Name, cpy.Room, cpy.GPIOPin), "cloud")
 	return &cpy, nil
 }
 
 // UpdateDevice updates an existing device's metadata.
-func (dm *DeviceManager) UpdateDevice(id string, updated model.Device) (*model.Device, error) {
+func (dm *DeviceManager) UpdateDevice(userID, deviceID string, updated model.Device) (*model.Device, error) {
 	dm.mu.Lock()
-
-	d, ok := dm.devices[id]
+	userDevs, ok := dm.devices[userID]
 	if !ok {
 		dm.mu.Unlock()
-		return nil, fmt.Errorf("device %s not found", id)
+		return nil, fmt.Errorf("device not found")
+	}
+
+	d, ok := userDevs[deviceID]
+	if !ok {
+		dm.mu.Unlock()
+		return nil, fmt.Errorf("device not found")
 	}
 
 	d.Name = updated.Name
@@ -471,172 +443,365 @@ func (dm *DeviceManager) UpdateDevice(id string, updated model.Device) (*model.D
 	dm.mu.Unlock()
 
 	if dm.onUpdate != nil {
-		dm.onUpdate(&cpy)
+		dm.onUpdate(userID, &cpy)
 	}
 
-	dm.LogActivity("hardware", fmt.Sprintf("Device updated: %s (%s, Pin %d)", cpy.Name, cpy.Room, cpy.GPIOPin), "web")
+	dm.LogActivity(userID, "hardware", fmt.Sprintf("Device updated: %s (%s)", cpy.Name, cpy.Room), "cloud")
 	return &cpy, nil
 }
 
-// DeleteDevice removes a device from the manager.
-func (dm *DeviceManager) DeleteDevice(id string) error {
+// DeleteDevice removes a device ensuring ownership.
+func (dm *DeviceManager) DeleteDevice(userID, deviceID string) error {
 	dm.mu.Lock()
-
-	d, ok := dm.devices[id]
+	userDevs, ok := dm.devices[userID]
 	if !ok {
 		dm.mu.Unlock()
-		return fmt.Errorf("device %s not found", id)
+		return fmt.Errorf("device not found")
+	}
+
+	d, ok := userDevs[deviceID]
+	if !ok {
+		dm.mu.Unlock()
+		return fmt.Errorf("device not found")
 	}
 	devName := d.Name
-	delete(dm.devices, id)
+	delete(userDevs, deviceID)
 	dm.mu.Unlock()
 
-	dm.LogActivity("hardware", fmt.Sprintf("Device deleted: %s (%s)", devName, id), "web")
+	dm.LogActivity(userID, "hardware", fmt.Sprintf("Device deleted: %s (%s)", devName, deviceID), "cloud")
 	return nil
 }
 
-// GetSettings retrieves current hub settings.
-func (dm *DeviceManager) GetSettings() model.Settings {
+// GetAllScenes returns all automation presets for a user.
+func (dm *DeviceManager) GetAllScenes(userID string) []model.Scene {
 	dm.mu.RLock()
 	defer dm.mu.RUnlock()
-	return dm.settings
+
+	userScenes, ok := dm.scenes[userID]
+	if !ok {
+		return []model.Scene{}
+	}
+
+	list := make([]model.Scene, 0, len(userScenes))
+	for _, sc := range userScenes {
+		list = append(list, sc)
+	}
+
+	sort.Slice(list, func(i, j int) bool {
+		return list[i].ID < list[j].ID
+	})
+	return list
 }
 
-// UpdateSettings updates hub configuration settings.
-func (dm *DeviceManager) UpdateSettings(s model.Settings) error {
+// ApplyScene triggers atomic preset activations.
+func (dm *DeviceManager) ApplyScene(userID, sceneID string) error {
+	dm.mu.RLock()
+	userScenes, ok := dm.scenes[userID]
+	if !ok {
+		dm.mu.RUnlock()
+		return fmt.Errorf("scene not found")
+	}
+
+	scene, ok := userScenes[sceneID]
+	dm.mu.RUnlock()
+	if !ok {
+		return fmt.Errorf("scene %s not found", sceneID)
+	}
+
+	dm.LogActivity(userID, "hardware", fmt.Sprintf("Scene activated: '%s' (%s)", scene.Name, scene.Description), "cloud")
+
+	for devID, targetState := range scene.Actions {
+		dm.SetDeviceState(userID, devID, targetState, -1)
+	}
+	return nil
+}
+
+// GetTelemetry aggregates current energy, temperature, and hardware metrics.
+func (dm *DeviceManager) GetTelemetry(userID string) model.Telemetry {
+	dm.mu.RLock()
+	defer dm.mu.RUnlock()
+
+	t, ok := dm.telemetry[userID]
+	if !ok {
+		return model.Telemetry{
+			UserID:      userID,
+			Temperature: 22.0,
+			Humidity:    45.0,
+			TotalWatts:  0,
+			ActiveCount: 0,
+			TotalCount:  0,
+			Timestamp:   time.Now(),
+		}
+	}
+
+	var totalWatts float64
+	active := 0
+	total := 0
+	if userDevs, exists := dm.devices[userID]; exists {
+		total = len(userDevs)
+		for _, d := range userDevs {
+			if d.State {
+				totalWatts += d.PowerWatts
+				active++
+			}
+		}
+	}
+
+	t.TotalWatts = totalWatts
+	t.ActiveCount = active
+	t.TotalCount = total
+	return t
+}
+
+// UpdateTelemetryFromEdge ingests live telemetry sent by the user's Edge CLI.
+func (dm *DeviceManager) UpdateTelemetryFromEdge(userID string, tel model.Telemetry) {
 	dm.mu.Lock()
 	defer dm.mu.Unlock()
-	dm.settings = s
-	dm.LogActivity("system", fmt.Sprintf("Hub configuration updated: %s", s.HubName), "web")
-	return nil
+
+	tel.UserID = userID
+	dm.telemetry[userID] = tel
+
+	// Update node heartbeat
+	if node, exists := dm.hubNodes[userID]; exists {
+		node.Online = true
+		node.LastSeen = time.Now()
+	}
 }
 
-// LogActivity records an event in the system audit trail and notifies real-time subscribers.
-func (dm *DeviceManager) LogActivity(category, message, source string) model.ActivityItem {
+// RecordEdgeOnline tracks an edge hardware CLI establishing its tunnel.
+func (dm *DeviceManager) RecordEdgeOnline(userID, hubID string, isMock bool, pins []int) {
 	dm.mu.Lock()
-	item := model.ActivityItem{
+	defer dm.mu.Unlock()
+
+	dm.hubNodes[userID] = &model.HubNode{
+		ID:       hubID,
+		UserID:   userID,
+		Name:     "Raspberry Pi Edge Controller",
+		Online:   true,
+		LastSeen: time.Now(),
+		Pins:     pins,
+		IsMock:   isMock,
+	}
+
+	dm.activities[userID] = append(dm.activities[userID], model.ActivityItem{
 		ID:        fmt.Sprintf("act-%d", time.Now().UnixNano()),
+		UserID:    userID,
 		Timestamp: time.Now(),
-		Category:  category,
-		Message:   message,
-		Source:    source,
-	}
-	dm.activities = append(dm.activities, item)
-	if len(dm.activities) > 120 {
-		dm.activities = dm.activities[len(dm.activities)-120:]
-	}
-	cb := dm.onActivity
-	dm.mu.Unlock()
-
-	if cb != nil {
-		cb(&item)
-	}
-	return item
+		Category:  "hardware",
+		Message:   fmt.Sprintf("Edge hardware CLI connected (Hub: %s, Mock: %v)", hubID, isMock),
+		Source:    "edge-cli",
+	})
 }
 
-// GetActivities returns recent events in reverse-chronological order (newest first).
-func (dm *DeviceManager) GetActivities(limit int) []model.ActivityItem {
-	dm.mu.RLock()
-	defer dm.mu.RUnlock()
-
-	total := len(dm.activities)
-	if limit <= 0 || limit > total {
-		limit = total
-	}
-	res := make([]model.ActivityItem, limit)
-	for i := 0; i < limit; i++ {
-		res[i] = dm.activities[total-1-i]
-	}
-	return res
-}
-
-// ClearActivities empties the audit ledger buffer.
-func (dm *DeviceManager) ClearActivities() {
+// RecordEdgeOffline tracks an edge hardware CLI disconnecting.
+func (dm *DeviceManager) RecordEdgeOffline(userID, hubID string) {
 	dm.mu.Lock()
-	dm.activities = make([]model.ActivityItem, 0)
-	dm.mu.Unlock()
-	dm.LogActivity("system", "System audit ledger cleared by administrator.", "web")
+	defer dm.mu.Unlock()
+
+	if node, exists := dm.hubNodes[userID]; exists {
+		node.Online = false
+		node.LastSeen = time.Now()
+	}
+
+	dm.activities[userID] = append(dm.activities[userID], model.ActivityItem{
+		ID:        fmt.Sprintf("act-%d", time.Now().UnixNano()),
+		UserID:    userID,
+		Timestamp: time.Now(),
+		Category:  "system",
+		Message:   "Edge hardware CLI disconnected. Reverting to cloud cached state.",
+		Source:    "cloud",
+	})
 }
 
-// PerformBiometricScan simulates or evaluates facial recognition from edge camera frames.
-func (dm *DeviceManager) PerformBiometricScan(cameraID string) model.BiometricScanResult {
-	dm.mu.RLock()
-	thresh := dm.settings.BiometricThreshold
-	dm.mu.RUnlock()
-
-	conf := 0.998
-	success := conf >= thresh
-
-	result := model.BiometricScanResult{
-		Success:    success,
-		Subject:    "Vasu",
-		Confidence: conf,
-		Threshold:  thresh,
-		Timestamp:  time.Now(),
-		CameraID:   cameraID,
-	}
-
-	dm.LogActivity("security", fmt.Sprintf("Biometric identification: %s verified (%.1f%% confidence on %s)", result.Subject, result.Confidence*100, cameraID), "camera")
-	return result
-}
-
-// AddSnapshot stores a captured edge frame in memory.
-func (dm *DeviceManager) AddSnapshot(snap model.CameraSnapshot) model.CameraSnapshot {
-	dm.mu.Lock()
-	if snap.ID == "" {
-		snap.ID = fmt.Sprintf("snap-%d", time.Now().UnixNano())
-	}
-	if snap.Timestamp.IsZero() {
-		snap.Timestamp = time.Now()
-	}
-	if snap.Source == "" {
-		snap.Source = "CAM-01 (Front Door)"
-	}
-	dm.snapshots = append(dm.snapshots, snap)
-	if len(dm.snapshots) > 40 {
-		dm.snapshots = dm.snapshots[len(dm.snapshots)-40:]
-	}
-	cpy := snap
-	dm.mu.Unlock()
-
-	dm.LogActivity("security", fmt.Sprintf("Security snapshot captured from %s", snap.Source), "camera")
-	return cpy
-}
-
-// GetSnapshots returns all stored snapshots in reverse order.
-func (dm *DeviceManager) GetSnapshots() []model.CameraSnapshot {
+// IsEdgeOnline returns whether the edge CLI is currently connected.
+func (dm *DeviceManager) IsEdgeOnline(userID string) bool {
 	dm.mu.RLock()
 	defer dm.mu.RUnlock()
 
-	total := len(dm.snapshots)
-	res := make([]model.CameraSnapshot, total)
-	for i := 0; i < total; i++ {
-		res[i] = dm.snapshots[total-1-i]
-	}
-	return res
+	node, ok := dm.hubNodes[userID]
+	return ok && node.Online
 }
 
-// GetSystemStatus aggregates live runtime metrics, uptime, and node identity.
-func (dm *DeviceManager) GetSystemStatus() model.SystemStatus {
+// GetSystemStatus returns multi-tenant health information.
+func (dm *DeviceManager) GetSystemStatus(userID string) model.SystemStatus {
 	dm.mu.RLock()
 	defer dm.mu.RUnlock()
 
+	userDevs := dm.devices[userID]
 	active := 0
-	for _, d := range dm.devices {
+	for _, d := range userDevs {
 		if d.State {
 			active++
 		}
 	}
 
+	edgeOnline := false
+	if node, exists := dm.hubNodes[userID]; exists {
+		edgeOnline = node.Online
+	}
+
+	hubName := "OmniHome Cloud"
+	if s, exists := dm.settings[userID]; exists && s.HubName != "" {
+		hubName = s.HubName
+	}
+
 	uptime := int64(time.Since(dm.startTime).Seconds())
 	return model.SystemStatus{
 		Status:        "online",
-		Version:       "2.4.0-saas",
+		Version:       "2.4.0-cloud",
 		UptimeSeconds: uptime,
-		Gateway:       dm.settings.HubName,
-		DevicesCount:  len(dm.devices),
+		Gateway:       hubName,
+		DevicesCount:  len(userDevs),
 		ActiveRelays:  active,
+		EdgeConnected: edgeOnline,
 		Timestamp:     time.Now(),
 	}
 }
 
+// GetSettings retrieves a user's cloud settings.
+func (dm *DeviceManager) GetSettings(userID string) model.Settings {
+	dm.mu.RLock()
+	defer dm.mu.RUnlock()
+
+	if s, exists := dm.settings[userID]; exists {
+		return s
+	}
+	return model.Settings{HubName: "OmniHome Cloud", AIProvider: "local"}
+}
+
+// UpdateSettings stores user-configured AI and gateway parameters.
+func (dm *DeviceManager) UpdateSettings(userID string, s model.Settings) {
+	dm.mu.Lock()
+	defer dm.mu.Unlock()
+	dm.settings[userID] = s
+}
+
+// GetActivities returns the audit activity ledger for a tenant.
+func (dm *DeviceManager) GetActivities(userID string, limit int) []model.ActivityItem {
+	dm.mu.RLock()
+	defer dm.mu.RUnlock()
+
+	acts, ok := dm.activities[userID]
+	if !ok {
+		return []model.ActivityItem{}
+	}
+
+	if limit <= 0 || limit > len(acts) {
+		limit = len(acts)
+	}
+
+	res := make([]model.ActivityItem, limit)
+	copy(res, acts[len(acts)-limit:])
+
+	// Return most recent first
+	for i, j := 0, len(res)-1; i < j; i, j = i+1, j-1 {
+		res[i], res[j] = res[j], res[i]
+	}
+	return res
+}
+
+// LogActivity appends an activity record for a user.
+func (dm *DeviceManager) LogActivity(userID, category, message, source string) model.ActivityItem {
+	dm.mu.Lock()
+	if _, exists := dm.activities[userID]; !exists {
+		dm.activities[userID] = make([]model.ActivityItem, 0)
+	}
+
+	item := model.ActivityItem{
+		ID:        fmt.Sprintf("act-%d", time.Now().UnixNano()),
+		UserID:    userID,
+		Timestamp: time.Now(),
+		Category:  category,
+		Message:   message,
+		Source:    source,
+	}
+
+	dm.activities[userID] = append(dm.activities[userID], item)
+	if len(dm.activities[userID]) > 150 {
+		dm.activities[userID] = dm.activities[userID][len(dm.activities[userID])-150:]
+	}
+	cb := dm.onActivity
+	dm.mu.Unlock()
+
+	if cb != nil {
+		cb(userID, &item)
+	}
+	return item
+}
+
+// ClearActivities empties the audit ledger for a user.
+func (dm *DeviceManager) ClearActivities(userID string) {
+	dm.mu.Lock()
+	defer dm.mu.Unlock()
+	dm.activities[userID] = make([]model.ActivityItem, 0)
+}
+
+// GetSnapshots returns surveillance snapshots for a user.
+func (dm *DeviceManager) GetSnapshots(userID string) []model.CameraSnapshot {
+	dm.mu.RLock()
+	defer dm.mu.RUnlock()
+
+	snaps, ok := dm.snapshots[userID]
+	if !ok {
+		return []model.CameraSnapshot{}
+	}
+	res := make([]model.CameraSnapshot, len(snaps))
+	copy(res, snaps)
+	return res
+}
+
+// AddSnapshot stores a snapshot for a user.
+func (dm *DeviceManager) AddSnapshot(userID string, snap model.CameraSnapshot) model.CameraSnapshot {
+	dm.mu.Lock()
+	defer dm.mu.Unlock()
+
+	snap.ID = fmt.Sprintf("snap-%d", time.Now().UnixNano())
+	snap.UserID = userID
+	snap.Timestamp = time.Now()
+
+	if _, exists := dm.snapshots[userID]; !exists {
+		dm.snapshots[userID] = make([]model.CameraSnapshot, 0)
+	}
+
+	dm.snapshots[userID] = append(dm.snapshots[userID], snap)
+	if len(dm.snapshots[userID]) > 30 {
+		dm.snapshots[userID] = dm.snapshots[userID][len(dm.snapshots[userID])-30:]
+	}
+	return snap
+}
+
+func (dm *DeviceManager) telemetryWorker() {
+	ticker := time.NewTicker(4 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-dm.stopChan:
+			return
+		case <-ticker.C:
+			dm.mu.Lock()
+			// Only simulate ambient fluctuations if edge CLI is not actively reporting
+			for userID, tel := range dm.telemetry {
+				if node, ok := dm.hubNodes[userID]; !ok || !node.Online {
+					tel.Temperature = 22.4 + (rand.Float64()*0.4 - 0.2)
+					tel.Humidity = 48.0 + (rand.Float64()*0.8 - 0.4)
+					tel.CPUUsage = 3.5 + rand.Float64()*4.0
+					tel.MemoryUsage = 21.0
+					tel.CPUTemp = 38.0 + (rand.Float64()*1.0 - 0.5)
+					tel.Timestamp = time.Now()
+					dm.telemetry[userID] = tel
+				}
+			}
+			dm.mu.Unlock()
+		}
+	}
+}
+
+// Close gracefully terminates background goroutines.
+func (dm *DeviceManager) Close() {
+	select {
+	case <-dm.stopChan:
+	default:
+		close(dm.stopChan)
+	}
+}
