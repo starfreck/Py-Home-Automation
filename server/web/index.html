@@ -11,12 +11,45 @@
 </head>
 <body>
   <!-- CLAUDE AI APP HEADER -->
+  <!-- ENTERPRISE SAAS APP HEADER -->
   <header class="claude-header">
     <div class="header-left">
       <div class="claude-logo" onclick="switchNav('dashboard', document.querySelector('.nav-pill'))">
         <span class="logo-spark"></span>
         <span class="logo-name">OmniHome</span>
-        <span class="logo-sub">Edge AI Hub</span>
+        <span class="logo-tier-badge">ENTERPRISE</span>
+      </div>
+
+      <!-- PROPERTY & TENANT WORKSPACE SELECTOR -->
+      <div class="saas-workspace-selector" onclick="toggleWorkspaceMenu(event)" title="Switch Active Property">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <span id="current-workspace-name">Vasu Penthouse • Hub #01</span>
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+
+        <div class="saas-workspace-menu" id="workspace-dropdown-menu" style="display: none;">
+          <div class="workspace-menu-header">Cloud Connected Properties</div>
+          <button type="button" class="workspace-item active" onclick="switchWorkspace('Vasu Penthouse • Hub #01')">
+            <span class="ws-dot active"></span>
+            <div class="ws-info">
+              <span class="ws-title">Vasu Penthouse (Primary)</span>
+              <span class="ws-sub">6 Relays • Online • 11ms</span>
+            </div>
+          </button>
+          <button type="button" class="workspace-item" onclick="switchWorkspace('Mountain Villa • Hub #02')">
+            <span class="ws-dot standby"></span>
+            <div class="ws-info">
+              <span class="ws-title">Mountain Villa</span>
+              <span class="ws-sub">4 Relays • Standby</span>
+            </div>
+          </button>
+          <button type="button" class="workspace-item" onclick="switchWorkspace('Downtown Studio • Hub #03')">
+            <span class="ws-dot standby"></span>
+            <div class="ws-info">
+              <span class="ws-title">Downtown Studio</span>
+              <span class="ws-sub">8 Relays • Standby</span>
+            </div>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -32,27 +65,34 @@
       </button>
       <button class="nav-pill" data-view="devices" onclick="switchNav('devices', this)">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
-        Devices
+        Fleet Devices
       </button>
       <button class="nav-pill" data-view="cameras" onclick="switchNav('cameras', this)">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
-        Cameras
+        CSI Cameras
       </button>
       <button class="nav-pill" data-view="activity" onclick="switchNav('activity', this)">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-        Activity
+        Audit Log
       </button>
       <button class="nav-pill" data-view="settings" id="nav-btn-settings" onclick="switchNav('settings', this)">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        Settings
+        Cloud API
       </button>
     </nav>
 
     <!-- RIGHT UTILITIES -->
     <div class="header-right">
-      <div class="header-pill status-pill">
+      <!-- COMMAND PALETTE TRIGGER (CMD+K) -->
+      <button class="cmd-k-trigger-btn" onclick="openCommandPalette()" title="Open Command Palette (⌘K)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <span class="cmd-k-label">Quick Actions</span>
+        <kbd class="kbd-pill">⌘K</kbd>
+      </button>
+
+      <div class="header-pill status-pill" title="Gateway Realtime Ping">
         <span class="status-indicator"></span>
-        <span id="header-hub-status">Online</span>
+        <span id="header-hub-status">US-East • 11ms</span>
       </div>
 
       <button class="btn-subtle" id="audio-toggle-btn" onclick="toggleAudioSpeech()" title="Toggle voice feedback audio">
@@ -90,6 +130,11 @@
         </div>
       </div>
 
+      <div class="user-profile-badge" title="Tenant Administrator">
+        <span class="user-avatar-circle">VK</span>
+        <span class="user-name-tag">Vasu</span>
+      </div>
+
       <div class="clock-display" id="clock">00:00:00</div>
     </div>
   </header>
@@ -106,8 +151,13 @@
       <!-- AMBIENT GREETING & STATUS ROW -->
       <div class="dashboard-greeting-bar">
         <div class="greeting-left">
-          <span class="greeting-date" id="greeting-date">Monday, October 12</span>
-          <h2 class="greeting-title" id="greeting-title">Good evening, Vasu</h2>
+          <div class="tenant-breadcrumb">
+            <span class="tenant-tag">ENTERPRISE CLOUD</span>
+            <span class="tenant-sep">/</span>
+            <span class="tenant-node" id="telemetry-node-label">Edge Node #01</span>
+          </div>
+          <h2 class="greeting-title" id="greeting-title">Command Center — Vasu</h2>
+          <span class="greeting-date" id="greeting-date">Monday, October 12, 2026</span>
         </div>
         <div class="greeting-right">
           <div class="weather-pill">
@@ -888,6 +938,35 @@
       </div>
     </div>
   </div>
+
+  <!-- COMMAND PALETTE MODAL (CMD+K) -->
+  <div id="modal-command-palette" class="modal-overlay" onclick="closeModalOnBackdrop(event)" style="display: none;">
+    <div class="command-palette-card">
+      <div class="command-palette-input-wrap">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" id="cmd-palette-input" placeholder="Type a directive or search (e.g. 'Cinema', 'Lock', 'Edit', 'Theme')..." oninput="filterCommandPalette(this.value)" autocomplete="off">
+        <kbd class="kbd-shortcut" onclick="closeCommandPalette()">ESC</kbd>
+      </div>
+      <div class="command-palette-results" id="cmd-palette-results">
+        <!-- Dynamically rendered by app.js -->
+      </div>
+    </div>
+  </div>
+
+  <!-- SAAS PLATFORM ENTERPRISE FOOTER -->
+  <footer class="saas-footer">
+    <div class="saas-footer-content">
+      <div class="footer-left">
+        <span class="saas-badge-pill">Enterprise Cloud Hub v3.4.2</span>
+        <span class="footer-meta">Node: <strong>hub-linux-edge-01</strong></span>
+        <span class="footer-meta">WebSocket: <strong id="footer-ws-status">Connected (11ms)</strong></span>
+      </div>
+      <div class="footer-right">
+        <span class="footer-meta">Inference Engine: <strong>Gemma 4-B Local FP16</strong></span>
+        <span class="footer-meta">Security: <strong>AES-256 / TLS 1.3</strong></span>
+      </div>
+    </div>
+  </footer>
 
   <!-- CAMERA FLASH OVERLAY EFFECT -->
   <div id="cam-flash" class="camera-flash-overlay"></div>

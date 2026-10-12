@@ -165,14 +165,11 @@ let bentoWidgetPrefs = (() => {
   };
 })();
 
-// EDIT MODE & FLIP DRAG-AND-DROP REORDER ENGINE
+// ==========================================
+// 2.5 SAAS EDIT MODE & FLIP REORDER ENGINE
+// ==========================================
 let isEditMode = false;
-let draggedCardEl = null;
-let isPointerDragging = false;
-let pointerStartX = 0;
-let pointerStartY = 0;
-let lastSwapTarget = null;
-let lastSwapTime = 0;
+let activeDragCard = null;
 
 function toggleEditMode() {
   isEditMode = !isEditMode;
@@ -193,7 +190,7 @@ function updateEditModeUI() {
     if (banner) banner.style.display = 'flex';
     if (editBtn) editBtn.classList.add('active-edit');
     if (editLabel) editLabel.textContent = 'Done Editing';
-    showToast('Edit Mode active: drag cards to reorder with live animation', 'info');
+    showToast('Edit Mode: Drag any widget to rearrange with live animation', 'info');
   } else {
     grid.classList.remove('edit-mode');
     if (banner) banner.style.display = 'none';
@@ -246,6 +243,21 @@ function saveCurrentGridOrder() {
 }
 
 /**
+ * Finds the bento card currently underneath pointer coordinates using bounding boxes.
+ */
+function findCardAtPoint(x, y, excludeEl) {
+  const cards = document.querySelectorAll('#bento-grid > .bento-card');
+  for (const c of cards) {
+    if (c === excludeEl || c.style.display === 'none') continue;
+    const r = c.getBoundingClientRect();
+    if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
+      return c;
+    }
+  }
+  return null;
+}
+
+/**
  * High-performance FLIP (First, Last, Invert, Play) animated reordering.
  * Instantly reorders dragged card in DOM, then animates all displaced sibling
  * cards from their old coordinates to their new slots with a fluid spring curve.
@@ -253,155 +265,50 @@ function saveCurrentGridOrder() {
 function moveCardWithAnimation(dragged, target, isAfter) {
   const grid = document.getElementById('bento-grid');
   if (!grid || !dragged || !target || dragged === target) return;
-  if (!target.classList.contains('bento-card') || !dragged.classList.contains('bento-card')) return;
 
-  // 1. FIRST: Capture bounding boxes of all visible cards prior to DOM mutation
-  const cards = Array.from(grid.children).filter(el => 
-    el.classList.contains('bento-card') && el.style.display !== 'none'
-  );
-  
+  const cards = Array.from(grid.querySelectorAll('.bento-card:not([style*="display: none"])'));
   const firstPositions = new Map();
-  cards.forEach(card => {
-    firstPositions.set(card, card.getBoundingClientRect());
-  });
+  cards.forEach(c => firstPositions.set(c, c.getBoundingClientRect()));
 
-  // 2. LAST: Insert dragged card in new DOM position
   if (isAfter) {
     target.after(dragged);
   } else {
     target.before(dragged);
   }
 
-  // 3. INVERT: Calculate translation delta for displaced cards and apply invert
-  cards.forEach(card => {
-    if (card === dragged) return;
-
-    const first = firstPositions.get(card);
+  cards.forEach(c => {
+    if (c === dragged) return;
+    const first = firstPositions.get(c);
     if (!first) return;
-
-    const last = card.getBoundingClientRect();
+    const last = c.getBoundingClientRect();
     const dx = first.left - last.left;
     const dy = first.top - last.top;
 
     if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
-      card.style.transform = `translate(${dx}px, ${dy}px)`;
-      card.style.transition = 'none';
-      card.classList.add('bento-shifting');
+      c.style.transform = `translate(${dx}px, ${dy}px)`;
+      c.style.transition = 'none';
+      c.classList.add('bento-shifting');
     }
   });
 
-  // 4. PLAY: Transition displaced cards to natural (0, 0) position
   requestAnimationFrame(() => {
     grid.offsetHeight; // Force reflow
-
-    cards.forEach(card => {
-      if (card === dragged) return;
-      if (card.classList.contains('bento-shifting')) {
-        card.style.transition = 'transform 0.35s cubic-bezier(0.25, 1, 0.5, 1)';
-        card.style.transform = '';
-
-        const cleanUp = () => {
-          card.classList.remove('bento-shifting');
-          card.style.transition = '';
-          card.removeEventListener('transitionend', cleanUp);
+    cards.forEach(c => {
+      if (c === dragged) return;
+      if (c.classList.contains('bento-shifting')) {
+        c.style.transition = 'transform 0.32s cubic-bezier(0.25, 1, 0.5, 1)';
+        c.style.transform = '';
+        const onEnd = () => {
+          c.classList.remove('bento-shifting');
+          c.style.transition = '';
+          c.removeEventListener('transitionend', onEnd);
         };
-        card.addEventListener('transitionend', cleanUp);
+        c.addEventListener('transitionend', onEnd);
       }
     });
   });
 
   saveCurrentGridOrder();
-}
-
-/**
- * Finds the bento card currently underneath pointer coordinates using bounding boxes.
- */
-function findTargetBentoCard(clientX, clientY, excludeCard) {
-  const cards = document.querySelectorAll('#bento-grid > .bento-card:not([style*="display: none"])');
-  for (const c of cards) {
-    if (c === excludeCard) continue;
-    const r = c.getBoundingClientRect();
-    if (clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom) {
-      return c;
-    }
-  }
-  return null;
-}
-
-function handleCardPointerDown(e, card) {
-  if (!isEditMode) return;
-  if (e.target.closest('button, input, select, textarea, .bento-hide-btn, a')) return;
-
-  // On touch screens, prefer initiating drag from the drag handle or card header to allow vertical scrolling
-  if (e.pointerType === 'touch' && !e.target.closest('.bento-drag-handle, .bento-card-header')) {
-    return;
-  }
-
-  draggedCardEl = card;
-  isPointerDragging = false;
-  pointerStartX = e.clientX;
-  pointerStartY = e.clientY;
-  lastSwapTarget = null;
-  lastSwapTime = 0;
-
-  try {
-    card.setPointerCapture(e.pointerId);
-  } catch (err) {}
-
-  const onPointerMove = (moveEvt) => {
-    if (!draggedCardEl || draggedCardEl !== card) return;
-
-    const dist = Math.hypot(moveEvt.clientX - pointerStartX, moveEvt.clientY - pointerStartY);
-    if (!isPointerDragging && dist > 6) {
-      isPointerDragging = true;
-      card.classList.add('is-dragging');
-      playSFX('click');
-    }
-
-    if (!isPointerDragging) return;
-
-    if (moveEvt.cancelable) moveEvt.preventDefault();
-
-    const target = findTargetBentoCard(moveEvt.clientX, moveEvt.clientY, card);
-    if (target && target !== card && !target.classList.contains('bento-shifting')) {
-      const now = Date.now();
-      if (now - lastSwapTime > 150 && target !== lastSwapTarget) {
-        const rect = target.getBoundingClientRect();
-        const isAfter = (moveEvt.clientY > rect.top + rect.height * 0.5) ||
-                        (moveEvt.clientX > rect.left + rect.width * 0.5);
-
-        moveCardWithAnimation(card, target, isAfter);
-        lastSwapTarget = target;
-        lastSwapTime = now;
-        playSFX('click');
-      }
-    }
-  };
-
-  const onPointerUp = (upEvt) => {
-    try {
-      card.releasePointerCapture(upEvt.pointerId);
-    } catch (err) {}
-
-    card.removeEventListener('pointermove', onPointerMove);
-    card.removeEventListener('pointerup', onPointerUp);
-    card.removeEventListener('pointercancel', onPointerUp);
-
-    if (isPointerDragging) {
-      card.classList.remove('is-dragging');
-      saveCurrentGridOrder();
-      playSFX('click');
-      showToast('Dashboard layout updated', 'info');
-    }
-
-    draggedCardEl = null;
-    isPointerDragging = false;
-    lastSwapTarget = null;
-  };
-
-  card.addEventListener('pointermove', onPointerMove);
-  card.addEventListener('pointerup', onPointerUp);
-  card.addEventListener('pointercancel', onPointerUp);
 }
 
 function setupBentoDragAndDrop() {
@@ -410,7 +317,9 @@ function setupBentoDragAndDrop() {
 
   const cards = grid.querySelectorAll('.bento-card');
   cards.forEach(card => {
-    card.setAttribute('draggable', isEditMode ? 'true' : 'false');
+    // Disable native HTML5 drag completely so it NEVER intercepts our pointer system
+    card.setAttribute('draggable', 'false');
+    card.ondragstart = (e) => e.preventDefault();
 
     // Ensure edit bar exists
     if (!card.querySelector('.bento-edit-bar')) {
@@ -428,70 +337,185 @@ function setupBentoDragAndDrop() {
       card.insertBefore(editBar, card.firstChild);
     }
 
-    // Bind pointer events for cross-device fluid dragging
-    card.onpointerdown = (e) => handleCardPointerDown(e, card);
-  });
+    // Attach robust window-tracked pointerdown event
+    card.onpointerdown = (e) => {
+      if (!isEditMode) return;
+      if (e.target.closest('button, input, select, textarea, .bento-hide-btn, a, .btn-subtle')) return;
+      if (e.button !== undefined && e.button !== 0) return;
 
-  if (grid.dataset.dragInitialized === 'true') return;
-  grid.dataset.dragInitialized = 'true';
+      const startX = e.clientX;
+      const startY = e.clientY;
+      let isDragging = false;
+      let lastSwapTime = 0;
 
-  // Desktop HTML5 Drag & Drop fallback with live FLIP reordering
-  grid.addEventListener('dragstart', (e) => {
-    if (!isEditMode) {
-      e.preventDefault();
-      return;
-    }
-    const card = e.target.closest('.bento-card');
-    if (!card || e.target.closest('button, input, textarea, select, .bento-hide-btn, a')) {
-      e.preventDefault();
-      return;
-    }
+      const onPointerMove = (moveEvt) => {
+        const dist = Math.hypot(moveEvt.clientX - startX, moveEvt.clientY - startY);
+        if (!isDragging && dist > 5) {
+          isDragging = true;
+          activeDragCard = card;
+          card.classList.add('is-dragging');
+          playSFX('click');
+          document.body.style.userSelect = 'none';
+        }
 
-    draggedCardEl = card;
-    card.classList.add('is-dragging');
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', card.id);
-  });
+        if (!isDragging) return;
 
-  grid.addEventListener('dragend', (e) => {
-    const card = e.target.closest('.bento-card');
-    if (card) card.classList.remove('is-dragging');
-    if (draggedCardEl) draggedCardEl.classList.remove('is-dragging');
-    draggedCardEl = null;
-    lastSwapTarget = null;
-  });
+        if (moveEvt.cancelable) moveEvt.preventDefault();
 
-  grid.addEventListener('dragover', (e) => {
-    if (!isEditMode || !draggedCardEl) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+        const now = Date.now();
+        if (now - lastSwapTime < 130) return;
 
-    const target = findTargetBentoCard(e.clientX, e.clientY, draggedCardEl);
-    if (target && target !== draggedCardEl && !target.classList.contains('bento-shifting')) {
-      const now = Date.now();
-      if (now - lastSwapTime > 150 && target !== lastSwapTarget) {
+        const target = findCardAtPoint(moveEvt.clientX, moveEvt.clientY, card);
+        if (!target) return;
+
         const rect = target.getBoundingClientRect();
-        const isAfter = (e.clientY > rect.top + rect.height * 0.5) ||
-                        (e.clientX > rect.left + rect.width * 0.5);
+        const isAfter = (moveEvt.clientY > rect.top + rect.height * 0.5) ||
+                        (moveEvt.clientX > rect.left + rect.width * 0.5);
 
-        moveCardWithAnimation(draggedCardEl, target, isAfter);
-        lastSwapTarget = target;
+        if (isAfter && card.previousElementSibling === target) return;
+        if (!isAfter && card.nextElementSibling === target) return;
+
+        moveCardWithAnimation(card, target, isAfter);
         lastSwapTime = now;
         playSFX('click');
-      }
-    }
-  });
+      };
 
-  grid.addEventListener('drop', (e) => {
-    if (!isEditMode || !draggedCardEl) return;
-    e.preventDefault();
-    draggedCardEl.classList.remove('is-dragging');
-    draggedCardEl = null;
-    lastSwapTarget = null;
-    saveCurrentGridOrder();
-    playSFX('click');
-    showToast('Dashboard layout updated', 'info');
+      const onPointerUp = () => {
+        window.removeEventListener('pointermove', onPointerMove);
+        window.removeEventListener('pointerup', onPointerUp);
+        window.removeEventListener('pointercancel', onPointerUp);
+        document.body.style.userSelect = '';
+
+        if (isDragging) {
+          card.classList.remove('is-dragging');
+          activeDragCard = null;
+          saveCurrentGridOrder();
+          playSFX('click');
+          showToast('Dashboard layout updated', 'info');
+        }
+      };
+
+      window.addEventListener('pointermove', onPointerMove, { passive: false });
+      window.addEventListener('pointerup', onPointerUp);
+      window.addEventListener('pointercancel', onPointerUp);
+    };
   });
+}
+
+// Global escape key listener to exit edit mode or close modals
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if (isEditMode) toggleEditMode();
+    closeCommandPalette();
+    closeWorkspaceMenu();
+  }
+});
+
+// ==========================================
+// SAAS COMMAND PALETTE ENGINE (CMD+K)
+// ==========================================
+const commandPaletteActions = [
+  { id: 'cinema', label: 'Activate Cinema Mode', desc: 'Dims living room, secures front door', icon: '🎬', action: () => activateScene('movie_night') },
+  { id: 'secure', label: 'Perimeter Lockdown', desc: 'Engage deadbolt, start camera surveillance', icon: '🛡️', action: () => activateScene('secure_perimeter') },
+  { id: 'all_on', label: 'Activate All Relays', desc: 'Turns on all 6 hardware nodes', icon: '⚡', action: () => activateScene('all_on') },
+  { id: 'all_off', label: 'Eco Standby / All Off', desc: 'Powers down all non-essential relays', icon: '🌙', action: () => activateScene('all_off') },
+  { id: 'edit_mode', label: 'Toggle Edit Mode', desc: 'Rearrange and customize dashboard widgets', icon: '📐', action: () => toggleEditMode() },
+  { id: 'customize', label: 'Customize OS Theme & Wallpapers', desc: 'Select themes and backdrops', icon: '🎨', action: () => openCustomizeModal() },
+  { id: 'ambient', label: 'Open Ambient Core AI', desc: 'Full-screen hologram voice interface', icon: '✨', action: () => switchNav('ambient', document.querySelector('[data-view="ambient"]')) },
+  { id: 'devices', label: 'Fleet Hardware Manager', desc: 'Inspect all 6 IoT relay channels', icon: '🎛️', action: () => switchNav('devices', document.querySelector('[data-view="devices"]')) },
+  { id: 'cameras', label: 'CSI Edge Cameras', desc: 'Live video feed & facial recognition', icon: '📹', action: () => switchNav('cameras', document.querySelector('[data-view="cameras"]')) },
+  { id: 'activity', label: 'Audit Trail & Telemetry', desc: 'Full system audit logs', icon: '📊', action: () => switchNav('activity', document.querySelector('[data-view="activity"]')) },
+  { id: 'theme_claude_dark', label: 'Theme: Claude Dark', desc: 'Warm minimalist dark theme', icon: '🌑', action: () => setTheme('claude-dark') },
+  { id: 'theme_jarvis', label: 'Theme: Jarvis Hologram', desc: 'Cyber blue holographic HUD', icon: '💎', action: () => setTheme('jarvis') },
+  { id: 'theme_obsidian', label: 'Theme: Midnight Obsidian', desc: 'Deep emerald SaaS theme', icon: '🟢', action: () => setTheme('obsidian') },
+  { id: 'theme_nordic', label: 'Theme: Nordic Slate', desc: 'Indigo slate clean theme', icon: '🟣', action: () => setTheme('nordic') },
+  { id: 'theme_claude_light', label: 'Theme: Alabaster Light', desc: 'Clean editorial paper light theme', icon: '☀️', action: () => setTheme('claude-light') }
+];
+
+function openCommandPalette() {
+  playSFX('click');
+  const modal = document.getElementById('modal-command-palette');
+  const input = document.getElementById('cmd-palette-input');
+  if (!modal) return;
+  modal.style.display = 'flex';
+  renderCommandPaletteResults('');
+  if (input) {
+    input.value = '';
+    setTimeout(() => input.focus(), 50);
+  }
+}
+
+function closeCommandPalette() {
+  const modal = document.getElementById('modal-command-palette');
+  if (modal) modal.style.display = 'none';
+}
+
+function renderCommandPaletteResults(query) {
+  const container = document.getElementById('cmd-palette-results');
+  if (!container) return;
+  const q = (query || '').toLowerCase().trim();
+  const filtered = commandPaletteActions.filter(a => 
+    !q || a.label.toLowerCase().includes(q) || a.desc.toLowerCase().includes(q)
+  );
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<div class="cmd-no-results">No actions found for "${query}"</div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map((item, idx) => `
+    <div class="cmd-palette-item ${idx === 0 ? 'active' : ''}" onclick="executePaletteAction('${item.id}')">
+      <span class="cmd-item-icon">${item.icon}</span>
+      <div class="cmd-item-info">
+        <span class="cmd-item-label">${item.label}</span>
+        <span class="cmd-item-desc">${item.desc}</span>
+      </div>
+      <span class="cmd-item-arrow">&rarr;</span>
+    </div>
+  `).join('');
+}
+
+function filterCommandPalette(val) {
+  renderCommandPaletteResults(val);
+}
+
+function executePaletteAction(id) {
+  const item = commandPaletteActions.find(a => a.id === id);
+  closeCommandPalette();
+  if (item && item.action) {
+    item.action();
+  }
+}
+
+// Global Cmd+K / Ctrl+K listener
+window.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    openCommandPalette();
+  }
+});
+
+// Property workspace switcher
+function toggleWorkspaceMenu(e) {
+  if (e) e.stopPropagation();
+  const menu = document.getElementById('workspace-dropdown-menu');
+  if (menu) {
+    const isShown = menu.style.display === 'flex';
+    menu.style.display = isShown ? 'none' : 'flex';
+  }
+}
+
+function closeWorkspaceMenu() {
+  const menu = document.getElementById('workspace-dropdown-menu');
+  if (menu) menu.style.display = 'none';
+}
+
+function switchWorkspace(name) {
+  const el = document.getElementById('current-workspace-name');
+  if (el) el.innerText = name;
+  closeWorkspaceMenu();
+  playSFX('click');
+  showToast(`Active property switched to ${name}`, 'info');
 }
 
 // Global escape key listener to exit edit mode
