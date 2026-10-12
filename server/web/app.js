@@ -68,13 +68,13 @@ window.addEventListener('click', () => {
 
 function getThemeDisplayName(theme) {
   const map = {
-    'claude-dark': 'Claude Dark',
-    'jarvis': 'Jarvis Hologram',
-    'obsidian': 'Midnight Obsidian',
-    'nordic': 'Nordic Slate',
-    'claude-light': 'Alabaster Light'
+    'claude-dark': 'Dark',
+    'jarvis': 'Jarvis',
+    'obsidian': 'Obsidian',
+    'nordic': 'Nordic',
+    'claude-light': 'Light'
   };
-  return map[theme] || 'Claude Dark';
+  return map[theme] || 'Dark';
 }
 
 function updateThemeButtonUI() {
@@ -147,20 +147,28 @@ const allWidgetDefinitions = [
   { id: 'widget-jarvis', label: 'Jarvis Intelligence Core' },
   { id: 'widget-scenes', label: 'Quick Automations & Scenes' },
   { id: 'widget-climate', label: 'Indoor Climate & Environment' },
+  { id: 'widget-devices', label: 'Essential Quick Devices' },
   { id: 'widget-power', label: 'Live Power & Watts Load' },
   { id: 'widget-security', label: 'Perimeter Security & Lock' },
   { id: 'widget-camera', label: 'Front Door Camera Spotlight' },
-  { id: 'widget-devices', label: 'Essential Quick Devices' },
   { id: 'widget-activity', label: 'Recent System Activity' }
 ];
 
 let bentoWidgetPrefs = (() => {
   try {
-    const stored = localStorage.getItem('omnihome_bento_prefs');
-    if (stored) return JSON.parse(stored);
+    const ver = localStorage.getItem('omnihome_bento_ver');
+    if (ver === '3.1') {
+      const stored = localStorage.getItem('omnihome_bento_prefs');
+      if (stored) return JSON.parse(stored);
+    }
+  } catch (e) {}
+  const defOrder = allWidgetDefinitions.map(w => w.id);
+  try {
+    localStorage.setItem('omnihome_bento_ver', '3.1');
+    localStorage.setItem('omnihome_bento_prefs', JSON.stringify({ order: defOrder, hidden: [] }));
   } catch (e) {}
   return {
-    order: allWidgetDefinitions.map(w => w.id),
+    order: defOrder,
     hidden: []
   };
 })();
@@ -871,7 +879,7 @@ function resizeJarvisGlob() {
   canvases.forEach(cv => {
     if (!cv) return;
     const rect = cv.getBoundingClientRect();
-    const size = rect.width > 0 ? rect.width : (cv.id === 'ambient-glob-canvas' ? 320 : 220);
+    const size = rect.width > 0 ? rect.width : (cv.id === 'ambient-glob-canvas' ? 320 : 130);
     cv.width = size * dpr;
     cv.height = size * dpr;
     const ctx = cv.getContext('2d');
@@ -1054,14 +1062,15 @@ function renderJarvisGlob() {
 
   // 6. Background 3D Orbiting Quantum Particles (z < 0)
   ctx.save();
+  const scaleR = R0 / 52;
   orbParticles.forEach(pt => {
     pt.angle += pt.speed;
-    const rad = pt.orbitRadius;
+    const rad = pt.orbitRadius * scaleR;
     const z = Math.sin(pt.angle) * 0.85;
 
     if (z < 0) {
       const px = cx + Math.cos(pt.angle) * rad;
-      const py = cy + Math.sin(pt.angle) * rad * 0.38 + pt.yOffset;
+      const py = cy + Math.sin(pt.angle) * rad * 0.38 + pt.yOffset * scaleR;
       const alpha = pt.baseAlpha * (0.35 + (z + 1) * 0.35);
 
       ctx.beginPath();
@@ -1131,12 +1140,12 @@ function renderJarvisGlob() {
   // 11. Foreground 3D Orbiting Quantum Particles (z >= 0)
   ctx.save();
   orbParticles.forEach(pt => {
-    const rad = pt.orbitRadius;
+    const rad = pt.orbitRadius * scaleR;
     const z = Math.sin(pt.angle) * 0.85;
 
     if (z >= 0) {
       const px = cx + Math.cos(pt.angle) * rad;
-      const py = cy + Math.sin(pt.angle) * rad * 0.38 + pt.yOffset;
+      const py = cy + Math.sin(pt.angle) * rad * 0.38 + pt.yOffset * scaleR;
       const alpha = pt.baseAlpha * (0.7 + z * 0.3);
 
       // Core particle
