@@ -190,8 +190,18 @@ function updateEditModeUI() {
   const banner = document.getElementById('edit-mode-banner');
   const editBtn = document.getElementById('btn-edit-mode');
   const editLabel = document.getElementById('edit-mode-btn-label');
+  const restoreBtn = document.getElementById('btn-restore-hidden');
 
   if (!grid) return;
+
+  if (restoreBtn) {
+    if (bentoWidgetPrefs.hidden && bentoWidgetPrefs.hidden.length > 0) {
+      restoreBtn.style.display = 'inline-flex';
+      restoreBtn.innerText = `Restore Hidden (${bentoWidgetPrefs.hidden.length})`;
+    } else {
+      restoreBtn.style.display = 'none';
+    }
+  }
 
   if (isEditMode) {
     grid.classList.add('edit-mode');
@@ -215,6 +225,14 @@ function updateEditModeUI() {
   setupBentoDragAndDrop();
 }
 
+function restoreHiddenWidgets() {
+  bentoWidgetPrefs.hidden = [];
+  saveDashboardPreferences();
+  applyWidgetPreferences();
+  updateEditModeUI();
+  showToast('All hidden widgets restored to dashboard', 'success');
+}
+
 function hideWidgetFromGrid(id, e) {
   if (e) {
     e.stopPropagation();
@@ -224,12 +242,10 @@ function hideWidgetFromGrid(id, e) {
     bentoWidgetPrefs.hidden.push(id);
     saveDashboardPreferences();
     applyWidgetPreferences();
-    if (document.getElementById('modal-customize') && document.getElementById('modal-customize').style.display === 'flex') {
-      renderCustomizeModalContent();
-    }
+    updateEditModeUI();
     const def = allWidgetDefinitions.find(w => w.id === id);
     const name = def ? def.label : 'Widget';
-    showToast(`${name} hidden. Restore anytime in Customize.`, 'info');
+    showToast(`${name} hidden. Click 'Restore Hidden' to recover anytime.`, 'info');
   }
 }
 
@@ -1830,10 +1846,10 @@ function renderDevices() {
     return `
     <div id="card-${d.id}" class="device-card ${colorClass} ${d.state ? 'active' : ''}">
       <div class="card-top">
-        <button class="icon-btn" onclick="toggleDevice('${d.id}')" title="Click to toggle">
+        <div class="device-icon-badge" title="${escapeHtml(d.name)} (${d.state ? 'Active' : 'Standby'})">
           ${getDeviceSVG(d.type, d.state)}
-        </button>
-        <label class="toggle-switch">
+        </div>
+        <label class="toggle-switch" title="Toggle ${escapeHtml(d.name)}">
           <input type="checkbox" ${d.state ? 'checked' : ''} onchange="toggleDevice('${d.id}')">
           <span class="toggle-slider"></span>
         </label>
