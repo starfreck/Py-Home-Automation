@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PyHome — Smart Home Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container">
+    <!-- TOP NAVIGATION -->
+    <header class="top-nav">
+      <div class="brand">
+        <div class="logo-badge">⚡</div>
+        <div class="brand-text">
+          <h1>PyHome</h1>
+          <span class="subtext">Next-Gen Local IoT Hub</span>
+        </div>
+      </div>
+
+      <div class="quick-scenes">
+        <button class="scene-btn" onclick="activateScene('movie_night')">🎬 Movie Night</button>
+        <button class="scene-btn" onclick="activateScene('all_on')">☀️ All On</button>
+        <button class="scene-btn" onclick="activateScene('all_off')">🌙 All Off</button>
+        <button class="scene-btn" onclick="activateScene('away_mode')">🛡️ Away</button>
+      </div>
+
+      <div class="header-status">
+        <div id="ws-badge" class="status-pill offline">
+          <span class="dot"></span>
+          <span id="ws-status-text">Connecting...</span>
+        </div>
+        <div id="clock" class="digital-clock">00:00:00</div>
+      </div>
+    </header>
+
+    <!-- METRICS OVERVIEW BANNER -->
+    <section class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-icon">⚡</div>
+        <div class="metric-data">
+          <span class="metric-label">Live Power Draw</span>
+          <div class="metric-value-wrap">
+            <span id="stat-watts" class="metric-number">0.0</span>
+            <span class="metric-unit">Watts</span>
+          </div>
+        </div>
+        <div class="metric-sparkle"></div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-icon">🌡️</div>
+        <div class="metric-data">
+          <span class="metric-label">Indoor Climate</span>
+          <div class="metric-value-wrap">
+            <span id="stat-temp" class="metric-number">--</span>
+            <span class="metric-unit">°C</span>
+            <span class="metric-divider">/</span>
+            <span id="stat-humidity" class="metric-number">--</span>
+            <span class="metric-unit">%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-icon">🔌</div>
+        <div class="metric-data">
+          <span class="metric-label">Active Appliances</span>
+          <div class="metric-value-wrap">
+            <span id="stat-active-count" class="metric-number">0</span>
+            <span class="metric-unit">/ <span id="stat-total-count">0</span> ON</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="metric-card">
+        <div class="metric-icon">🍓</div>
+        <div class="metric-data">
+          <span class="metric-label">Raspberry Pi Health</span>
+          <div class="metric-value-wrap">
+            <span id="stat-pi-temp" class="metric-number">--</span>
+            <span class="metric-unit">°C</span>
+            <span class="metric-divider">|</span>
+            <span id="stat-pi-ram" class="metric-number">--</span>
+            <span class="metric-unit">% RAM</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MAIN CONTENT TWO COLUMNS -->
+    <main class="main-layout">
+      <!-- LEFT: DEVICE CONTROL -->
+      <section class="device-section">
+        <div class="section-header">
+          <h2>Room Devices</h2>
+          <div class="room-filters">
+            <button class="filter-chip active" data-room="all" onclick="filterRoom('all')">All</button>
+            <button class="filter-chip" data-room="Living Room" onclick="filterRoom('Living Room')">Living Room</button>
+            <button class="filter-chip" data-room="Bedroom" onclick="filterRoom('Bedroom')">Bedroom</button>
+            <button class="filter-chip" data-room="Security" onclick="filterRoom('Security')">Security</button>
+          </div>
+        </div>
+
+        <div id="devices-grid" class="devices-grid">
+          <!-- Dynamic device cards populated by app.js -->
+        </div>
+      </section>
+
+      <!-- RIGHT: LIVE CAMERA & SECURITY AI -->
+      <aside class="sidebar-section">
+        <!-- CAMERA CARD -->
+        <div class="card panel-card camera-panel">
+          <div class="panel-header">
+            <h3>👁️ Security Stream (AI Vision)</h3>
+            <span class="live-tag"><span class="blink-dot"></span> LIVE</span>
+          </div>
+
+          <div class="camera-canvas-wrapper">
+            <canvas id="camera-canvas" width="480" height="270"></canvas>
+            <div id="ai-overlay-box" class="ai-box">
+              <span class="ai-label">Vasu (98.4%)</span>
+            </div>
+            <div class="camera-watermark">
+              <span>CAMERA 01 • RASPBERRY PI</span>
+              <span id="cam-timestamp">--:--:--</span>
+            </div>
+          </div>
+
+          <div class="cam-controls">
+            <button class="btn-action" onclick="simulateFaceScan()">🎯 Scan Face</button>
+            <button class="btn-action secondary" onclick="simulateSnapshot()">📸 Snapshot</button>
+          </div>
+        </div>
+
+        <!-- REALTIME EVENT LOG -->
+        <div class="card panel-card log-panel">
+          <div class="panel-header">
+            <h3>📡 Realtime Event Log</h3>
+            <span class="sub-counter" id="log-count">0 events</span>
+          </div>
+          <div id="event-log" class="log-stream">
+            <!-- Event stream lines -->
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
