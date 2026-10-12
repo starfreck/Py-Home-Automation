@@ -1956,13 +1956,23 @@ function renderDevices() {
   }
 
   const countPill = document.getElementById('device-count-pill');
-  if (countPill) countPill.innerText = `${filtered.length} Devices`;
+  if (countPill) countPill.innerText = `${devices.length} Devices`;
   const viewCountPill = document.getElementById('devices-view-count');
   if (viewCountPill) viewCountPill.innerText = `${filtered.length} Devices`;
 
-  const html = filtered.map(d => {
-    const colorClass = getDeviceColorClass(d);
-    return `
+  if (grid) grid.innerHTML = devices.map(d => renderDeviceCardHtml(d)).join('');
+  if (viewGrid) {
+    if (filtered.length === 0) {
+      viewGrid.innerHTML = `<div class="empty-devices-hint" style="grid-column: 1/-1; text-align: center; padding: 3rem; color: var(--text-dim);">No devices match your filter criteria.</div>`;
+    } else {
+      viewGrid.innerHTML = filtered.map(d => renderDeviceCardHtml(d)).join('');
+    }
+  }
+}
+
+function renderDeviceCardHtml(d) {
+  const colorClass = getDeviceColorClass(d);
+  return `
     <div id="card-${d.id}" class="device-card ${colorClass} ${d.state ? 'active' : ''}">
       <div class="card-top">
         <div class="device-icon-badge" title="${escapeHtml(d.name)} (${d.state ? 'Active' : 'Standby'})">
@@ -1996,10 +2006,6 @@ function renderDevices() {
       ` : ''}
     </div>
   `;
-  }).join('');
-
-  if (grid) grid.innerHTML = html;
-  if (viewGrid) viewGrid.innerHTML = html;
 }
 
 function updateSingleDevice(updatedDevice) {
@@ -2007,19 +2013,21 @@ function updateSingleDevice(updatedDevice) {
   if (idx !== -1) devices[idx] = updatedDevice;
   else devices.push(updatedDevice);
 
-  const card = document.getElementById(`card-${updatedDevice.id}`);
-  if (card) {
-    const colorClass = getDeviceColorClass(updatedDevice);
-    card.className = `device-card ${colorClass} ${updatedDevice.state ? 'active' : ''}`;
+  const cards = document.querySelectorAll(`[id="card-${updatedDevice.id}"]`);
+  if (cards.length > 0) {
+    cards.forEach(card => {
+      const colorClass = getDeviceColorClass(updatedDevice);
+      card.className = `device-card ${colorClass} ${updatedDevice.state ? 'active' : ''}`;
 
-    const cb = card.querySelector('input[type="checkbox"]');
-    if (cb) cb.checked = updatedDevice.state;
+      const cb = card.querySelector('input[type="checkbox"]');
+      if (cb) cb.checked = updatedDevice.state;
 
-    const iconBadge = card.querySelector('.icon-btn, .device-icon-badge');
-    if (iconBadge) iconBadge.innerHTML = getDeviceSVG(updatedDevice.type, updatedDevice.state);
+      const iconBadge = card.querySelector('.icon-btn, .device-icon-badge');
+      if (iconBadge) iconBadge.innerHTML = getDeviceSVG(updatedDevice.type, updatedDevice.state);
 
-    const valEl = document.getElementById(`val-${updatedDevice.id}`);
-    if (valEl) valEl.innerText = `${updatedDevice.value}%`;
+      const valEl = card.querySelector(`[id="val-${updatedDevice.id}"]`);
+      if (valEl) valEl.innerText = `${updatedDevice.value}%`;
+    });
   } else {
     renderDevices();
   }
