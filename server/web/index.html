@@ -33,6 +33,13 @@
           <span class="pill-label">LLM ENGINE</span>
           <span class="pill-val highlight">GEMMA 4 (4B)</span>
         </div>
+        <div class="matrix-pill voice-audio-pill" id="voice-toggle-pill" onclick="toggleAudioSpeech()" style="cursor: pointer;" title="Toggle voice speech feedback">
+          <span class="pill-label">VOICE AUDIO</span>
+          <span id="audio-toggle-val" class="pill-val highlight">🔊 SPEECH ON</span>
+        </div>
+        <button class="voice-test-btn" onclick="testVoiceOutput()" title="Click to hear Cortex speak">
+          ▶ TEST VOICE
+        </button>
         <div class="matrix-pill">
           <span class="pill-label">NEURAL LINK</span>
           <span id="ws-badge" class="pill-val connected"><span class="pulse-dot"></span> LIVE • WS</span>
@@ -63,7 +70,10 @@
         <div class="voice-dialog-pane">
           <div class="voice-status-header">
             <span class="voice-state-tag" id="voice-state-tag">STANDBY // READY</span>
-            <span class="voice-model-tag">Gemma 4 Intent Parser</span>
+            <div class="voice-controls-right">
+              <select id="voice-select" class="hud-select" onchange="onVoiceChange(this.value)" title="Select neural speech voice"></select>
+              <span class="voice-model-tag">Gemma 4 Intent Parser</span>
+            </div>
           </div>
 
           <div class="voice-transcript" id="voice-transcript">

@@ -7,13 +7,209 @@ let isListening = false;
 let speechRecognizer = null;
 let waveformMode = 'idle'; // 'idle', 'listening', 'processing', 'speaking'
 
+// AUDIO ENGINE STATE
+let speechAudioEnabled = true;
+let availableVoices = [];
+let selectedVoiceURI = localStorage.getItem('pyhome_voice_uri') || '';
+let audioCtx = null;
+
 window.addEventListener('DOMContentLoaded', () => {
   initClock();
+  initVoices();
   initWaveformVisualizer();
   initCameraCanvas();
   initSpeechRecognition();
   connectWebSocket();
 });
+
+// WEB AUDIO SYNTHESIZER (ZERO EXTERNAL MP3 DEPENDENCIES)
+function getAudioContext() {
+  if (!audioCtx) {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (AudioContext) audioCtx = new AudioContext();
+  }
+  if (audioCtx && audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+  return audioCtx;
+}
+
+function playSFX(type) {
+  if (!speechAudioEnabled) return;
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+
+  switch (type) {
+    case 'chirp': // Ascending sci-fi chirp when mic starts
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(580, now);
+      osc.frequency.exponentialRampToValueAtTime(1180, now + 0.12);
+      gain.gain.setValueAtTime(0.09, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+      osc.start(now);
+      osc.stop(now + 0.12);
+      break;
+
+    case 'confirm': // Futuristic three-tone chord for actions
+      playTone(523.25, 0.08, 0.05); // C5
+      setTimeout(() => playTone(659.25, 0.08, 0.05), 60); // E5
+      setTimeout(() => playTone(783.99, 0.15, 0.07), 120); // G5
+      break;
+
+    case 'click': // Subtle tactile relay click
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(480, now);
+      osc.frequency.exponentialRampToValueAtTime(240, now + 0.04);
+      gain.gain.setValueAtTime(0.06, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+      osc.start(now);
+      osc.stop(now + 0.04);
+      break;
+
+    case 'scan': // Biometric sweep sound
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(320, now);
+      osc.frequency.linearRampToValueAtTime(920, now + 0.22);
+      gain.gain.setValueAtTime(0.04, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+      osc.start(now);
+      osc.stop(now + 0.22);
+      break;
+  }
+}
+
+function playTone(freq, duration, vol) {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(freq, now);
+  gain.gain.setValueAtTime(vol || 0.05, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start(now);
+  osc.stop(now + duration);
+}
+
+// BULLETPROOF TEXT-TO-SPEECH (TTS) & VOICE SELECTION
+function initVoices() {
+  if (!window.speechSynthesis) return;
+
+  function load() {
+    availableVoices = window.speechSynthesis.getVoices();
+    const select = document.getElementById('voice-select');
+    if (!select || availableVoices.length === 0) return;
+
+    select.innerHTML = '';
+    const englishVoices = availableVoices.filter(v => v.lang.startsWith('en'));
+    const displayList = englishVoices.length > 0 ? englishVoices : availableVoices;
+
+    displayList.forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v.voiceURI;
+      opt.innerText = `${v.name.replace(/Google|Microsoft/g, '').trim()} (${v.lang})`;
+      if (selectedVoiceURI && v.voiceURI === selectedVoiceURI) {
+        opt.selected = true;
+      }
+      select.appendChild(opt);
+    });
+
+    if (!selectedVoiceURI && displayList.length > 0) {
+      const preferred = displayList.find(v => 
+        v.name.includes('Natural') || v.name.includes('Google') || 
+        v.name.includes('Samantha') || v.name.includes('Daniel')
+      ) || displayList[0];
+
+      selectedVoiceURI = preferred.voiceURI;
+      select.value = selectedVoiceURI;
+    }
+  }
+
+  load();
+  if (window.speechSynthesis.onvoiceschanged !== undefined) {
+    window.speechSynthesis.onvoiceschanged = load;
+  }
+}
+
+function onVoiceChange(uri) {
+  selectedVoiceURI = uri;
+  localStorage.setItem('pyhome_voice_uri', uri);
+  testVoiceOutput();
+}
+
+function toggleAudioSpeech() {
+  speechAudioEnabled = !speechAudioEnabled;
+  const valEl = document.getElementById('audio-toggle-val');
+  if (valEl) {
+    if (speechAudioEnabled) {
+      valEl.innerHTML = '🔊 SPEECH ON';
+      valEl.style.color = 'var(--cyan-neon)';
+      playSFX('confirm');
+    } else {
+      valEl.innerHTML = '🔇 SPEECH MUTED';
+      valEl.style.color = 'var(--text-muted)';
+      if (window.speechSynthesis) window.speechSynthesis.cancel();
+    }
+  }
+}
+
+function testVoiceOutput() {
+  getAudioContext(); // Unlocks Web Audio on user click
+  playSFX('confirm');
+  speakAssistantResponse("PyHome Cortex neural audio engine online. Ready for vocal directives.");
+}
+
+function speakAssistantResponse(text) {
+  if (!speechAudioEnabled || !window.speechSynthesis) {
+    waveformMode = 'idle';
+    return;
+  }
+
+  if (window.speechSynthesis.paused) {
+    window.speechSynthesis.resume();
+  }
+  window.speechSynthesis.cancel();
+
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.rate = 1.02;
+  utterance.pitch = 0.96;
+
+  if (selectedVoiceURI && availableVoices.length > 0) {
+    const v = availableVoices.find(x => x.voiceURI === selectedVoiceURI);
+    if (v) utterance.voice = v;
+  }
+
+  waveformMode = 'speaking';
+  const stateTag = document.getElementById('voice-state-tag');
+  if (stateTag) {
+    stateTag.innerText = 'TRANSMITTING // SPEECH';
+    stateTag.style.color = 'var(--green-neon)';
+  }
+
+  utterance.onend = () => {
+    waveformMode = 'idle';
+    if (stateTag) {
+      stateTag.innerText = 'STANDBY // READY';
+      stateTag.style.color = 'var(--cyan-neon)';
+    }
+  };
+
+  utterance.onerror = (e) => {
+    console.warn('Speech synthesis error:', e);
+    waveformMode = 'idle';
+  };
+
+  window.speechSynthesis.speak(utterance);
+}
 
 // CLOCK
 function initClock() {
@@ -112,9 +308,11 @@ function initSpeechRecognition() {
   speechRecognizer.onstart = () => {
     isListening = true;
     waveformMode = 'listening';
+    playSFX('chirp');
     document.getElementById('mic-trigger').classList.add('listening');
-    document.getElementById('voice-state-tag').innerText = 'LISTENING // AUDIO STREAM';
-    document.getElementById('voice-state-tag').style.color = 'var(--cyan-neon)';
+    const stateTag = document.getElementById('voice-state-tag');
+    stateTag.innerText = 'LISTENING // AUDIO STREAM';
+    stateTag.style.color = 'var(--cyan-neon)';
   };
 
   speechRecognizer.onresult = (event) => {
@@ -140,6 +338,7 @@ function initSpeechRecognition() {
 }
 
 function toggleSpeechRecognition() {
+  getAudioContext(); // Ensure Web Audio is unlocked
   if (!speechRecognizer) {
     document.getElementById('manual-prompt-input').focus();
     return;
@@ -175,6 +374,7 @@ function stopListening() {
 async function submitVoiceCommand(promptText) {
   if (!promptText || !promptText.trim()) return;
 
+  getAudioContext();
   waveformMode = 'processing';
   const stateTag = document.getElementById('voice-state-tag');
   stateTag.innerText = 'PROCESSING // GEMMA 4';
@@ -193,7 +393,8 @@ async function submitVoiceCommand(promptText) {
     document.getElementById('voice-reply').innerText = data.speech_reply;
     addAuditLog('action', `Gemma 4: ${data.speech_reply}`);
 
-    // Trigger Text-to-Speech synthesis response
+    // Play subtle audio confirm chime + Speak confirmation
+    playSFX('confirm');
     speakAssistantResponse(data.speech_reply);
 
   } catch (err) {
@@ -205,6 +406,7 @@ async function submitVoiceCommand(promptText) {
 
 function handleManualPrompt(e) {
   e.preventDefault();
+  getAudioContext();
   const input = document.getElementById('manual-prompt-input');
   const val = input.value.trim();
   if (!val) return;
@@ -214,34 +416,9 @@ function handleManualPrompt(e) {
 }
 
 function submitTextCommand(cmd) {
+  getAudioContext();
   document.getElementById('voice-transcript').innerText = `"${cmd}"`;
   submitVoiceCommand(cmd);
-}
-
-// TEXT TO SPEECH (SYNTHESIS)
-function speakAssistantResponse(text) {
-  if (!window.speechSynthesis) {
-    waveformMode = 'idle';
-    return;
-  }
-
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.rate = 1.05;
-  utterance.pitch = 0.95;
-
-  waveformMode = 'speaking';
-  const stateTag = document.getElementById('voice-state-tag');
-  stateTag.innerText = 'TRANSMITTING // SPEECH';
-  stateTag.style.color = 'var(--green-neon)';
-
-  utterance.onend = () => {
-    waveformMode = 'idle';
-    stateTag.innerText = 'STANDBY // READY';
-    stateTag.style.color = 'var(--cyan-neon)';
-  };
-
-  window.speechSynthesis.speak(utterance);
 }
 
 // ANIMATED NEURAL AUDIO VISUALIZER ORB (CANVAS)
@@ -356,6 +533,7 @@ function updateSingleDevice(updatedDevice) {
 }
 
 function toggleDevice(id) {
+  playSFX('click');
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ type: 'toggle', payload: { id: id } }));
   } else {
@@ -364,6 +542,7 @@ function toggleDevice(id) {
 }
 
 function commitSlider(id, val) {
+  playSFX('click');
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({
       type: 'set_state',
@@ -452,7 +631,6 @@ function initCameraCanvas() {
     ctx.fillStyle = '#060a14';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Grid coordinates
     ctx.strokeStyle = 'rgba(0, 242, 254, 0.08)';
     ctx.lineWidth = 1;
     for (let x = 0; x < canvas.width; x += 35) {
@@ -468,7 +646,6 @@ function initCameraCanvas() {
       ctx.stroke();
     }
 
-    // Moving horizontal scan beam
     ctx.strokeStyle = 'rgba(0, 242, 254, 0.25)';
     ctx.beginPath();
     ctx.moveTo(0, scanLine);
@@ -481,6 +658,7 @@ function initCameraCanvas() {
 }
 
 function simulateFaceScan() {
+  playSFX('scan');
   const box = document.getElementById('ai-target-box');
   const label = document.getElementById('target-label');
   if (!box) return;
@@ -500,10 +678,13 @@ function simulateFaceScan() {
       label.innerText = 'ID: VASU // CLEAR (99.8%)';
       label.style.background = 'var(--green-neon)';
     }
+    playSFX('confirm');
+    speakAssistantResponse('Biometric optical scan confirmed. Subject Vasu identified.');
     addAuditLog('action', 'Biometric Optical Sensor: Subject Vasu confirmed. Perimeter safe.');
   }, 900);
 }
 
 function simulateSnapshot() {
+  playSFX('click');
   addAuditLog('event', 'Perimeter Capture: Snapshot written to /data/snapshots/20261011_2204.jpg');
 }

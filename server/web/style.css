@@ -181,6 +181,55 @@ body {
   color: var(--green-neon);
 }
 
+.voice-test-btn {
+  background: linear-gradient(135deg, rgba(0, 242, 254, 0.25), rgba(79, 172, 254, 0.35));
+  border: 1px solid var(--cyan-neon);
+  color: #fff;
+  font-family: var(--font-hud);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 0.4rem 0.85rem;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(0, 242, 254, 0.3);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.voice-test-btn:hover {
+  background: var(--cyan-neon);
+  color: #000;
+  box-shadow: 0 0 20px var(--cyan-glow);
+  transform: translateY(-1px);
+}
+
+.voice-controls-right {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.hud-select {
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--border-hud);
+  color: var(--cyan-neon);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+  max-width: 170px;
+}
+
+.hud-select option {
+  background: #0b1120;
+  color: #fff;
+}
+
 .pulse-dot {
   width: 7px;
   height: 7px;
