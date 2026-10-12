@@ -1,4 +1,4 @@
-// PYHOME — PRODUCTION SMART HOME CONTROLLER & GEMMA 4 ASSISTANT
+// OMNIHOME — PRODUCTION SMART HOME CONTROLLER & GEMMA 4 ASSISTANT
 let ws = null;
 let devices = [];
 let currentFilter = 'all';
@@ -9,13 +9,13 @@ let speechRecognizer = null;
 // AUDIO ENGINE STATE
 let speechAudioEnabled = true;
 let availableVoices = [];
-let selectedVoiceURI = localStorage.getItem('pyhome_voice_uri') || '';
+let selectedVoiceURI = localStorage.getItem('omnihome_voice_uri') || localStorage.getItem('pyhome_voice_uri') || '';
 let audioCtx = null;
 
 // ==========================================
 // 1. CLAUDE AI THEME ENGINE (WARM DARK / LIGHT)
 // ==========================================
-let currentTheme = localStorage.getItem('pyhome_theme') || 'dark';
+let currentTheme = localStorage.getItem('omnihome_theme') || localStorage.getItem('pyhome_theme') || 'dark';
 if (currentTheme !== 'light') currentTheme = 'dark';
 
 function initTheme() {
@@ -26,7 +26,7 @@ function initTheme() {
 function toggleTheme() {
   currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', currentTheme);
-  localStorage.setItem('pyhome_theme', currentTheme);
+  localStorage.setItem('omnihome_theme', currentTheme);
   updateThemeButtonUI();
   playSFX('click');
   showToast(`Claude ${currentTheme === 'dark' ? 'Dark' : 'Light'} active`, 'info');
@@ -825,7 +825,7 @@ function initVoices() {
 
 function onVoiceChange(uri) {
   selectedVoiceURI = uri;
-  localStorage.setItem('pyhome_voice_uri', uri);
+  localStorage.setItem('omnihome_voice_uri', uri);
   testVoiceOutput();
 }
 
@@ -849,7 +849,7 @@ function toggleAudioSpeech() {
 function testVoiceOutput() {
   getAudioContext();
   playSFX('confirm');
-  speakAssistantResponse("PyHome assistant audio online. Ready for instructions.");
+  speakAssistantResponse("OmniHome assistant audio online. Ready for instructions.");
 }
 
 function speakAssistantResponse(text) {
@@ -1304,7 +1304,7 @@ async function loadSettings() {
 
 async function saveSettings() {
   playSFX('click');
-  const hubName = document.getElementById('setting-hub-name')?.value || 'PyHome Hub';
+  const hubName = document.getElementById('setting-hub-name')?.value || 'OmniHome Hub';
   const interval = parseInt(document.getElementById('setting-telemetry-interval')?.value) || 3;
   const ollama = document.getElementById('setting-ollama-host')?.value || 'http://127.0.0.1:11434';
   const model = document.getElementById('setting-gemma-model')?.value || 'gemma4';
@@ -1537,7 +1537,7 @@ async function submitDeviceForm(e) {
 
 async function deleteDevice(id, name) {
   playSFX('click');
-  if (!confirm(`Are you sure you want to delete "${name}" from PyHome?`)) {
+  if (!confirm(`Are you sure you want to delete "${name}" from OmniHome?`)) {
     return;
   }
 
@@ -1563,7 +1563,7 @@ function exportConfigJson() {
   const config = {
     exported_at: new Date().toISOString(),
     system: {
-      hub_name: document.getElementById('setting-hub-name')?.value || 'PyHome Hub',
+      hub_name: document.getElementById('setting-hub-name')?.value || 'OmniHome Hub',
       telemetry_interval: parseInt(document.getElementById('setting-telemetry-interval')?.value) || 3,
       ollama_host: document.getElementById('setting-ollama-host')?.value || 'http://127.0.0.1:11434',
       gemma_model: document.getElementById('setting-gemma-model')?.value || 'gemma4',
@@ -1578,7 +1578,7 @@ function exportConfigJson() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `pyhome-config-${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = `omnihome-config-${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
   URL.revokeObjectURL(url);
   showToast('Configuration exported as JSON', 'success');
@@ -1695,7 +1695,7 @@ function exportLogsCsv() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `pyhome-activity-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = `omnihome-activity-${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
   showToast('Audit log exported as CSV', 'success');

@@ -1,5 +1,5 @@
-# PyHome 🏠⚡
-### Modern, Local-First, Open-Source Smart Home Platform
+# OmniHome 🏠⚡
+### Modern, Local-First, Autonomous Smart Home Platform
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Architecture: Local-First](https://img.shields.io/badge/Architecture-Local--First-success.svg)](#architecture)
@@ -9,9 +9,9 @@
 [![Spring Boot](https://img.shields.io/badge/Core-Spring%20Boot%203-6DB33F?logo=springboot&logoColor=white)](#technology-stack)
 [![Python](https://img.shields.io/badge/Edge-Python%203.12+-3776AB?logo=python&logoColor=white)](#technology-stack)
 
-![PyHome Banner](main-screen.png)
+![OmniHome Banner](main-screen.png)
 
-> **PyHome** is an open-source, privacy-first home automation and edge-security ecosystem. Designed for self-hosting with zero required external cloud dependencies, offline-first reliability, and real-time device control across mobile, desktop, and web.
+> **OmniHome** is an open-source, privacy-first home automation and edge-security ecosystem. Designed for self-hosting with zero required external cloud dependencies, offline-first reliability, and real-time device control across mobile, desktop, and web.
 
 ---
 
@@ -49,11 +49,11 @@ graph TB
     end
 
     subgraph Network["🌐 Discovery & Ingress"]
-        MDNS["mDNS / Zeroconf<br/>(pyhome.local)"]
+        MDNS["mDNS / Zeroconf<br/>(omnihome.local)"]
         PROXY["Reverse Proxy / Tunnel<br/>(Tailscale / WireGuard / Caddy)"]
     end
 
-    subgraph Host["🖥️ PyHome Self-Hosted Server (Docker / Host)"]
+    subgraph Host["🖥️ OmniHome Self-Hosted Server (Docker / Host)"]
         GW["Go Core Gateway & Event Hub<br/>• WebSocket Server<br/>• mDNS Broadcaster<br/>• JWT / Local Auth<br/>• Sub-5ms Command Dispatch"]
         
         API["Spring Boot 3 Core Engine<br/>• Automation & Rules Engine<br/>• Device & Room Registry<br/>• Schedules & Timers<br/>• User & Role Management"]
@@ -67,13 +67,13 @@ graph TB
     end
 
     subgraph Edge["🔌 Edge & IoT Hardware"]
-        PI["PyHome Edge Agent (Python 3)<br/>• gpiozero HAL (Relays & Switches)<br/>• DHT22 / BME280 Sensor Reader<br/>• USB / CSI Camera Streamer"]
+        PI["OmniHome Edge Agent (Python 3)<br/>• gpiozero HAL (Relays & Switches)<br/>• DHT22 / BME280 Sensor Reader<br/>• USB / CSI Camera Streamer"]
         ESP["ESP32 / ESP8266 Nodes<br/>• Tasmota / ESPHome / Native MQTT"]
         CAM["IP / RTSP Cameras"]
     end
 
     %% Client Interactions
-    FLUTTER -->|LAN: http://pyhome.local:8080| MDNS
+    FLUTTER -->|LAN: http://omnihome.local:8080| MDNS
     MDNS --> GW
     FLUTTER -.->|Remote WAN| PROXY
     PROXY --> GW
@@ -88,8 +88,8 @@ graph TB
     AI --> DISK
 
     %% Edge Communications
-    MQTT <-->|MQTT: pyhome/home/+/command| PI
-    MQTT <-->|MQTT: pyhome/home/+/state| ESP
+    MQTT <-->|MQTT: omnihome/home/+/command| PI
+    MQTT <-->|MQTT: omnihome/home/+/state| ESP
     CAM -.->|RTSP Stream| AI
     PI -.->|Local Camera Feed| AI
 ```
@@ -98,29 +98,29 @@ graph TB
 
 ## 🌐 Network & Discovery Flow
 
-PyHome prioritizes zero-configuration on your home network while providing secure remote access without risky port forwarding.
+OmniHome prioritizes zero-configuration on your home network while providing secure remote access without risky port forwarding.
 
 ```mermaid
 sequenceDiagram
     autonumber
     actor User as User with Flutter App
     participant LAN as Local Wi-Fi (mDNS)
-    participant GW as Go Gateway (pyhome.local)
+    participant GW as Go Gateway (omnihome.local)
     participant MQTT as Mosquitto Broker
     participant Edge as Pi Edge Agent (Relays)
 
     Note over User, GW: Case A: Local Network (Zero Config)
-    User->>LAN: Broadcast mDNS discovery query (_pyhome._tcp.local)
-    LAN-->>User: Resolved: http://192.168.1.150:8080 (pyhome.local)
-    User->>GW: Connect WebSocket (ws://pyhome.local:8080/ws)
+    User->>LAN: Broadcast mDNS discovery query (_omnihome._tcp.local)
+    LAN-->>User: Resolved: http://192.168.1.150:8080 (omnihome.local)
+    User->>GW: Connect WebSocket (ws://omnihome.local:8080/ws)
     GW-->>User: Synced Device State Snapshot
 
     Note over User, Edge: Case B: Instant Command Execution (<5ms)
     User->>GW: Send toggle command: {"device_id": "relay-1", "state": true}
-    GW->>MQTT: Publish topic: pyhome/home/pi-hub/devices/relay-1/command
+    GW->>MQTT: Publish topic: omnihome/home/pi-hub/devices/relay-1/command
     MQTT->>Edge: Deliver command (QoS 1)
     Edge->>Edge: gpiozero toggles GPIO pin 17 HIGH
-    Edge->>MQTT: Publish state: pyhome/home/pi-hub/devices/relay-1/state
+    Edge->>MQTT: Publish state: omnihome/home/pi-hub/devices/relay-1/state
     MQTT->>GW: Receive updated state
     GW->>User: Push WebSocket update (Instant UI update)
 ```
@@ -132,7 +132,7 @@ sequenceDiagram
 Device communication uses a standardized MQTT 5.0 topic namespace:
 
 ```
-pyhome/
+omnihome/
 └── {environment}/                     # e.g., "home"
     └── {hub_id}/                       # e.g., "pi-living-room"
         ├── status                      # Retained: {"status": "online"|"offline"} (LWT)
@@ -205,11 +205,11 @@ docker compose ps
 ### Resource Profile
 | Container | Role | Memory Footprint |
 | :--- | :--- | :--- |
-| `pyhome-gateway` | Go API Gateway & WebSocket Hub | ~20 MB |
-| `pyhome-mosquitto`| MQTT Broker | ~10 MB |
-| `pyhome-core` | Spring Boot Automations & Registry | ~250 MB |
-| `pyhome-vision` | Python AI Vision Service | ~300 MB |
-| `pyhome-postgres` | PostgreSQL Database | ~80 MB |
+| `omnihome-gateway` | Go API Gateway & WebSocket Hub | ~20 MB |
+| `omnihome-mosquitto`| MQTT Broker | ~10 MB |
+| `omnihome-core` | Spring Boot Automations & Registry | ~250 MB |
+| `omnihome-vision` | Python AI Vision Service | ~300 MB |
+| `omnihome-postgres` | PostgreSQL Database | ~80 MB |
 | **Total Stack** | **Entire Server Suite** | **< 700 MB RAM** |
 
 ---
@@ -217,7 +217,7 @@ docker compose ps
 ## 📂 Monorepo Structure
 
 ```
-Py-Home-Automation/
+OmniHome/
 ├── apps/
 │   └── flutter_app/            # 📱 Flutter cross-platform mobile & desktop app
 │
@@ -227,7 +227,7 @@ Py-Home-Automation/
 │   └── vision/                 # 👁️ Python 3 FastAPI local face & motion recognition
 │
 ├── edge/
-│   └── pyhome_edge/            # 🐍 Python 3.12+ IoT Edge Agent (gpiozero + MQTT)
+│   └── omnihome_edge/          # 🐍 Python 3.12+ IoT Edge Agent (gpiozero + MQTT)
 │       ├── hal/                # Hardware Abstraction Layer (Relays, Sensors, Mocks)
 │       ├── transport/          # Async MQTT 5.0 client & protocol models
 │       └── vision/             # Camera stream reader & MediaPipe detector
@@ -245,7 +245,7 @@ Py-Home-Automation/
 
 - [x] Comprehensive architecture redesign & documentation
 - [x] Python Edge Client technical plan and MQTT specification
-- [ ] **Milestone 1:** Build modernized `pyhome_edge` Python 3 client with mock HAL
+- [ ] **Milestone 1:** Build modernized `omnihome_edge` Python 3 client with mock HAL
 - [ ] **Milestone 2:** Implement Go Gateway with WebSocket hub and mDNS responder
 - [ ] **Milestone 3:** Implement Spring Boot Core device registry & rules engine
 - [ ] **Milestone 4:** Build Flutter mobile UI with local discovery

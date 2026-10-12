@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/starfreck/pyhome-server/internal/hub"
-	"github.com/starfreck/pyhome-server/internal/model"
-	"github.com/starfreck/pyhome-server/internal/service"
+	"github.com/starfreck/omnihome-server/internal/hub"
+	"github.com/starfreck/omnihome-server/internal/model"
+	"github.com/starfreck/omnihome-server/internal/service"
 )
 
 //go:embed web/*
@@ -247,7 +247,7 @@ func main() {
 	// 3. Print Startup Banner
 	fmt.Println()
 	fmt.Println("  ===============================================================")
-	fmt.Println("  ⚡ PyHome Next-Gen Realtime IoT Gateway (Go 1.23+)")
+	fmt.Println("  ⚡ OmniHome Next-Gen Realtime IoT Gateway (Go 1.23+)")
 	fmt.Println("  ===============================================================")
 	fmt.Printf("   🌐 Web Dashboard:   http://localhost:%s\n", port)
 	fmt.Printf("   📡 WebSocket Hub:   ws://localhost:%s/ws\n", port)

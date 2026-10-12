@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/starfreck/pyhome-server/internal/model"
+	"github.com/starfreck/omnihome-server/internal/model"
 )
 
 // DeviceManager coordinates device states, GPIO signals, and environment telemetry.
@@ -28,7 +28,7 @@ func NewDeviceManager(onUpdate func(device *model.Device)) *DeviceManager {
 		scenes:   make(map[string]model.Scene),
 		onUpdate: onUpdate,
 		settings: model.Settings{
-			HubName:            "PyHome Main Hub",
+			HubName:            "OmniHome Main Hub",
 			OllamaHost:         "http://localhost:11434",
 			GemmaModel:         "gemma4",
 			CameraSource:       "CSI Camera 01 (/dev/video0)",

@@ -1,6 +1,8 @@
 # Binaries
 pyhome
 server/pyhome
+omnihome
+server/omnihome
 *.exe
 *.exe~
 *.dll

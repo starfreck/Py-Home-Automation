@@ -1,4 +1,4 @@
-module github.com/starfreck/pyhome-server
+module github.com/starfreck/omnihome-server
 
 go 1.27.1
 

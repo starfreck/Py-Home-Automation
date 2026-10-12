@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/starfreck/pyhome-server/internal/model"
+	"github.com/starfreck/omnihome-server/internal/model"
 )
 
 var upgrader = websocket.Upgrader{

@@ -61,7 +61,7 @@ func (dm *DeviceManager) ProcessVoiceCommand(prompt string) VoiceCommandResponse
 func (dm *DeviceManager) queryGemmaLLM(host, modelName, prompt string) (VoiceCommandResponse, error) {
 	client := &http.Client{Timeout: 2500 * time.Millisecond}
 
-	systemPrompt := fmt.Sprintf(`You are PyHome Neural Core, an advanced IoT assistant.
+	systemPrompt := fmt.Sprintf(`You are OmniHome Neural Core, an advanced IoT assistant.
 Current devices:
 - device-1: Living Room Light (relay)
 - device-2: Ceiling Fan (fan)
