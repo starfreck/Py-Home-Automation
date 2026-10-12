@@ -71,89 +71,79 @@
     <!-- VIEW 1: DASHBOARD (UNIFIED AI COMMAND CENTER & HARDWARE MATRIX) -->
     <!-- ============================================================== -->
     <div class="page-view active" id="view-dashboard">
-      <!-- HERO AI INTELLIGENCE STAGE -->
-      <div class="ai-hero-stage">
-        <!-- MOVING GLOB (SIRI FLUIDITY X JARVIS CYBERNETICS IN CLAUDE WARM PALETTE) -->
-        <div class="glob-stage-wrapper" onclick="handleGlobClick()">
+      <!-- HERO AI INTELLIGENCE STAGE (CLEAN & MINIMALIST) -->
+      <section class="ai-hero-stage">
+        <!-- SIRI X JARVIS FLUID ORB -->
+        <div class="glob-stage-wrapper" onclick="handleGlobClick()" title="Tap to talk with Gemma">
           <div class="glob-canvas-container" id="glob-canvas-container">
-            <canvas id="jarvis-glob-canvas" width="400" height="400"></canvas>
+            <canvas id="jarvis-glob-canvas" width="240" height="240"></canvas>
             <div class="glob-center-hint" id="glob-hint-overlay">
               <span class="hint-text" id="glob-hint-text">Tap to Speak</span>
             </div>
           </div>
           <div class="core-status-pill" id="core-state-badge">
             <span class="core-pulse-dot"></span>
-            <span id="core-status-text">Standby // Ready</span>
+            <span id="core-status-text">Online // Ready</span>
           </div>
-          <p class="glob-subtext" id="glob-state-caption">Gemma 4 Neural Core • Tap orb or command below</p>
         </div>
 
-        <!-- AI COMMAND CONSOLE (SPOTLIGHT / RAYCAST CONSOLE, NOT A CHATBOT INPUT) -->
+        <!-- AI COMMAND CONSOLE (SPOTLIGHT / RAYCAST CONSOLE) -->
         <div class="ai-command-bar">
           <div class="command-bar-inner">
             <span class="command-icon">⌘</span>
             <input type="text" id="manual-prompt-input" 
-                   placeholder="Directive to Gemma: 'Cinema mode', 'Lock front door', 'System status'..." 
+                   placeholder="Ask Gemma or command home (e.g. 'Movie night', 'Lock up', 'Status')..." 
                    autocomplete="off"
                    onkeydown="if(event.key==='Enter')handleManualPrompt(event)">
             
-            <button class="mic-trigger-btn" id="mic-trigger" onclick="event.stopPropagation(); toggleSpeechRecognition()" title="Voice input">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+            <button class="mic-trigger-btn" id="mic-trigger" onclick="event.stopPropagation(); toggleSpeechRecognition()" title="Voice directive">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
             </button>
             <button class="send-prompt-btn" onclick="submitPromptFromInput()" title="Execute directive">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
             </button>
           </div>
         </div>
 
-        <!-- AMBIENT AI SYNAPSE READOUT HUD (CYBERNETIC TELEMETRY, ZERO CHAT BUBBLES) -->
-        <div class="ai-synapse-hud" id="ai-synapse-hud">
-          <div class="synapse-status-row">
-            <div class="synapse-neural-indicator">
-              <span class="synapse-pulse"></span>
-              <span>GEMMA 4 SYNAPSE ENGINE</span>
+        <!-- DYNAMIC SYNAPSE RESPONSE BANNER (APPEARS ONLY ON INTERACTION) -->
+        <div class="ai-synapse-banner" id="ai-synapse-hud" style="display: none;">
+          <div class="synapse-banner-content">
+            <div class="synapse-header-line">
+              <div class="synapse-badge-wrap">
+                <span class="synapse-pulse"></span>
+                <span class="synapse-badge">Gemma 4</span>
+              </div>
+              <span class="synapse-directive" id="voice-transcript">"System status"</span>
+              <button class="synapse-close-btn" onclick="dismissSynapseBanner()" title="Dismiss">&times;</button>
             </div>
-            <div class="synapse-voice-selector">
-              <label>Voice:</label>
-              <select id="voice-select" onchange="onVoiceChange(this.value)"></select>
-            </div>
-          </div>
-          <div class="synapse-content-row">
-            <div class="synapse-directive">
-              <span class="directive-prefix">DIRECTIVE</span>
-              <span class="directive-text" id="voice-transcript">"System status"</span>
-            </div>
-            <div class="synapse-response">
-              <span class="response-prefix">EXECUTION</span>
-              <span class="response-text" id="voice-reply">All systems nominal • 4 relays active • Energy draw 155 Watts</span>
-            </div>
+            <div class="synapse-response-line" id="voice-reply">All systems nominal • 4 relays active • Energy draw 155 Watts</div>
           </div>
         </div>
 
-        <!-- AUTOMATION PRESET CHIPS -->
+        <!-- CLEAN AUTOMATION PRESET CHIPS -->
         <div class="quick-scenes-row">
           <button class="scene-chip" onclick="activateScene('movie_night')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="15" x="2" y="7" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg>
-            Cinema Mode
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="15" x="2" y="7" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg>
+            Cinema
           </button>
           <button class="scene-chip" onclick="activateScene('secure_perimeter')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            Secure Perimeter
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            Secure
           </button>
           <button class="scene-chip" onclick="submitTextCommand('Turn on air conditioner')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
             Climate 22°C
           </button>
           <button class="scene-chip" onclick="activateScene('all_on')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/></svg>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/></svg>
             All On
           </button>
           <button class="scene-chip" onclick="activateScene('all_off')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
             All Off
           </button>
         </div>
-      </div>
+      </section>
 
       <!-- LIVE TELEMETRY KPI CARDS (4-COLUMNS) -->
       <div class="dashboard-telemetry-grid">
@@ -268,7 +258,7 @@
           <div class="content-card activity-card">
             <div class="card-title-bar">
               <h4>Live System Audit</h4>
-              <span class="badge-subtle" id="log-count">0 events</span>
+              <button class="link-pill-btn" onclick="switchNav('activity')">View Timeline &rarr;</button>
             </div>
             <div id="event-log" class="activity-stream">
               <!-- Dynamically populated by app.js -->
@@ -291,29 +281,6 @@
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Add Device
         </button>
-      </div>
-
-      <!-- AUTOMATION SCENES PRESETS -->
-      <div class="quick-scenes-card">
-        <span class="scenes-title">Automation Scenes:</span>
-        <div class="scenes-buttons">
-          <button class="scene-btn" onclick="activateScene('all_on')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/></svg>
-            All On
-          </button>
-          <button class="scene-btn" onclick="activateScene('all_off')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
-            All Off
-          </button>
-          <button class="scene-btn" onclick="activateScene('movie_night')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="15" x="2" y="7" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg>
-            Movie Night
-          </button>
-          <button class="scene-btn" onclick="activateScene('secure_perimeter')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            Secure Perimeter
-          </button>
-        </div>
       </div>
 
       <!-- ROOM FILTER TABS -->
@@ -427,8 +394,6 @@
         <div id="full-event-log" class="activity-timeline-stream">
           <!-- Populated by app.js -->
         </div>
-        <div id="event-log" style="display: none;"></div>
-        <span id="log-count" style="display: none;">0 events</span>
       </div>
     </div>
 
@@ -486,6 +451,13 @@
                 <option value="gemma:2b">gemma:2b (Ultra lightweight)</option>
                 <option value="gemma:7b">gemma:7b (High precision)</option>
               </select>
+            </div>
+            <div class="form-group">
+              <label for="voice-select">Speech Synthesis Voice</label>
+              <div class="input-with-button">
+                <select id="voice-select" class="input-control" onchange="onVoiceChange(this.value)"></select>
+                <button type="button" class="btn-subtle" onclick="testVoiceOutput()">Test Voice</button>
+              </div>
             </div>
             <div class="form-switch-row">
               <div class="switch-label-group">

@@ -188,7 +188,7 @@ function resizeJarvisGlob() {
   if (!globCanvas) return;
   const rect = globCanvas.getBoundingClientRect();
   const dpr = window.devicePixelRatio || 1;
-  const size = rect.width > 0 ? rect.width : (isCoreImmersion ? 440 : 320);
+  const size = rect.width > 0 ? rect.width : 240;
 
   globCanvas.width = size * dpr;
   globCanvas.height = size * dpr;
@@ -198,10 +198,10 @@ function resizeJarvisGlob() {
 
 function spawnShockwave(color) {
   shockwaves.push({
-    radius: 25,
-    maxRadius: isCoreImmersion ? 220 : 160,
-    alpha: 0.85,
-    speed: 4.8,
+    radius: 20,
+    maxRadius: 150,
+    alpha: 0.75,
+    speed: 4.2,
     color: color || '217, 119, 87'
   });
 }
@@ -213,37 +213,27 @@ function setOrbState(newState) {
   const badge = document.getElementById('core-state-badge');
   const statusText = document.getElementById('core-status-text');
   const hintText = document.getElementById('glob-hint-text');
-  const caption = document.getElementById('glob-state-caption');
-  const neuralPct = document.getElementById('core-neural-pct');
 
   if (badge) {
     badge.className = `core-status-pill ${newState}`;
   }
 
   if (newState === 'listening') {
-    if (statusText) statusText.innerText = 'VOICE CAPTURE ACTIVE';
-    if (hintText) hintText.innerText = 'LISTENING...';
-    if (caption) caption.innerText = 'Listening to microphone • Speak instruction clearly';
-    if (neuralPct) neuralPct.innerText = '99.8';
+    if (statusText) statusText.innerText = 'Listening...';
+    if (hintText) hintText.innerText = 'Listening...';
     spawnShockwave('16, 185, 129');
   } else if (newState === 'thinking') {
-    if (statusText) statusText.innerText = 'GEMMA SYNAPSE IN PROGRESS';
-    if (hintText) hintText.innerText = 'REASONING...';
-    if (caption) caption.innerText = 'Gemma 4 processing intent & calculating device parameters...';
-    if (neuralPct) neuralPct.innerText = (97.5 + Math.random() * 2.4).toFixed(1);
+    if (statusText) statusText.innerText = 'Reasoning...';
+    if (hintText) hintText.innerText = 'Thinking...';
     spawnShockwave('168, 85, 247');
   } else if (newState === 'speaking') {
-    if (statusText) statusText.innerText = 'TRANSMITTING AUDIO';
-    if (hintText) hintText.innerText = 'SPEAKING...';
-    if (caption) caption.innerText = 'Gemma 4 voice response transmitting';
-    if (neuralPct) neuralPct.innerText = '99.2';
+    if (statusText) statusText.innerText = 'Speaking...';
+    if (hintText) hintText.innerText = 'Speaking...';
     spawnShockwave('217, 119, 87');
   } else {
     // idle
-    if (statusText) statusText.innerText = 'STANDBY // READY';
-    if (hintText) hintText.innerText = 'TAP TO SPEAK';
-    if (caption) caption.innerText = 'Gemma 4 Neural Core • Tap orb or press Enter';
-    if (neuralPct) neuralPct.innerText = '99.4';
+    if (statusText) statusText.innerText = 'Online // Ready';
+    if (hintText) hintText.innerText = 'Tap to Speak';
   }
 }
 
@@ -289,8 +279,8 @@ function renderJarvisGlob() {
   }
 
   const rect = globCanvas.getBoundingClientRect();
-  const width = rect.width || (isCoreImmersion ? 440 : 320);
-  const height = rect.height || (isCoreImmersion ? 440 : 320);
+  const width = rect.width || 240;
+  const height = rect.height || 240;
 
   // Time & Easing
   orbTime += 0.016;
@@ -339,114 +329,40 @@ function renderJarvisGlob() {
   ctx.fillStyle = bgGrad;
   ctx.fillRect(0, 0, width, height);
 
-  // 2. Holographic Concentric Coordinate Grid (Claude Terracotta HUD)
+  // 2. Elegant Ethereal Gyroscopic Rings (Jarvis subtle orbital rings)
   ctx.save();
-  ctx.strokeStyle = 'rgba(217, 119, 87, 0.14)';
-  ctx.lineWidth = 1;
-  ctx.setLineDash([2, 5]);
-
-  [0.45, 0.72, 1.0, 1.25, 1.45].forEach(scale => {
-    ctx.beginPath();
-    ctx.arc(cx, cy, R0 * scale, 0, Math.PI * 2);
-    ctx.stroke();
-  });
-  ctx.restore();
-
-  // 3. Precision Cardinal Radial Ticks
-  ctx.save();
-  const tickRadius = R0 * 1.15;
-  for (let i = 0; i < 60; i++) {
-    const angle = (i * Math.PI * 2) / 60;
-    const isMajor = i % 5 === 0;
-    const isCardinal = i % 15 === 0;
-    const len = isCardinal ? 8 : (isMajor ? 5 : 2.5);
-    const cosA = Math.cos(angle);
-    const sinA = Math.sin(angle);
-
-    ctx.beginPath();
-    ctx.lineWidth = isCardinal ? 1.5 : 1;
-    ctx.strokeStyle = isCardinal ? 'rgba(217, 119, 87, 0.7)' : 'rgba(245, 158, 11, 0.28)';
-    ctx.moveTo(cx + cosA * tickRadius, cy + sinA * tickRadius);
-    ctx.lineTo(cx + cosA * (tickRadius + len), cy + sinA * (tickRadius + len));
-    ctx.stroke();
-  }
-
-  // Cardinal Degree Labels
-  ctx.fillStyle = 'rgba(217, 119, 87, 0.65)';
-  ctx.font = '7px "JetBrains Mono", monospace';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('000°', cx, cy - tickRadius - 13);
-  ctx.fillText('090°', cx + tickRadius + 14, cy);
-  ctx.fillText('180°', cx, cy + tickRadius + 13);
-  ctx.fillText('270°', cx - tickRadius - 14, cy);
-  ctx.restore();
-
-  // 4. Rotating Outer Orbital HUD Rings (JARVIS Reticle Rings)
-  // Ring A: Clockwise 3-Segment Arc Ring
-  ctx.save();
+  // Outer ring 1
   ctx.translate(cx, cy);
-  ctx.rotate(orbTime * 0.55);
-  const ringA_Radius = R0 * 1.28;
-  ctx.lineWidth = 1.5;
-  for (let s = 0; s < 3; s++) {
-    const startA = (s * Math.PI * 2) / 3;
-    const arcLen = Math.PI * 0.38;
-    ctx.beginPath();
-    ctx.strokeStyle = 'rgba(217, 119, 87, 0.55)';
-    ctx.arc(0, 0, ringA_Radius, startA, startA + arcLen);
-    ctx.stroke();
-
-    // Glowing Node at arc tip
-    const endX = Math.cos(startA + arcLen) * ringA_Radius;
-    const endY = Math.sin(startA + arcLen) * ringA_Radius;
-    ctx.beginPath();
-    ctx.fillStyle = '#fef3c7';
-    ctx.arc(endX, endY, 2.2, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.restore();
-
-  // Ring B: Counter-Clockwise 4-Segment Dashed Ring
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.rotate(-orbTime * 0.42);
-  const ringB_Radius = R0 * 1.42;
-  ctx.strokeStyle = 'rgba(245, 158, 11, 0.4)';
-  ctx.lineWidth = 1.2;
-  ctx.setLineDash([4, 6]);
+  ctx.rotate(orbTime * 0.35);
   ctx.beginPath();
-  ctx.arc(0, 0, ringB_Radius, 0, Math.PI * 2);
+  ctx.ellipse(0, 0, R0 * 1.35, R0 * 0.55, 0.35, 0, Math.PI * 2);
+  ctx.strokeStyle = orbState === 'listening' ? 'rgba(16, 185, 129, 0.35)' : 'rgba(217, 119, 87, 0.28)';
+  ctx.lineWidth = 1;
   ctx.stroke();
-  ctx.restore();
 
-  // 5. Radial Equalizer Frequency Bars (Audio-Reactive Wave)
-  ctx.save();
-  const eqRadius = R0 * 1.08;
-  const pinCount = 48;
-  for (let p = 0; p < pinCount; p++) {
-    const angle = (p * Math.PI * 2) / pinCount;
-    const waveNoise = Math.sin(p * 0.42 + orbTime * 6.5) * 0.5 + 0.5;
-    const pinH = 3 + orbAudioEnergy * 26 * waveNoise;
-    const cosP = Math.cos(angle);
-    const sinP = Math.sin(angle);
+  // Micro-satellite node on ring 1
+  const sat1X = Math.cos(orbTime * 1.1) * (R0 * 1.35);
+  const sat1Y = Math.sin(orbTime * 1.1) * (R0 * 0.55);
+  ctx.beginPath();
+  ctx.arc(sat1X, sat1Y, 1.8, 0, Math.PI * 2);
+  ctx.fillStyle = '#fef3c7';
+  ctx.fill();
 
-    ctx.beginPath();
-    ctx.lineWidth = 1.5;
-    ctx.lineCap = 'round';
-    if (orbState === 'listening') {
-      ctx.strokeStyle = 'rgba(16, 185, 129, 0.7)';
-    } else if (orbState === 'thinking') {
-      ctx.strokeStyle = 'rgba(192, 132, 252, 0.7)';
-    } else if (orbState === 'speaking') {
-      ctx.strokeStyle = 'rgba(245, 158, 11, 0.8)';
-    } else {
-      ctx.strokeStyle = 'rgba(217, 119, 87, 0.6)';
-    }
-    ctx.moveTo(cx + cosP * eqRadius, cy + sinP * eqRadius);
-    ctx.lineTo(cx + cosP * (eqRadius + pinH), cy + sinP * (eqRadius + pinH));
-    ctx.stroke();
-  }
+  // Ring 2 (counter-rotating at opposite tilt)
+  ctx.rotate(-orbTime * 0.65);
+  ctx.beginPath();
+  ctx.ellipse(0, 0, R0 * 1.45, R0 * 0.48, -0.45, 0, Math.PI * 2);
+  ctx.strokeStyle = orbState === 'listening' ? 'rgba(52, 211, 153, 0.25)' : 'rgba(245, 158, 11, 0.22)';
+  ctx.lineWidth = 0.8;
+  ctx.stroke();
+
+  // Micro-satellite node on ring 2
+  const sat2X = Math.cos(-orbTime * 1.4) * (R0 * 1.45);
+  const sat2Y = Math.sin(-orbTime * 1.4) * (R0 * 0.48);
+  ctx.beginPath();
+  ctx.arc(sat2X, sat2Y, 1.5, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
   ctx.restore();
 
   // 6. Background 3D Orbiting Quantum Particles (z < 0)
@@ -1053,6 +969,24 @@ function focusVoiceInput() {
   if (input) input.focus();
 }
 
+function showSynapseBanner(directive, reply) {
+  const banner = document.getElementById('ai-synapse-hud');
+  const transcriptEl = document.getElementById('voice-transcript');
+  const replyEl = document.getElementById('voice-reply');
+  if (directive && transcriptEl) transcriptEl.innerText = `"${directive}"`;
+  if (reply && replyEl) replyEl.innerText = reply;
+  if (banner) {
+    banner.style.display = 'block';
+  }
+}
+
+function dismissSynapseBanner() {
+  const banner = document.getElementById('ai-synapse-hud');
+  if (banner) {
+    banner.style.display = 'none';
+  }
+}
+
 // GEMMA 4 VOICE INTENT DISPATCH
 async function submitVoiceCommand(promptText) {
   if (!promptText || !promptText.trim()) return;
@@ -1060,9 +994,7 @@ async function submitVoiceCommand(promptText) {
   getAudioContext();
   setOrbState('thinking');
   addLog('ai', `Prompt: "${promptText}"`);
-
-  const replyEl = document.getElementById('voice-reply');
-  if (replyEl) replyEl.innerText = 'Analyzing intent with Gemma 4...';
+  showSynapseBanner(promptText, 'Analyzing intent with Gemma 4...');
 
   try {
     const res = await fetch('/api/voice', {
@@ -1072,7 +1004,7 @@ async function submitVoiceCommand(promptText) {
     });
     const data = await res.json();
 
-    if (replyEl) replyEl.innerText = data.speech_reply;
+    showSynapseBanner(promptText, data.speech_reply);
     addLog('highlight', `Action: ${data.speech_reply}`);
 
     playSFX('confirm');
@@ -1081,7 +1013,7 @@ async function submitVoiceCommand(promptText) {
 
   } catch (err) {
     console.error('Voice error:', err);
-    if (replyEl) replyEl.innerText = 'Unable to reach local intelligence endpoint.';
+    showSynapseBanner(promptText, 'Unable to reach local intelligence endpoint.');
     setOrbState('idle');
   }
 }
@@ -1656,7 +1588,12 @@ function addLog(type, text) {
     <span class="msg">${escapeHtml(text)}</span>
   `;
 
-  if (logStream) logStream.prepend(line.cloneNode(true));
+  if (logStream) {
+    logStream.prepend(line.cloneNode(true));
+    while (logStream.children.length > 12) {
+      logStream.removeChild(logStream.lastElementChild);
+    }
+  }
   if (fullStream) fullStream.prepend(line);
 }
 
@@ -1725,65 +1662,82 @@ function escapeHtml(str) {
 }
 
 // CAMERA FEED SIMULATOR
+let cameraAnimFrame = null;
+let cameraTime = 0;
+
 function initCameraCanvas() {
-  const ids = ['camera-canvas', 'camera-canvas-cam2'];
-  ids.forEach(id => {
-    const canvas = document.getElementById(id);
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+  if (cameraAnimFrame) cancelAnimationFrame(cameraAnimFrame);
 
-    function render() {
-      ctx.fillStyle = '#09090b';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+  function renderLoop() {
+    cameraTime += 0.02;
+    const canvases = [
+      document.getElementById('camera-canvas'),
+      document.getElementById('camera-canvas-full'),
+      document.getElementById('camera-canvas-cam2')
+    ];
 
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+    canvases.forEach(canvas => {
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width;
+      const h = canvas.height;
+
+      // Realistic CCTV scene gradient (Front Porch / Living Room night ambience)
+      const isCam2 = canvas.id === 'camera-canvas-cam2';
+      const bg = ctx.createLinearGradient(0, 0, 0, h);
+      bg.addColorStop(0, '#0d0f12');
+      bg.addColorStop(0.65, '#12151c');
+      bg.addColorStop(1, '#090a0d');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, w, h);
+
+      // Architectural perspective lines
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.035)';
       ctx.lineWidth = 1;
-      for (let x = 0; x < canvas.width; x += 30) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, canvas.height);
-        ctx.stroke();
-      }
-      for (let y = 0; y < canvas.height; y += 30) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(canvas.width, y);
-        ctx.stroke();
-      }
+      ctx.beginPath();
+      ctx.moveTo(w * 0.2, 0); ctx.lineTo(w * 0.05, h);
+      ctx.moveTo(w * 0.8, 0); ctx.lineTo(w * 0.95, h);
+      ctx.moveTo(0, h * 0.7); ctx.lineTo(w, h * 0.7);
+      ctx.stroke();
 
-      requestAnimationFrame(render);
-    }
-    render();
-  });
+      // Ambient porch/room glow
+      const lampX = isCam2 ? w * 0.75 : w * 0.25;
+      const lampGrad = ctx.createRadialGradient(lampX, h * 0.3, 10, lampX, h * 0.3, w * 0.45);
+      lampGrad.addColorStop(0, 'rgba(217, 119, 87, 0.12)');
+      lampGrad.addColorStop(0.6, 'rgba(245, 158, 11, 0.03)');
+      lampGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = lampGrad;
+      ctx.beginPath();
+      ctx.arc(lampX, h * 0.3, w * 0.45, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Subtle CCTV scanline sweep
+      const scanY = (cameraTime * 45) % h;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.025)';
+      ctx.fillRect(0, scanY, w, 2);
+
+      // Corner target brackets
+      ctx.strokeStyle = 'rgba(16, 185, 129, 0.45)';
+      ctx.lineWidth = 1.5;
+      const bLen = 12;
+      // Top-left
+      ctx.beginPath(); ctx.moveTo(14, 14 + bLen); ctx.lineTo(14, 14); ctx.lineTo(14 + bLen, 14); ctx.stroke();
+      // Top-right
+      ctx.beginPath(); ctx.moveTo(w - 14 - bLen, 14); ctx.lineTo(w - 14, 14); ctx.lineTo(w - 14, 14 + bLen); ctx.stroke();
+      // Bottom-left
+      ctx.beginPath(); ctx.moveTo(14, h - 14 - bLen); ctx.lineTo(14, h - 14); ctx.lineTo(14 + bLen, h - 14); ctx.stroke();
+      // Bottom-right
+      ctx.beginPath(); ctx.moveTo(w - 14 - bLen, h - 14); ctx.lineTo(w - 14, h - 14); ctx.lineTo(w - 14, h - 14 - bLen); ctx.stroke();
+    });
+
+    cameraAnimFrame = requestAnimationFrame(renderLoop);
+  }
+
+  renderLoop();
 }
 
 function initCameraCanvasFull() {
-  const canvas = document.getElementById('camera-canvas-full');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-
-  function render() {
-    ctx.fillStyle = '#09090b';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
-    ctx.lineWidth = 1;
-    for (let x = 0; x < canvas.width; x += 30) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, canvas.height);
-      ctx.stroke();
-    }
-    for (let y = 0; y < canvas.height; y += 30) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(canvas.width, y);
-      ctx.stroke();
-    }
-
-    requestAnimationFrame(render);
-  }
-  render();
+  // Handled by unified camera loop
 }
 
 function simulateFaceScan() {
