@@ -71,6 +71,24 @@
     <!-- VIEW 1: DASHBOARD (UNIFIED AI COMMAND CENTER & HARDWARE MATRIX) -->
     <!-- ============================================================== -->
     <div class="page-view active" id="view-dashboard">
+      <!-- AMBIENT WELCOME & SYSTEM STATUS HEADER -->
+      <div class="dashboard-greeting-bar">
+        <div class="greeting-left">
+          <span class="greeting-date" id="greeting-date">Monday, October 12</span>
+          <h2 class="greeting-title" id="greeting-title">Good evening, Vasu</h2>
+        </div>
+        <div class="greeting-right">
+          <div class="weather-pill">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
+            <span id="greeting-climate">Living Room 24.2°C • 48%</span>
+          </div>
+          <div class="security-chip-pill">
+            <span class="sec-dot secured"></span>
+            <span id="greeting-security-status">Front Deadbolt Secured</span>
+          </div>
+        </div>
+      </div>
+
       <!-- HERO AI INTELLIGENCE STAGE (CLEAN & MINIMALIST) -->
       <section class="ai-hero-stage">
         <!-- SIRI X JARVIS FLUID ORB -->
@@ -103,6 +121,14 @@
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
             </button>
           </div>
+
+          <div class="command-suggestions-row">
+            <span class="sugg-label">Try:</span>
+            <button type="button" class="sugg-chip" onclick="submitTextCommand('Cinema mode')">"Cinema mode"</button>
+            <button type="button" class="sugg-chip" onclick="submitTextCommand('Turn off fan')">"Fan off"</button>
+            <button type="button" class="sugg-chip" onclick="submitTextCommand('Lock front door')">"Lock door"</button>
+            <button type="button" class="sugg-chip" onclick="submitTextCommand('System diagnostics')">"Diagnostics"</button>
+          </div>
         </div>
 
         <!-- DYNAMIC SYNAPSE RESPONSE BANNER (APPEARS ONLY ON INTERACTION) -->
@@ -112,11 +138,18 @@
               <div class="synapse-badge-wrap">
                 <span class="synapse-pulse"></span>
                 <span class="synapse-badge">Gemma 4</span>
+                <span class="synapse-latency-badge" id="synapse-latency">Local • 14ms</span>
               </div>
               <span class="synapse-directive" id="voice-transcript">"System status"</span>
-              <button class="synapse-close-btn" onclick="dismissSynapseBanner()" title="Dismiss">&times;</button>
+              <div class="synapse-actions-btns">
+                <button type="button" class="synapse-replay-btn" id="synapse-replay-btn" onclick="replayLastSpeech()" title="Replay voice audio">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+                </button>
+                <button type="button" class="synapse-close-btn" onclick="dismissSynapseBanner()" title="Dismiss">&times;</button>
+              </div>
             </div>
             <div class="synapse-response-line" id="voice-reply">All systems nominal • 4 relays active • Energy draw 155 Watts</div>
+            <div class="synapse-actions-list" id="synapse-actions-list"></div>
           </div>
         </div>
 
@@ -283,15 +316,25 @@
         </button>
       </div>
 
-      <!-- ROOM FILTER TABS -->
-      <div class="pane-header">
+      <!-- ROOM FILTER & SEARCH TOOLBAR -->
+      <div class="devices-toolbar">
         <div class="segment-control">
           <button class="segment-btn active" data-room="all" onclick="filterRoom('all')">All</button>
           <button class="segment-btn" data-room="Living Room" onclick="filterRoom('Living Room')">Living Room</button>
           <button class="segment-btn" data-room="Bedroom" onclick="filterRoom('Bedroom')">Bedroom</button>
           <button class="segment-btn" data-room="Security" onclick="filterRoom('Security')">Security</button>
         </div>
-        <span class="item-count" id="devices-view-count">6 Devices</span>
+
+        <div class="toolbar-search-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="device-search-input" placeholder="Filter devices or pins..." oninput="handleDeviceSearch(this.value)">
+        </div>
+
+        <div class="toolbar-actions">
+          <button type="button" class="btn-subtle" onclick="activateScene('all_on')" title="Turn all on">All On</button>
+          <button type="button" class="btn-subtle" onclick="activateScene('all_off')" title="Turn all off">All Off</button>
+          <span class="item-count" id="devices-view-count">6 Devices</span>
+        </div>
       </div>
 
       <div id="devices-view-grid" class="cards-grid">
@@ -339,6 +382,14 @@
               <span>Front Entrance Deadbolt</span>
               <span class="cam-clock">LIVE</span>
             </div>
+            <div class="ptz-controls-bar">
+              <span class="ptz-label">PTZ:</span>
+              <button type="button" class="ptz-btn" onclick="panCamera(-15)" title="Pan Left">&larr; Pan</button>
+              <button type="button" class="ptz-btn" onclick="resetCamera()" title="Center">Center</button>
+              <button type="button" class="ptz-btn" onclick="panCamera(15)" title="Pan Right">Pan &rarr;</button>
+              <button type="button" class="ptz-btn" onclick="zoomCamera(0.1)" title="Zoom In">+</button>
+              <button type="button" class="ptz-btn" onclick="zoomCamera(-0.1)" title="Zoom Out">&minus;</button>
+            </div>
           </div>
         </div>
 
@@ -363,6 +414,17 @@
           </div>
         </div>
       </div>
+
+      <!-- CAM SNAPSHOT GALLERY STRIP -->
+      <div class="content-card snapshot-gallery-card">
+        <div class="card-title-bar">
+          <h4>Captured Edge Snapshots</h4>
+          <span class="badge-subtle" id="snapshot-count">0 snapshots</span>
+        </div>
+        <div class="snapshots-strip" id="snapshots-strip">
+          <div class="empty-snapshot-hint">No snapshots captured yet. Tap "Take Snapshot" to capture current feed.</div>
+        </div>
+      </div>
     </div>
 
     <!-- ============================================================== -->
@@ -376,6 +438,7 @@
         </div>
         <div class="header-actions">
           <button class="btn-action secondary" onclick="exportAuditLog()">Export JSON</button>
+          <button class="btn-action secondary" onclick="exportLogsCsv()">Export CSV</button>
           <button class="btn-action secondary" onclick="clearEventLogs()">Clear Log</button>
         </div>
       </div>
@@ -387,6 +450,9 @@
             <button class="filter-pill" onclick="filterLogs('hardware', this)">Hardware</button>
             <button class="filter-pill" onclick="filterLogs('assistant', this)">Gemma AI</button>
             <button class="filter-pill" onclick="filterLogs('security', this)">Security</button>
+          </div>
+          <div class="activity-search-wrap">
+            <input type="text" id="log-search-input" placeholder="Search events..." oninput="searchLogs(this.value)">
           </div>
           <span class="badge-subtle" id="full-log-count">0 events</span>
         </div>
@@ -587,6 +653,9 @@
       </form>
     </div>
   </div>
+
+  <!-- CAMERA FLASH OVERLAY EFFECT -->
+  <div id="cam-flash" class="camera-flash-overlay"></div>
 
   <!-- TOAST NOTIFICATION CONTAINER -->
   <div id="toast-container" class="toast-container"></div>

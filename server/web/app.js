@@ -84,7 +84,7 @@ function switchNav(viewName, el) {
 }
 
 // ==========================================
-// 3. SYSTEM CLOCK & TELEMETRY SYNC
+// 3. SYSTEM CLOCK, AMBIENT GREETING & SHORTCUTS
 // ==========================================
 function initClock() {
   const clockEl = document.getElementById('clock');
@@ -97,6 +97,47 @@ function initClock() {
   }
   update();
   setInterval(update, 1000);
+}
+
+function initGreeting() {
+  const titleEl = document.getElementById('greeting-title');
+  const dateEl = document.getElementById('greeting-date');
+  if (!titleEl && !dateEl) return;
+
+  const now = new Date();
+  const hour = now.getHours();
+  let greet = 'Good evening';
+  if (hour >= 5 && hour < 12) greet = 'Good morning';
+  else if (hour >= 12 && hour < 17) greet = 'Good afternoon';
+  else if (hour >= 17 && hour < 22) greet = 'Good evening';
+  else greet = 'Good night';
+
+  if (titleEl) titleEl.innerText = `${greet}, Vasu`;
+
+  if (dateEl) {
+    const options = { weekday: 'long', month: 'long', day: 'numeric' };
+    dateEl.innerText = now.toLocaleDateString('en-US', options);
+  }
+}
+
+function initShortcuts() {
+  window.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      const input = document.getElementById('manual-prompt-input');
+      if (input) {
+        input.focus();
+        input.select();
+      }
+    } else if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+      e.preventDefault();
+      const input = document.getElementById('manual-prompt-input');
+      if (input) {
+        input.focus();
+        input.select();
+      }
+    }
+  });
 }
 
 // ==========================================
@@ -584,6 +625,8 @@ function drawFluidGlobLayer(ctx, cx, cy, R0, layerIdx, time, energy, state) {
 window.addEventListener('DOMContentLoaded', () => {
   initTheme();
   initClock();
+  initGreeting();
+  initShortcuts();
   initJarvisGlob();
   initVoices();
   initCameraCanvas();
@@ -768,7 +811,17 @@ function testVoiceOutput() {
   speakAssistantResponse("OmniHome assistant audio online. Ready for instructions.");
 }
 
+let lastAssistantResponse = 'All systems nominal. Ready for commands.';
+
+function replayLastSpeech() {
+  if (!lastAssistantResponse) return;
+  playSFX('click');
+  speakAssistantResponse(lastAssistantResponse);
+}
+
 function speakAssistantResponse(text) {
+  if (text) lastAssistantResponse = text;
+
   if (!speechAudioEnabled || !window.speechSynthesis) {
     setOrbState('idle');
     return;
@@ -974,7 +1027,10 @@ function showSynapseBanner(directive, reply) {
   const transcriptEl = document.getElementById('voice-transcript');
   const replyEl = document.getElementById('voice-reply');
   if (directive && transcriptEl) transcriptEl.innerText = `"${directive}"`;
-  if (reply && replyEl) replyEl.innerText = reply;
+  if (reply && replyEl) {
+    replyEl.innerText = reply;
+    lastAssistantResponse = reply;
+  }
   if (banner) {
     banner.style.display = 'block';
   }
@@ -1058,15 +1114,32 @@ function getDeviceColorClass(d) {
   return `type-${d.type}`;
 }
 
+let deviceSearchQuery = '';
+
+function handleDeviceSearch(query) {
+  deviceSearchQuery = (query || '').toLowerCase().trim();
+  renderDevices();
+}
+
 // DEVICE GRID & CONTROLS (APPLE HOME / MUSHROOM STYLE)
 function renderDevices() {
   const grid = document.getElementById('devices-grid');
   const viewGrid = document.getElementById('devices-view-grid');
   if (!grid && !viewGrid) return;
 
-  const filtered = currentFilter === 'all' 
+  let filtered = currentFilter === 'all' 
     ? devices 
     : devices.filter(d => d.room === currentFilter);
+
+  if (deviceSearchQuery) {
+    filtered = filtered.filter(d => {
+      const name = (d.name || '').toLowerCase();
+      const room = (d.room || '').toLowerCase();
+      const type = (d.type || '').toLowerCase();
+      const pin = String(d.gpio_pin || '');
+      return name.includes(deviceSearchQuery) || room.includes(deviceSearchQuery) || type.includes(deviceSearchQuery) || pin.includes(deviceSearchQuery);
+    });
+  }
 
   const countPill = document.getElementById('device-count-pill');
   if (countPill) countPill.innerText = `${filtered.length} Devices`;
@@ -1638,20 +1711,41 @@ function exportLogsCsv() {
   showToast('Audit log exported as CSV', 'success');
 }
 
+let currentLogCategory = 'all';
+let logSearchQuery = '';
+
 function filterLogs(category, el) {
   playSFX('click');
+  currentLogCategory = category;
   document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
   if (el) el.classList.add('active');
+  applyLogFilters();
+}
 
+function searchLogs(query) {
+  logSearchQuery = (query || '').toLowerCase().trim();
+  applyLogFilters();
+}
+
+function applyLogFilters() {
   const items = document.querySelectorAll('#full-event-log .activity-item');
+  let visibleCount = 0;
   items.forEach(item => {
-    const cat = item.getAttribute('data-category');
-    if (category === 'all' || cat === category) {
+    const cat = item.getAttribute('data-category') || 'hardware';
+    const msg = (item.querySelector('.msg')?.innerText || item.innerText || '').toLowerCase();
+    const matchesCat = currentLogCategory === 'all' || cat === currentLogCategory;
+    const matchesQuery = !logSearchQuery || msg.includes(logSearchQuery);
+
+    if (matchesCat && matchesQuery) {
       item.style.display = 'flex';
+      visibleCount++;
     } else {
       item.style.display = 'none';
     }
   });
+
+  const fullCounterEl = document.getElementById('full-log-count');
+  if (fullCounterEl) fullCounterEl.innerText = `${visibleCount} events`;
 }
 
 function escapeHtml(str) {
@@ -1661,9 +1755,30 @@ function escapeHtml(str) {
   }[m]));
 }
 
-// CAMERA FEED SIMULATOR
+// CAMERA FEED SIMULATOR & PTZ ENGINE
 let cameraAnimFrame = null;
 let cameraTime = 0;
+let cameraPan = 0;
+let cameraZoom = 1.0;
+
+function panCamera(delta) {
+  cameraPan = Math.max(-80, Math.min(80, cameraPan + delta));
+  playSFX('click');
+  showToast(`Camera PTZ Pan: ${cameraPan > 0 ? '+' : ''}${cameraPan}px`, 'info');
+}
+
+function zoomCamera(delta) {
+  cameraZoom = Math.max(0.8, Math.min(2.5, +(cameraZoom + delta).toFixed(2)));
+  playSFX('click');
+  showToast(`Camera PTZ Zoom: ${cameraZoom.toFixed(1)}x`, 'info');
+}
+
+function resetCamera() {
+  cameraPan = 0;
+  cameraZoom = 1.0;
+  playSFX('click');
+  showToast('Camera PTZ reset to default center', 'info');
+}
 
 function initCameraCanvas() {
   if (cameraAnimFrame) cancelAnimationFrame(cameraAnimFrame);
@@ -1681,6 +1796,14 @@ function initCameraCanvas() {
       const ctx = canvas.getContext('2d');
       const w = canvas.width;
       const h = canvas.height;
+
+      const isFull = canvas.id === 'camera-canvas-full';
+      ctx.save();
+      if (isFull) {
+        ctx.translate(w / 2, h / 2);
+        ctx.scale(cameraZoom, cameraZoom);
+        ctx.translate(-w / 2 + cameraPan, -h / 2);
+      }
 
       // Realistic CCTV scene gradient (Front Porch / Living Room night ambience)
       const isCam2 = canvas.id === 'camera-canvas-cam2';
@@ -1710,6 +1833,9 @@ function initCameraCanvas() {
       ctx.beginPath();
       ctx.arc(lampX, h * 0.3, w * 0.45, 0, Math.PI * 2);
       ctx.fill();
+
+      // Restore camera viewport before drawing static HUD reticles and scanlines
+      ctx.restore();
 
       // Subtle CCTV scanline sweep
       const scanY = (cameraTime * 45) % h;
@@ -1760,7 +1886,7 @@ function simulateFaceScan() {
   setTimeout(() => {
     if (label) {
       label.innerText = 'Vasu (99.8%)';
-      label.style.background = 'var(--success)';
+      label.style.background = 'var(--accent-green)';
       label.style.color = '#000';
     }
     playSFX('confirm');
@@ -1771,6 +1897,46 @@ function simulateFaceScan() {
 
 function simulateSnapshot() {
   playSFX('click');
+
+  // Trigger camera flash visual feedback
+  const flash = document.getElementById('cam-flash');
+  if (flash) {
+    flash.classList.add('active');
+    setTimeout(() => flash.classList.remove('active'), 140);
+  }
+
+  // Capture frame from active canvas
+  const canvas = document.getElementById('camera-canvas-full') || document.getElementById('camera-canvas');
+  if (canvas) {
+    try {
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      const strip = document.getElementById('snapshots-strip');
+      const countEl = document.getElementById('snapshot-count');
+      if (strip) {
+        const emptyHint = strip.querySelector('.empty-snapshot-hint');
+        if (emptyHint) emptyHint.remove();
+
+        const timeStr = new Date().toLocaleTimeString();
+        const wrap = document.createElement('div');
+        wrap.className = 'snapshot-thumb-wrap';
+        wrap.title = `Snapshot captured at ${timeStr}`;
+        wrap.innerHTML = `
+          <img src="${dataUrl}" class="snapshot-thumb" alt="Captured Frame">
+          <span class="snapshot-time-tag">${timeStr}</span>
+        `;
+        wrap.onclick = () => {
+          showToast(`Snapshot from ${timeStr} inspected`, 'info');
+        };
+        strip.insertBefore(wrap, strip.firstChild);
+
+        const total = strip.querySelectorAll('.snapshot-thumb-wrap').length;
+        if (countEl) countEl.innerText = `${total} snapshot${total === 1 ? '' : 's'}`;
+      }
+    } catch (e) {
+      console.warn('Snapshot capture warning:', e);
+    }
+  }
+
   addLog('event', 'Snapshot captured to /data/snapshots/');
   showToast('Snapshot saved to /data/snapshots/', 'success');
 }
