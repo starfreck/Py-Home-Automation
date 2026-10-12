@@ -414,23 +414,60 @@ window.addEventListener('keydown', (e) => {
 // ==========================================
 // SAAS COMMAND PALETTE ENGINE (CMD+K)
 // ==========================================
+function getPaletteIcon(id) {
+  switch (id) {
+    case 'cinema':
+      return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="20" height="15" x="2" y="7" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg>`;
+    case 'secure':
+      return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
+    case 'all_on':
+      return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>`;
+    case 'all_off':
+      return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>`;
+    case 'edit_mode':
+      return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+    case 'customize':
+      return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`;
+    case 'ambient':
+      return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/></svg>`;
+    case 'devices':
+      return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>`;
+    case 'cameras':
+      return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>`;
+    case 'activity':
+      return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`;
+    case 'theme_claude_dark':
+    case 'theme_obsidian':
+    case 'theme_nordic':
+    case 'theme_jarvis':
+      return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/></svg>`;
+    case 'theme_claude_light':
+      return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/></svg>`;
+    default:
+      return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>`;
+  }
+}
+
 const commandPaletteActions = [
-  { id: 'cinema', label: 'Activate Cinema Mode', desc: 'Dims living room, secures front door', icon: '🎬', action: () => activateScene('movie_night') },
-  { id: 'secure', label: 'Perimeter Lockdown', desc: 'Engage deadbolt, start camera surveillance', icon: '🛡️', action: () => activateScene('secure_perimeter') },
-  { id: 'all_on', label: 'Activate All Relays', desc: 'Turns on all 6 hardware nodes', icon: '⚡', action: () => activateScene('all_on') },
-  { id: 'all_off', label: 'Eco Standby / All Off', desc: 'Powers down all non-essential relays', icon: '🌙', action: () => activateScene('all_off') },
-  { id: 'edit_mode', label: 'Toggle Edit Mode', desc: 'Rearrange and customize dashboard widgets', icon: '📐', action: () => toggleEditMode() },
-  { id: 'customize', label: 'Customize OS Theme & Wallpapers', desc: 'Select themes and backdrops', icon: '🎨', action: () => openCustomizeModal() },
-  { id: 'ambient', label: 'Open Ambient Core AI', desc: 'Full-screen hologram voice interface', icon: '✨', action: () => switchNav('ambient', document.querySelector('[data-view="ambient"]')) },
-  { id: 'devices', label: 'Fleet Hardware Manager', desc: 'Inspect all 6 IoT relay channels', icon: '🎛️', action: () => switchNav('devices', document.querySelector('[data-view="devices"]')) },
-  { id: 'cameras', label: 'CSI Edge Cameras', desc: 'Live video feed & facial recognition', icon: '📹', action: () => switchNav('cameras', document.querySelector('[data-view="cameras"]')) },
-  { id: 'activity', label: 'Audit Trail & Telemetry', desc: 'Full system audit logs', icon: '📊', action: () => switchNav('activity', document.querySelector('[data-view="activity"]')) },
-  { id: 'theme_claude_dark', label: 'Theme: Claude Dark', desc: 'Warm minimalist dark theme', icon: '🌑', action: () => setTheme('claude-dark') },
-  { id: 'theme_jarvis', label: 'Theme: Jarvis Hologram', desc: 'Cyber blue holographic HUD', icon: '💎', action: () => setTheme('jarvis') },
-  { id: 'theme_obsidian', label: 'Theme: Midnight Obsidian', desc: 'Deep emerald SaaS theme', icon: '🟢', action: () => setTheme('obsidian') },
-  { id: 'theme_nordic', label: 'Theme: Nordic Slate', desc: 'Indigo slate clean theme', icon: '🟣', action: () => setTheme('nordic') },
-  { id: 'theme_claude_light', label: 'Theme: Alabaster Light', desc: 'Clean editorial paper light theme', icon: '☀️', action: () => setTheme('claude-light') }
+  { id: 'cinema', category: 'Automation', label: 'Activate Cinema Mode', desc: 'Dims living room, secures front door', action: () => activateScene('movie_night') },
+  { id: 'secure', category: 'Automation', label: 'Perimeter Lockdown', desc: 'Engage deadbolt, start camera surveillance', action: () => activateScene('secure_perimeter') },
+  { id: 'all_on', category: 'Automation', label: 'Activate All Relays', desc: 'Turns on all 6 hardware nodes', action: () => activateScene('all_on') },
+  { id: 'all_off', category: 'Automation', label: 'Eco Standby / All Off', desc: 'Powers down all non-essential relays', action: () => activateScene('all_off') },
+  { id: 'edit_mode', category: 'Layout', label: 'Toggle Edit Mode', desc: 'Rearrange and customize dashboard widgets', action: () => toggleEditMode() },
+  { id: 'customize', category: 'Layout', label: 'Customize OS Theme & Wallpapers', desc: 'Select themes and backdrops', action: () => openCustomizeModal() },
+  { id: 'ambient', category: 'Navigation', label: 'Open Ambient Core AI', desc: 'Full-screen hologram voice interface', action: () => switchNav('ambient', document.querySelector('[data-view="ambient"]')) },
+  { id: 'devices', category: 'Navigation', label: 'Fleet Hardware Manager', desc: 'Inspect all 6 IoT relay channels', action: () => switchNav('devices', document.querySelector('[data-view="devices"]')) },
+  { id: 'cameras', category: 'Navigation', label: 'CSI Edge Cameras', desc: 'Live video feed & facial recognition', action: () => switchNav('cameras', document.querySelector('[data-view="cameras"]')) },
+  { id: 'activity', category: 'Navigation', label: 'Audit Trail & Telemetry', desc: 'Full system audit logs', action: () => switchNav('activity', document.querySelector('[data-view="activity"]')) },
+  { id: 'theme_claude_dark', category: 'Theme', label: 'Theme: Claude Dark', desc: 'Warm minimalist dark theme (Default)', action: () => setTheme('claude-dark') },
+  { id: 'theme_jarvis', category: 'Theme', label: 'Theme: Jarvis Hologram', desc: 'Cyber blue holographic HUD', action: () => setTheme('jarvis') },
+  { id: 'theme_obsidian', category: 'Theme', label: 'Theme: Midnight Obsidian', desc: 'Deep emerald SaaS theme', action: () => setTheme('obsidian') },
+  { id: 'theme_nordic', category: 'Theme', label: 'Theme: Nordic Slate', desc: 'Indigo slate clean theme', action: () => setTheme('nordic') },
+  { id: 'theme_claude_light', category: 'Theme', label: 'Theme: Alabaster Light', desc: 'Clean editorial paper light theme', action: () => setTheme('claude-light') }
 ];
+
+let paletteSelectedIndex = 0;
+let currentFilteredPalette = [];
 
 function openCommandPalette() {
   playSFX('click');
@@ -454,21 +491,26 @@ function renderCommandPaletteResults(query) {
   const container = document.getElementById('cmd-palette-results');
   if (!container) return;
   const q = (query || '').toLowerCase().trim();
-  const filtered = commandPaletteActions.filter(a => 
-    !q || a.label.toLowerCase().includes(q) || a.desc.toLowerCase().includes(q)
+  currentFilteredPalette = commandPaletteActions.filter(a => 
+    !q || a.label.toLowerCase().includes(q) || a.desc.toLowerCase().includes(q) || (a.category && a.category.toLowerCase().includes(q))
   );
 
-  if (filtered.length === 0) {
-    container.innerHTML = `<div class="cmd-no-results">No actions found for "${query}"</div>`;
+  paletteSelectedIndex = 0;
+
+  if (currentFilteredPalette.length === 0) {
+    container.innerHTML = `<div class="cmd-no-results">No actions found for "${escapeHtml(query)}"</div>`;
     return;
   }
 
-  container.innerHTML = filtered.map((item, idx) => `
-    <div class="cmd-palette-item ${idx === 0 ? 'active' : ''}" onclick="executePaletteAction('${item.id}')">
-      <span class="cmd-item-icon">${item.icon}</span>
+  container.innerHTML = currentFilteredPalette.map((item, idx) => `
+    <div class="cmd-palette-item ${idx === 0 ? 'active' : ''}" data-idx="${idx}" onclick="executePaletteAction('${item.id}')">
+      <span class="cmd-item-icon">${getPaletteIcon(item.id)}</span>
       <div class="cmd-item-info">
-        <span class="cmd-item-label">${item.label}</span>
-        <span class="cmd-item-desc">${item.desc}</span>
+        <div class="cmd-item-label-row">
+          <span class="cmd-item-label">${escapeHtml(item.label)}</span>
+          ${item.category ? `<span class="cmd-item-tag">${escapeHtml(item.category)}</span>` : ''}
+        </div>
+        <span class="cmd-item-desc">${escapeHtml(item.desc)}</span>
       </div>
       <span class="cmd-item-arrow">&rarr;</span>
     </div>
@@ -477,6 +519,39 @@ function renderCommandPaletteResults(query) {
 
 function filterCommandPalette(val) {
   renderCommandPaletteResults(val);
+}
+
+function updatePaletteSelection() {
+  const items = document.querySelectorAll('.cmd-palette-item');
+  items.forEach((it, idx) => {
+    it.classList.toggle('active', idx === paletteSelectedIndex);
+    if (idx === paletteSelectedIndex) {
+      it.scrollIntoView({ block: 'nearest' });
+    }
+  });
+}
+
+function handlePaletteInputKeyDown(e) {
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (currentFilteredPalette.length > 0) {
+      paletteSelectedIndex = (paletteSelectedIndex + 1) % currentFilteredPalette.length;
+      updatePaletteSelection();
+    }
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (currentFilteredPalette.length > 0) {
+      paletteSelectedIndex = (paletteSelectedIndex - 1 + currentFilteredPalette.length) % currentFilteredPalette.length;
+      updatePaletteSelection();
+    }
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (currentFilteredPalette[paletteSelectedIndex]) {
+      executePaletteAction(currentFilteredPalette[paletteSelectedIndex].id);
+    }
+  } else if (e.key === 'Escape') {
+    closeCommandPalette();
+  }
 }
 
 function executePaletteAction(id) {
@@ -678,22 +753,28 @@ function initGreeting() {
 
 function initShortcuts() {
   window.addEventListener('keydown', (e) => {
-    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+    if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
       e.preventDefault();
       const input = document.getElementById('manual-prompt-input');
-      if (input) {
+      if (input && document.getElementById('view-dashboard') && document.getElementById('view-dashboard').classList.contains('active')) {
         input.focus();
         input.select();
-      }
-    } else if (e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
-      e.preventDefault();
-      const input = document.getElementById('manual-prompt-input');
-      if (input) {
-        input.focus();
-        input.select();
+        showToast('Spotlight prompt focused', 'info');
+      } else {
+        openCommandPalette();
       }
     }
   });
+}
+
+function executeQuickPrompt(text) {
+  playSFX('click');
+  const input = document.getElementById('manual-prompt-input');
+  if (input) input.value = text;
+  const transcriptEl = document.getElementById('voice-transcript');
+  if (transcriptEl) transcriptEl.innerText = `"${text}"`;
+  showToast(`Directing: "${text}"`, 'info');
+  submitVoiceCommand(text);
 }
 
 // ==========================================
@@ -1667,8 +1748,24 @@ function submitTextCommand(cmd) {
 }
 
 function activateScene(sceneId) {
-  playSFX('click');
+  playSFX('confirm');
   addLog('event', `Activated scene '${sceneId}'`);
+  const sceneNames = {
+    'movie_night': 'Cinema Mode',
+    'secure_perimeter': 'Perimeter Lockdown',
+    'all_on': 'All Relays Active',
+    'all_off': 'Eco Standby Mode'
+  };
+  const displayName = sceneNames[sceneId] || sceneId;
+  showToast(`${displayName} engaged`, 'success');
+
+  document.querySelectorAll('.bento-scene-btn').forEach(btn => {
+    if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(sceneId)) {
+      btn.classList.add('scene-active-pulse');
+      setTimeout(() => btn.classList.remove('scene-active-pulse'), 1000);
+    }
+  });
+
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ type: 'scene', payload: { id: sceneId } }));
   } else {
@@ -1787,6 +1884,17 @@ function updateSingleDevice(updatedDevice) {
   if (updatedDevice.id === 'device-6') {
     const lockEl = document.getElementById('stat-lock-status');
     if (lockEl) lockEl.innerText = updatedDevice.state ? 'Secured' : 'Unlocked';
+    const secPill = document.getElementById('greeting-security-status');
+    if (secPill) secPill.innerText = updatedDevice.state ? 'Front Deadbolt Secured' : 'Front Deadbolt Unlocked';
+    const secDot = document.querySelector('.sec-dot');
+    if (secDot) {
+      secDot.className = `sec-dot ${updatedDevice.state ? 'secured' : 'unsecured'}`;
+    }
+    const secBar = document.getElementById('stat-security-bar');
+    if (secBar) {
+      secBar.style.width = updatedDevice.state ? '100%' : '25%';
+      secBar.style.background = updatedDevice.state ? 'var(--accent-green)' : 'var(--accent-amber)';
+    }
   }
 
   renderDeviceSettingsTable();
@@ -2199,6 +2307,17 @@ function updateTelemetry(t) {
   if (activeEl) activeEl.innerText = t.active_count;
   if (totalEl) totalEl.innerText = t.total_count;
   if (piTempEl) piTempEl.innerText = `${t.cpu_temp.toFixed(1)}°C`;
+
+  // Synchronize live KPI meter bars & greeting pills
+  const powerBar = document.getElementById('stat-power-bar');
+  if (powerBar) {
+    const pct = Math.min(100, Math.max(5, Math.round((t.total_watts / 500) * 100)));
+    powerBar.style.width = `${pct}%`;
+  }
+  const climatePill = document.getElementById('greeting-climate');
+  if (climatePill) {
+    climatePill.innerText = `Living Room ${t.temperature.toFixed(1)}°C • ${Math.round(t.humidity)}%`;
+  }
 
   // Synchronize Holographic HUD Wing Telemetry
   const hudPiTemp = document.getElementById('hud-pi-temp');

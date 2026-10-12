@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
 <body>
   <!-- CLAUDE AI APP HEADER -->
@@ -245,6 +245,14 @@
               </div>
             </div>
 
+            <!-- ONE-TAP DIRECTIVE CHIPS -->
+            <div class="prompt-chips-row">
+              <button type="button" class="prompt-chip" onclick="executeQuickPrompt('Turn off all lights')">Turn off lights</button>
+              <button type="button" class="prompt-chip" onclick="executeQuickPrompt('Activate Cinema mode')">Cinema mode</button>
+              <button type="button" class="prompt-chip" onclick="executeQuickPrompt('Lock front door deadbolt')">Lock door</button>
+              <button type="button" class="prompt-chip" onclick="executeQuickPrompt('System diagnostic status')">System status</button>
+            </div>
+
             <!-- DYNAMIC SYNAPSE RESPONSE BANNER -->
             <div class="ai-synapse-banner" id="ai-synapse-hud" style="display: none;">
               <div class="synapse-banner-content">
@@ -345,6 +353,9 @@
             <span>Humidity: <strong id="stat-humidity">48</strong>%</span>
             <span class="kpi-tag-good">Optimal</span>
           </div>
+          <div class="kpi-meter-wrap" title="Climate comfort score">
+            <div class="kpi-meter-bar" style="width: 76%;"></div>
+          </div>
           <span class="kpi-desc">Living Room Edge Sensor</span>
         </div>
 
@@ -368,6 +379,9 @@
           </div>
           <div class="kpi-meta-row">
             <span>Active Relays: <strong id="stat-active-count">4</strong> / <span id="stat-total-count">6</span></span>
+          </div>
+          <div class="kpi-meter-wrap" title="Power capacity utilization">
+            <div class="kpi-meter-bar power-bar" id="stat-power-bar" style="width: 31%;"></div>
           </div>
           <span class="kpi-desc">Real-time hardware load</span>
         </div>
@@ -393,6 +407,9 @@
           <div class="kpi-meta-row">
             <button class="btn-subtle" onclick="toggleDevice('device-6')">Toggle Deadbolt</button>
             <span class="kpi-desc">Pi: <span id="stat-pi-temp">41.8°C</span></span>
+          </div>
+          <div class="kpi-meter-wrap" title="Security perimeter status">
+            <div class="kpi-meter-bar" id="stat-security-bar" style="width: 100%;"></div>
           </div>
         </div>
 
@@ -944,7 +961,7 @@
     <div class="command-palette-card">
       <div class="command-palette-input-wrap">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-        <input type="text" id="cmd-palette-input" placeholder="Type a directive or search (e.g. 'Cinema', 'Lock', 'Edit', 'Theme')..." oninput="filterCommandPalette(this.value)" autocomplete="off">
+        <input type="text" id="cmd-palette-input" placeholder="Type a directive or search (e.g. 'Cinema', 'Lock', 'Edit', 'Theme')..." oninput="filterCommandPalette(this.value)" onkeydown="handlePaletteInputKeyDown(event)" autocomplete="off">
         <kbd class="kbd-shortcut" onclick="closeCommandPalette()">ESC</kbd>
       </div>
       <div class="command-palette-results" id="cmd-palette-results">
