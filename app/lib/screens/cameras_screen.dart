@@ -512,6 +512,8 @@ class _CamerasScreenState extends State<CamerasScreen> {
                             _buildLiveFeedViewport(provider),
                             const SizedBox(height: 16),
                             _buildStreamDiagnosticsCard(provider),
+                            const SizedBox(height: 16),
+                            _buildFaceProfilesSection(context, provider),
                           ],
                         ),
                       ),
@@ -541,6 +543,8 @@ class _CamerasScreenState extends State<CamerasScreen> {
                       _buildLiveFeedViewport(provider),
                       const SizedBox(height: 16),
                       _buildStreamDiagnosticsCard(provider),
+                      const SizedBox(height: 16),
+                      _buildFaceProfilesSection(context, provider),
                       const SizedBox(height: 24),
                       _buildSnapshotGalleryHeader(provider),
                       const SizedBox(height: 12),
@@ -550,6 +554,378 @@ class _CamerasScreenState extends State<CamerasScreen> {
                 );
               }
             },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFaceProfilesSection(BuildContext context, HomeProvider provider) {
+    final profiles = provider.faceProfiles;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.card,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Row(
+                  children: [
+                    const Icon(Icons.face_retouching_natural_rounded, size: 18, color: AppTheme.accentGreen),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'Enrolled Faces & Rules',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.textMain),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppTheme.surface,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '${profiles.length}',
+                        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.textDim),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              TextButton.icon(
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  backgroundColor: AppTheme.accentGreen.withValues(alpha: 0.15),
+                  foregroundColor: AppTheme.accentGreen,
+                ),
+                onPressed: () => _showEnrollFaceDialog(context, provider),
+                icon: const Icon(Icons.person_add_rounded, size: 15),
+                label: const Text('Enroll', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (profiles.isEmpty)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              decoration: BoxDecoration(
+                color: AppTheme.surface.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.cardBorder.withValues(alpha: 0.5)),
+              ),
+              child: const Column(
+                children: [
+                  Icon(Icons.face_outlined, size: 28, color: AppTheme.textDim),
+                  SizedBox(height: 6),
+                  Text(
+                    'No face profiles enrolled yet',
+                    style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                  ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Tap "Enroll" to tag family members and link automation rules',
+                    style: TextStyle(fontSize: 10, color: AppTheme.textDim),
+                  ),
+                ],
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: profiles.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 10),
+              itemBuilder: (ctx, index) {
+                final p = profiles[index];
+                final lastSeenText = p.lastSeen != null
+                    ? DateFormat.Hm().format(p.lastSeen!)
+                    : 'Never';
+
+                return Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surface,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppTheme.cardBorder),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 38,
+                        height: 38,
+                        decoration: BoxDecoration(
+                          color: AppTheme.accentGreen.withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppTheme.accentGreen.withValues(alpha: 0.5), width: 1.5),
+                        ),
+                        child: Center(
+                          child: Text(
+                            p.name.isNotEmpty ? p.name[0].toUpperCase() : '?',
+                            style: const TextStyle(
+                              color: AppTheme.accentGreen,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  p.name,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppTheme.textMain,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.card,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    p.role,
+                                    style: const TextStyle(fontSize: 9, color: AppTheme.textDim),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                const Icon(Icons.bolt_rounded, size: 12, color: AppTheme.accentAmber),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    p.actionLabel,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: AppTheme.accentAmber,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            'Seen: $lastSeenText',
+                            style: const TextStyle(fontSize: 10, color: AppTheme.textDim),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline_rounded, size: 16, color: Colors.redAccent),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: () => provider.deleteFaceProfile(p.id),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _showEnrollFaceDialog(BuildContext context, HomeProvider provider) {
+    final nameCtrl = TextEditingController();
+    final roleCtrl = TextEditingController(text: 'Family Member');
+    String selectedAction = 'device:device-6:turn_on';
+    String actionLabel = 'Unlock Front Door';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => Dialog(
+          backgroundColor: AppTheme.card,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Enroll Face & Automation Rule',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: AppTheme.textMain),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, size: 18),
+                        onPressed: () => Navigator.of(ctx).pop(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: nameCtrl,
+                    style: const TextStyle(fontSize: 13, color: AppTheme.textMain),
+                    decoration: InputDecoration(
+                      labelText: 'Person Name',
+                      hintText: 'e.g. Alice',
+                      filled: true,
+                      fillColor: AppTheme.surface,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: roleCtrl,
+                    style: const TextStyle(fontSize: 13, color: AppTheme.textMain),
+                    decoration: InputDecoration(
+                      labelText: 'Role / Relationship',
+                      filled: true,
+                      fillColor: AppTheme.surface,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedAction,
+                    style: const TextStyle(fontSize: 12, color: AppTheme.textMain),
+                    dropdownColor: AppTheme.card,
+                    decoration: InputDecoration(
+                      labelText: 'Automated Trigger Rule',
+                      filled: true,
+                      fillColor: AppTheme.surface,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'device:device-6:turn_on',
+                        child: Text('🔓 Unlock Front Door Lock'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'device:device-1:turn_on',
+                        child: Text('💡 Turn ON Living Room Light'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'device:device-2:turn_on',
+                        child: Text('🌀 Turn ON Ceiling Fan'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'scene:welcome_home',
+                        child: Text('🏠 Activate "Welcome Home" Scene'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'none',
+                        child: Text('No Action (Notification Only)'),
+                      ),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) {
+                        setDialogState(() {
+                          selectedAction = val;
+                          if (val.contains('device-6')) {
+                            actionLabel = 'Unlock Front Door';
+                          } else if (val.contains('device-1')) {
+                            actionLabel = 'Turn ON Living Room Light';
+                          } else if (val.contains('device-2')) {
+                            actionLabel = 'Turn ON Ceiling Fan';
+                          } else if (val.contains('scene:')) {
+                            actionLabel = 'Activate Welcome Home Scene';
+                          } else {
+                            actionLabel = 'Log & Notify Only';
+                          }
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        child: const Text('Cancel'),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primary,
+                          foregroundColor: Colors.white,
+                        ),
+                        onPressed: () async {
+                          final name = nameCtrl.text.trim();
+                          if (name.isEmpty) return;
+
+                          String devId = '';
+                          String aType = 'none';
+                          String scId = '';
+                          if (selectedAction.startsWith('device:')) {
+                            final parts = selectedAction.split(':');
+                            devId = parts[1];
+                            aType = parts[2];
+                          } else if (selectedAction.startsWith('scene:')) {
+                            aType = 'scene';
+                            scId = selectedAction.replaceFirst('scene:', '');
+                          }
+
+                          await provider.enrollFaceProfile(
+                            FaceProfile(
+                              id: 'prof-${DateTime.now().millisecondsSinceEpoch}',
+                              userId: 'usr-admin',
+                              name: name,
+                              role: roleCtrl.text.trim(),
+                              actionDeviceId: devId,
+                              actionType: aType,
+                              actionSceneId: scId,
+                              actionLabel: actionLabel,
+                              cooldownSec: 30,
+                            ),
+                          );
+                          if (context.mounted) {
+                            Navigator.of(ctx).pop();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Enrolled "$name" with rule: $actionLabel'),
+                                backgroundColor: AppTheme.card,
+                              ),
+                            );
+                          }
+                        },
+                        child: const Text('Enroll & Train'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),

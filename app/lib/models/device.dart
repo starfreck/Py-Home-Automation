@@ -333,3 +333,96 @@ class AuthUser {
     'token': token,
   };
 }
+
+class FaceProfile {
+  final String id;
+  final String userId;
+  final String name;
+  final String role;
+  final String photoUrl;
+  final String actionDeviceId;
+  final String actionType;
+  final String actionSceneId;
+  final String actionLabel;
+  final int cooldownSec;
+  final DateTime? lastSeen;
+  final double confidence;
+
+  FaceProfile({
+    required this.id,
+    required this.userId,
+    required this.name,
+    this.role = 'Family Member',
+    this.photoUrl = '',
+    this.actionDeviceId = '',
+    this.actionType = 'none',
+    this.actionSceneId = '',
+    this.actionLabel = 'Log & Notify Only',
+    this.cooldownSec = 30,
+    this.lastSeen,
+    this.confidence = 0.95,
+  });
+
+  factory FaceProfile.fromJson(Map<String, dynamic> json) {
+    return FaceProfile(
+      id: json['id'] ?? '',
+      userId: json['user_id'] ?? '',
+      name: json['name'] ?? '',
+      role: json['role'] ?? 'Family Member',
+      photoUrl: json['photo_url'] ?? '',
+      actionDeviceId: json['action_device_id'] ?? '',
+      actionType: json['action_type'] ?? 'none',
+      actionSceneId: json['action_scene_id'] ?? '',
+      actionLabel: json['action_label'] ?? 'Log & Notify Only',
+      cooldownSec: (json['cooldown_sec'] is num) ? (json['cooldown_sec'] as num).toInt() : 30,
+      lastSeen: json['last_seen'] != null ? DateTime.tryParse(json['last_seen']) : null,
+      confidence: (json['confidence'] is num) ? (json['confidence'] as num).toDouble() : 0.95,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'user_id': userId,
+    'name': name,
+    'role': role,
+    'photo_url': photoUrl,
+    'action_device_id': actionDeviceId,
+    'action_type': actionType,
+    'action_scene_id': actionSceneId,
+    'action_label': actionLabel,
+    'cooldown_sec': cooldownSec,
+  };
+}
+
+class FaceRecognitionEvent {
+  final String profileId;
+  final String name;
+  final double confidence;
+  final String cameraId;
+  final String actionExecuted;
+  final String snapshot;
+  final DateTime timestamp;
+
+  FaceRecognitionEvent({
+    required this.profileId,
+    required this.name,
+    required this.confidence,
+    required this.cameraId,
+    required this.actionExecuted,
+    required this.snapshot,
+    required this.timestamp,
+  });
+
+  factory FaceRecognitionEvent.fromJson(Map<String, dynamic> json) {
+    return FaceRecognitionEvent(
+      profileId: json['profile_id'] ?? '',
+      name: json['name'] ?? '',
+      confidence: (json['confidence'] is num) ? (json['confidence'] as num).toDouble() : 0.95,
+      cameraId: json['camera_id'] ?? '',
+      actionExecuted: json['action_executed'] ?? '',
+      snapshot: json['snapshot'] ?? '',
+      timestamp: json['timestamp'] != null ? DateTime.tryParse(json['timestamp']) ?? DateTime.now() : DateTime.now(),
+    );
+  }
+}
+

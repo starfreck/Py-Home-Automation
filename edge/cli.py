@@ -290,7 +290,92 @@ def cmd_camera_toggle_detection(args):
     print(f"\n[SUCCESS] Face detection {'ENABLED' if new_state else 'DISABLED'}.\n")
 
 
+def cmd_face_list(args):
+    """List enrolled face recognition profiles and automated trigger rules."""
+    token = config.get_token()
+    if not token:
+        print("Error: Not logged in. Run 'omnihome-edge login' first.")
+        sys.exit(1)
+
+    cloud_url = config.get_cloud_url()
+    try:
+        profiles = _http_request(f"{cloud_url}/api/camera/profiles", token=token)
+        print("\n" + "=" * 70)
+        print("                 Enrolled Face Profiles & Trigger Rules                 ")
+        print("=" * 70)
+        print(f"{'ID':<14} {'NAME':<16} {'ROLE':<18} {'AUTOMATED ACTION':<22}")
+        print("-" * 70)
+        for p in profiles:
+            action_desc = p.get("action_label") or (p.get("action_type", "None") + " " + p.get("action_device_id", ""))
+            print(f"{p.get('id', ''):<14} {p.get('name', ''):<16} {p.get('role', 'Resident'):<18} {action_desc:<22}")
+        print("=" * 70 + "\n")
+    except Exception as e:
+        print(f"Error fetching face profiles: {e}")
+        sys.exit(1)
+
+
+def cmd_face_add(args):
+    """Enroll a new face profile with an automated action rule."""
+    token = config.get_token()
+    if not token:
+        print("Error: Not logged in. Run 'omnihome-edge login' first.")
+        sys.exit(1)
+
+    cloud_url = config.get_cloud_url()
+    name = args.name
+    role = args.role or "Family"
+    device_id = args.device or "device-6"
+    action_type = args.action or "turn_on"
+    action_label = args.label or f"Activate {device_id}"
+
+    photo_b64 = ""
+    if args.photo and os.path.exists(args.photo):
+        import base64
+        with open(args.photo, "rb") as f:
+            raw = f.read()
+            photo_b64 = f"data:image/jpeg;base64,{base64.b64encode(raw).decode('utf-8')}"
+
+    payload = {
+        "name": name,
+        "role": role,
+        "action_device_id": device_id,
+        "action_type": action_type,
+        "action_label": action_label,
+        "photo_url": photo_b64,
+        "cooldown_sec": args.cooldown or 30,
+    }
+
+    try:
+        res = _http_request(f"{cloud_url}/api/camera/profiles", method="POST", data=payload, token=token)
+        print("\n[SUCCESS] Enrolled face profile:")
+        print(f"  ID:     {res.get('id')}")
+        print(f"  Name:   {res.get('name')}")
+        print(f"  Role:   {res.get('role')}")
+        print(f"  Action: {res.get('action_label')}\n")
+    except Exception as e:
+        print(f"Failed to enroll face profile: {e}")
+        sys.exit(1)
+
+
+def cmd_face_del(args):
+    """Delete an enrolled face profile."""
+    token = config.get_token()
+    if not token:
+        print("Error: Not logged in. Run 'omnihome-edge login' first.")
+        sys.exit(1)
+
+    cloud_url = config.get_cloud_url()
+    profile_id = args.id
+    try:
+        _http_request(f"{cloud_url}/api/camera/profiles/{profile_id}", method="DELETE", token=token)
+        print(f"\n[SUCCESS] Removed face profile '{profile_id}' from registry.\n")
+    except Exception as e:
+        print(f"Failed to delete face profile: {e}")
+        sys.exit(1)
+
+
 # ===================== COMMAND: START (DAEMON) =====================
+
 
 
 def cmd_start(args):
@@ -391,6 +476,24 @@ def build_parser():
     p_cam_toggle = subparsers.add_parser("cam-detection", help="Toggle or set real-time face detection")
     p_cam_toggle.add_argument("--state", help="'on'/'enable' or 'off'/'disable' (default toggles)")
     p_cam_toggle.set_defaults(func=cmd_camera_toggle_detection)
+
+    # Face Profiles & Tagging
+    p_face_list = subparsers.add_parser("face-list", help="List enrolled face profiles and automated actions")
+    p_face_list.set_defaults(func=cmd_face_list)
+
+    p_face_add = subparsers.add_parser("face-add", help="Enroll a new face profile with an automated action")
+    p_face_add.add_argument("--name", required=True, help="Person name (e.g. 'Alice')")
+    p_face_add.add_argument("--role", default="Family", help="Role (e.g. 'Family', 'Resident')")
+    p_face_add.add_argument("--device", default="device-6", help="Target device ID to trigger (default: device-6)")
+    p_face_add.add_argument("--action", default="turn_on", help="Action type ('turn_on', 'turn_off', 'toggle', 'scene')")
+    p_face_add.add_argument("--label", help="Descriptive action label (e.g. 'Unlock Front Door')")
+    p_face_add.add_argument("--photo", help="Path to reference face JPEG/PNG image")
+    p_face_add.add_argument("--cooldown", type=int, default=30, help="Action cooldown seconds (default: 30)")
+    p_face_add.set_defaults(func=cmd_face_add)
+
+    p_face_del = subparsers.add_parser("face-del", help="Remove an enrolled face profile")
+    p_face_del.add_argument("id", help="Profile ID (e.g. 'prof-alice')")
+    p_face_del.set_defaults(func=cmd_face_del)
 
     # start
     p_start = subparsers.add_parser("start", help="Start edge hardware daemon and reverse tunnel")

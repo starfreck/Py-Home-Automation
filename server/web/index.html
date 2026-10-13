@@ -668,6 +668,24 @@
           <div class="empty-snapshot-hint">No snapshots captured yet. Tap "Take Snapshot" to capture current feed.</div>
         </div>
       </div>
+
+      <!-- ENROLLED FACE PROFILES & AUTOMATION RULES -->
+      <div class="content-card face-profiles-card" style="margin-top: 24px;">
+        <div class="card-title-bar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+          <div>
+            <h4 style="margin: 0; font-size: 16px; font-weight: 700;">Enrolled Face Profiles & Automation Rules</h4>
+            <p style="font-size: 13px; color: var(--text-dim, #94a3b8); margin: 4px 0 0;">Tag household members with photos to trigger automated routines (e.g. unlock door, switch lights, activate scene) when recognized.</p>
+          </div>
+          <button type="button" class="btn-action primary" onclick="openEnrollFaceModal()" style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+            Enroll Person
+          </button>
+        </div>
+
+        <div class="face-profiles-grid" id="face-profiles-grid">
+          <!-- Rendered dynamically by app.js -->
+        </div>
+      </div>
     </div>
 
     <!-- ============================================================== -->
@@ -1034,6 +1052,66 @@
           <button type="submit" id="auth-submit-btn" class="btn-action primary" style="width: 100%; justify-content: center; padding: 12px; font-size: 14px; font-weight: 600;">
             Sign In to Dashboard
           </button>
+        </div>
+      </form>
+    </div>
+  <!-- MODAL: ENROLL FACE PROFILE -->
+  <div class="modal-overlay" id="enroll-face-modal" style="display: none; z-index: 9998;" onclick="closeEnrollFaceModal()">
+    <div class="modal-card" style="max-width: 480px; border: 1px solid var(--border-color, rgba(255,255,255,0.15));" onclick="event.stopPropagation()">
+      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color, rgba(255,255,255,0.1)); padding-bottom: 10px;">
+        <h3 style="margin: 0; font-size: 18px; font-weight: 700;">Enroll Face & Automation Rule</h3>
+        <button type="button" class="btn-subtle" onclick="closeEnrollFaceModal()" style="font-size: 18px; cursor: pointer;">&times;</button>
+      </div>
+
+      <form id="enroll-face-form" onsubmit="handleEnrollFaceSubmit(event)" style="padding-top: 14px;">
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label for="enroll-face-name" style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Person's Name</label>
+          <input type="text" id="enroll-face-name" class="input-control" required placeholder="e.g. Charlie" autocomplete="off">
+        </div>
+
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label for="enroll-face-role" style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Role / Relationship</label>
+          <select id="enroll-face-role" class="input-control">
+            <option value="Resident (Owner)">Resident (Owner)</option>
+            <option value="Family Member" selected>Family Member</option>
+            <option value="Guest">Guest</option>
+            <option value="Service Personnel">Service Personnel</option>
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Reference Photo</label>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <input type="file" id="enroll-face-file" accept="image/*" class="input-control" style="flex: 1; padding: 6px;" onchange="handleEnrollPhotoSelect(event)">
+            <button type="button" class="btn-action secondary" onclick="captureEnrollPhotoFromLiveCam()" title="Capture current frame from live camera">
+              📷 From Cam
+            </button>
+          </div>
+          <div id="enroll-photo-preview" style="display: none; margin-top: 8px; text-align: center;">
+            <img id="enroll-photo-img" src="" alt="Face Preview" style="width: 80px; height: 80px; object-fit: cover; border-radius: 50%; border: 2px solid #10b981;">
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label for="enroll-face-action" style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Automated Trigger Action</label>
+          <select id="enroll-face-action" class="input-control">
+            <option value="none">No Action (Log & Notify Only)</option>
+            <option value="device:device-6:turn_on" selected>🔓 Unlock Front Door Lock</option>
+            <option value="device:device-1:turn_on">💡 Turn ON Living Room Light</option>
+            <option value="device:device-2:turn_on">🌀 Turn ON Ceiling Fan</option>
+            <option value="scene:welcome_home">🏠 Activate "Welcome Home" Scene</option>
+            <option value="scene:night_mode">🌙 Activate "Night Mode" Scene</option>
+          </select>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 18px;">
+          <label for="enroll-face-cooldown" style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Action Cooldown (Seconds)</label>
+          <input type="number" id="enroll-face-cooldown" class="input-control" value="30" min="5" max="3600">
+        </div>
+
+        <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" class="btn-action secondary" onclick="closeEnrollFaceModal()">Cancel</button>
+          <button type="submit" class="btn-action primary">Enroll & Train Model</button>
         </div>
       </form>
     </div>

@@ -24,6 +24,9 @@ class GatewayService {
   final void Function(CameraSnapshot)? onCameraSnapshot;
   final void Function(bool)? onConnectionChange;
   final void Function(bool)? onEdgeStatus;
+  final void Function(FaceProfile)? onFaceProfileUpdated;
+  final void Function(String)? onFaceProfileDeleted;
+  final void Function(FaceRecognitionEvent)? onFaceRecognized;
 
   GatewayService({
     this.baseUrl = 'http://localhost:8080',
@@ -40,6 +43,9 @@ class GatewayService {
     this.onCameraSnapshot,
     this.onConnectionChange,
     this.onEdgeStatus,
+    this.onFaceProfileUpdated,
+    this.onFaceProfileDeleted,
+    this.onFaceRecognized,
   });
 
   bool get isConnected => _isConnected;
@@ -238,6 +244,21 @@ class GatewayService {
           onCameraSnapshot?.call(CameraSnapshot.fromJson(payload));
         }
         break;
+      case 'face_profile_updated':
+        if (payload is Map<String, dynamic>) {
+          onFaceProfileUpdated?.call(FaceProfile.fromJson(payload));
+        }
+        break;
+      case 'face_profile_deleted':
+        if (payload is Map<String, dynamic> && payload['id'] != null) {
+          onFaceProfileDeleted?.call(payload['id'].toString());
+        }
+        break;
+      case 'face_recognized':
+        if (payload is Map<String, dynamic>) {
+          onFaceRecognized?.call(FaceRecognitionEvent.fromJson(payload));
+        }
+        break;
     }
   }
 
@@ -383,6 +404,44 @@ class GatewayService {
         Uri.parse('$baseUrl/api/activities'),
         headers: authHeaders,
       );
+    }
+  }
+
+  Future<List<FaceProfile>> fetchFaceProfiles() async {
+    try {
+      final res = await http.get(
+        Uri.parse('$baseUrl/api/camera/profiles'),
+        headers: authHeaders,
+      );
+      if (res.statusCode == 200) {
+        final list = json.decode(res.body) as List;
+        return list.map((e) => FaceProfile.fromJson(e)).toList();
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  Future<FaceProfile> addFaceProfile(FaceProfile profile) async {
+    final res = await http.post(
+      Uri.parse('$baseUrl/api/camera/profiles'),
+      headers: authHeaders,
+      body: json.encode(profile.toJson()),
+    );
+    if (res.statusCode == 201 || res.statusCode == 200) {
+      return FaceProfile.fromJson(json.decode(res.body));
+    }
+    throw Exception('Failed to enroll face profile: ${res.statusCode}');
+  }
+
+  Future<bool> deleteFaceProfile(String id) async {
+    try {
+      final res = await http.delete(
+        Uri.parse('$baseUrl/api/camera/profiles/$id'),
+        headers: authHeaders,
+      );
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
     }
   }
 }

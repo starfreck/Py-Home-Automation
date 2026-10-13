@@ -135,3 +135,32 @@ type SystemStatus struct {
 	EdgeConnected bool      `json:"edge_connected"`
 	Timestamp     time.Time `json:"timestamp"`
 }
+
+// FaceProfile represents an enrolled individual for facial recognition and automation rules.
+type FaceProfile struct {
+	ID             string     `json:"id"`
+	UserID         string     `json:"user_id"`
+	Name           string     `json:"name"`
+	Role           string     `json:"role"`            // "Resident", "Family", "Guest", etc.
+	PhotoURL       string     `json:"photo_url"`       // Data URL or base64 image
+	ActionDeviceID string     `json:"action_device_id"`// Target device ID (e.g. smart lock)
+	ActionType     string     `json:"action_type"`     // "turn_on", "turn_off", "toggle", "scene", "none"
+	ActionSceneID  string     `json:"action_scene_id"` // Target scene ID if action_type is "scene"
+	ActionLabel    string     `json:"action_label"`    // Human-readable summary: "Unlock Front Door"
+	CooldownSec    int        `json:"cooldown_sec"`    // Prevent action spam (default: 30)
+	LastSeen       *time.Time `json:"last_seen,omitempty"`
+	Confidence     float64    `json:"confidence,omitempty"`
+	CreatedAt      time.Time  `json:"created_at"`
+}
+
+// FaceRecognitionEvent represents a real-time face detection matching an enrolled profile.
+type FaceRecognitionEvent struct {
+	ProfileID      string    `json:"profile_id"`
+	Name           string    `json:"name"`
+	Confidence     float64   `json:"confidence"`
+	CameraID       string    `json:"camera_id"`
+	ActionExecuted string    `json:"action_executed,omitempty"`
+	Snapshot       string    `json:"snapshot,omitempty"`
+	Timestamp      time.Time `json:"timestamp"`
+}
+

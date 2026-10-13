@@ -1810,6 +1810,9 @@ function handleServerMessage(msg) {
       if (msg.payload && Array.isArray(msg.payload.snapshots)) {
         initSnapshots(msg.payload.snapshots);
       }
+      if (msg.payload && Array.isArray(msg.payload.face_profiles)) {
+        initFaceProfiles(msg.payload.face_profiles);
+      }
       if (msg.payload && msg.payload.status) {
         updateGatewayStatusBadge(msg.payload.status);
         updateEdgeStatusUI(msg.payload.status);
@@ -1870,6 +1873,24 @@ function handleServerMessage(msg) {
     case 'camera_snapshot':
       if (msg.payload) {
         addSnapshotToGallery(msg.payload);
+      }
+      break;
+
+    case 'face_profile_updated':
+      if (msg.payload) {
+        upsertFaceProfile(msg.payload);
+      }
+      break;
+
+    case 'face_profile_deleted':
+      if (msg.payload && msg.payload.id) {
+        removeFaceProfile(msg.payload.id);
+      }
+      break;
+
+    case 'face_recognized':
+      if (msg.payload) {
+        handleFaceRecognizedEvent(msg.payload);
       }
       break;
 
@@ -3143,4 +3164,249 @@ function addSnapshotToGallery(snap) {
   const total = strip.querySelectorAll('.snapshot-thumb-wrap').length;
   if (countEl) countEl.innerText = `${total} snapshot${total === 1 ? '' : 's'}`;
 }
+
+// ==============================================================
+// ENROLLED FACE PROFILES & AUTOMATION RULES SUBSYSTEM
+// ==============================================================
+let faceProfiles = [];
+let enrollPhotoBase64 = '';
+
+function initFaceProfiles(profiles) {
+  if (Array.isArray(profiles)) {
+    faceProfiles = profiles;
+    renderFaceProfiles();
+  }
+}
+
+function renderFaceProfiles() {
+  const container = document.getElementById('face-profiles-grid');
+  if (!container) return;
+
+  if (!faceProfiles || faceProfiles.length === 0) {
+    container.innerHTML = `
+      <div style="grid-column: 1 / -1; padding: 32px 16px; text-align: center; color: var(--text-dim, #94a3b8); background: rgba(255,255,255,0.02); border-radius: 10px; border: 1px dashed rgba(255,255,255,0.1);">
+        <div style="font-size: 28px; margin-bottom: 8px;">👤</div>
+        <p style="margin: 0; font-size: 14px;">No face profiles enrolled yet.</p>
+        <p style="margin: 4px 0 0; font-size: 12px; opacity: 0.75;">Click "Enroll Person" to tag family members and link automation routines.</p>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = faceProfiles.map(p => {
+    const avatarHtml = p.photo_url && p.photo_url.startsWith('data:image') 
+      ? `<img src="${p.photo_url}" alt="${p.name}">`
+      : `<span style="font-weight:700; color:#10b981;">${(p.name || 'U').charAt(0).toUpperCase()}</span>`;
+
+    const actionText = p.action_label || (p.action_type === 'none' ? 'Log & Notify Only' : `${p.action_type} (${p.action_device_id || 'System'})`);
+    
+    let actionIcon = '⚡';
+    if (p.action_label && p.action_label.toLowerCase().includes('lock')) actionIcon = '🔓';
+    else if (p.action_label && p.action_label.toLowerCase().includes('light')) actionIcon = '💡';
+    else if (p.action_label && p.action_label.toLowerCase().includes('scene')) actionIcon = '🏠';
+
+    const lastSeenStr = p.last_seen ? new Date(p.last_seen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Never';
+
+    return `
+      <div class="face-profile-card" id="face-card-${p.id}">
+        <div class="face-card-header">
+          <div class="face-avatar">
+            ${avatarHtml}
+          </div>
+          <div class="face-meta" style="flex: 1;">
+            <h5>${escapeHtml(p.name)}</h5>
+            <div class="face-role-tag">${escapeHtml(p.role || 'Resident')}</div>
+          </div>
+          <button type="button" class="face-del-btn" onclick="deleteFaceProfile('${p.id}')" title="Delete Profile">&times;</button>
+        </div>
+
+        <div class="face-rule-box">
+          <div class="face-rule-title">Automated Action</div>
+          <div class="face-rule-action">
+            <span>${actionIcon}</span>
+            <span>${escapeHtml(actionText)}</span>
+          </div>
+        </div>
+
+        <div class="face-card-footer">
+          <span>Cooldown: ${p.cooldown_sec || 30}s</span>
+          <span>Last Seen: <strong>${lastSeenStr}</strong></span>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function upsertFaceProfile(profile) {
+  const idx = faceProfiles.findIndex(p => p.id === profile.id);
+  if (idx >= 0) {
+    faceProfiles[idx] = profile;
+  } else {
+    faceProfiles.push(profile);
+  }
+  renderFaceProfiles();
+}
+
+function removeFaceProfile(id) {
+  faceProfiles = faceProfiles.filter(p => p.id !== id);
+  renderFaceProfiles();
+}
+
+function handleFaceRecognizedEvent(event) {
+  playSFX('confirm');
+  const name = event.name || 'Resident';
+  const confPct = Math.round((event.confidence || 0.95) * 100);
+  const actionDesc = event.action_executed ? `Executed: ${event.action_executed}` : 'Security Verified';
+
+  showToast(`🎯 Face Identified: ${name} (${confPct}%) • ${actionDesc}`, 'success');
+
+  const prof = faceProfiles.find(p => p.id === event.profile_id || p.name === name);
+  if (prof) {
+    prof.last_seen = event.timestamp || new Date().toISOString();
+    renderFaceProfiles();
+  }
+
+  const hudBoxes = document.querySelectorAll('.face-detect-box .face-name');
+  hudBoxes.forEach(box => {
+    box.innerText = `${name.toUpperCase()} [${confPct}%] • ${actionDesc.toUpperCase()}`;
+    box.style.borderColor = '#10b981';
+    box.style.color = '#10b981';
+    setTimeout(() => {
+      box.innerText = 'Face Active';
+      box.style.borderColor = '';
+      box.style.color = '';
+    }, 5000);
+  });
+}
+
+function openEnrollFaceModal() {
+  enrollPhotoBase64 = '';
+  const modal = document.getElementById('enroll-face-modal');
+  const preview = document.getElementById('enroll-photo-preview');
+  const form = document.getElementById('enroll-face-form');
+  if (form) form.reset();
+  if (preview) preview.style.display = 'none';
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeEnrollFaceModal() {
+  const modal = document.getElementById('enroll-face-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+function handleEnrollPhotoSelect(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    enrollPhotoBase64 = e.target.result;
+    const preview = document.getElementById('enroll-photo-preview');
+    const img = document.getElementById('enroll-photo-img');
+    if (img) img.src = enrollPhotoBase64;
+    if (preview) preview.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+function captureEnrollPhotoFromLiveCam() {
+  const canvas = document.getElementById('camera-canvas-full') || document.getElementById('camera-canvas');
+  if (!canvas) {
+    showToast('No active camera feed found', 'warn');
+    return;
+  }
+  try {
+    enrollPhotoBase64 = canvas.toDataURL('image/jpeg', 0.90);
+    const preview = document.getElementById('enroll-photo-preview');
+    const img = document.getElementById('enroll-photo-img');
+    if (img) img.src = enrollPhotoBase64;
+    if (preview) preview.style.display = 'block';
+    showToast('Captured frame from live camera feed', 'success');
+  } catch (err) {
+    showToast('Could not grab frame from canvas', 'error');
+  }
+}
+
+async function handleEnrollFaceSubmit(event) {
+  event.preventDefault();
+  const name = document.getElementById('enroll-face-name').value.trim();
+  const role = document.getElementById('enroll-face-role').value;
+  const actionVal = document.getElementById('enroll-face-action').value;
+  const cooldownSec = parseInt(document.getElementById('enroll-face-cooldown').value, 10) || 30;
+
+  let actionType = 'none';
+  let actionDeviceId = '';
+  let actionSceneId = '';
+  let actionLabel = 'Log & Notify Only';
+
+  if (actionVal.startsWith('device:')) {
+    const parts = actionVal.split(':');
+    actionDeviceId = parts[1];
+    actionType = parts[2] || 'turn_on';
+    const select = document.getElementById('enroll-face-action');
+    actionLabel = select.options[select.selectedIndex].text.replace(/^[^\w]+/, '').trim();
+  } else if (actionVal.startsWith('scene:')) {
+    actionType = 'scene';
+    actionSceneId = actionVal.replace('scene:', '');
+    const select = document.getElementById('enroll-face-action');
+    actionLabel = select.options[select.selectedIndex].text.replace(/^[^\w]+/, '').trim();
+  }
+
+  const payload = {
+    name,
+    role,
+    photo_url: enrollPhotoBase64,
+    action_device_id: actionDeviceId,
+    action_type: actionType,
+    action_scene_id: actionSceneId,
+    action_label: actionLabel,
+    cooldown_sec: cooldownSec
+  };
+
+  try {
+    const token = getStoredAuthToken();
+    const res = await fetch('/api/camera/profiles', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+      const created = await res.json();
+      upsertFaceProfile(created);
+      closeEnrollFaceModal();
+      showToast(`Enrolled "${name}" with rule: ${actionLabel}`, 'success');
+      playSFX('confirm');
+      return;
+    }
+    const errData = await res.json().catch(() => ({}));
+    showToast(`Enrollment error: ${errData.error || res.statusText}`, 'error');
+  } catch (err) {
+    showToast(`Network error: ${err.message}`, 'error');
+  }
+}
+
+async function deleteFaceProfile(id) {
+  if (!confirm('Are you sure you want to remove this face recognition profile?')) return;
+  try {
+    const token = getStoredAuthToken();
+    const res = await fetch(`/api/camera/profiles/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    if (res.ok) {
+      removeFaceProfile(id);
+      showToast('Face profile removed', 'success');
+      playSFX('click');
+      return;
+    }
+  } catch (err) {
+    showToast(`Error deleting profile: ${err.message}`, 'error');
+  }
+}
+
 

@@ -106,6 +106,8 @@ class EdgeTunnelClient:
                     await self._handle_execute_action(ws, payload)
                 elif msg_type in ("sync_devices", "init_config"):
                     await self._handle_sync_devices(ws, payload)
+                elif msg_type == "sync_face_profiles":
+                    await self._handle_sync_face_profiles(ws, payload)
                 elif msg_type == "camera_snapshot":
                     await self._handle_camera_snapshot(ws, payload)
                 elif msg_type == "camera_scan":
@@ -229,29 +231,61 @@ class EdgeTunnelClient:
             self.camera.face_detection_enabled = bool(payload["face_detection"])
             logger.info(f"Face detection toggled to: {self.camera.face_detection_enabled}")
 
+    async def _handle_sync_face_profiles(self, ws, payload: Any):
+        """Synchronize and train local face recognition model with enrolled profiles from cloud."""
+        profiles = payload if isinstance(payload, list) else []
+        if self.camera:
+            self.camera.sync_profiles(profiles)
+            logger.info(f"Synchronized {len(profiles)} face profile(s) to edge vision engine.")
+
     async def surveillance_loop(self, ws):
-        """Monitors video feed for face recognition events and pushes security alerts."""
+        """Monitors video feed for face recognition events and pushes security alerts & automation triggers."""
         if not self.camera or not self.camera_enabled:
             return
-        logger.info("Camera surveillance and face detection monitor active.")
+        logger.info("Camera surveillance and facial recognition monitor active.")
         while self.running:
             try:
-                event = self.camera.check_face_event()
-                if event:
-                    logger.info(f"Dispatching face detection event ({event.get('faces_count')} face(s)) to cloud...")
-                    # Send snapshot frame
+                # 1. Check for specific individual face recognition events (e.g. Alice, Bob)
+                recog_events = self.camera.check_face_recognition_events()
+                for rec_event in recog_events:
+                    logger.info(
+                        f"Face Recognized: {rec_event['name']} ({rec_event['confidence']*100:.1f}%) "
+                        f"-> Triggering Cloud Action: {rec_event.get('action_label', 'Actuation')}"
+                    )
+                    await ws.send(json.dumps({
+                        "type": "face_recognized",
+                        "payload": rec_event,
+                    }))
+                    # Emit snapshot frame
+                    await ws.send(json.dumps({
+                        "type": "camera_snapshot",
+                        "payload": {
+                            "id": f"snap-rec-{int(time.time()*1000)}",
+                            "timestamp": rec_event["timestamp"],
+                            "data_url": rec_event["snapshot"],
+                            "source": rec_event["camera_id"],
+                            "width": self.camera.width,
+                            "height": self.camera.height,
+                            "face_detected": True,
+                            "faces_count": 1,
+                        },
+                    }))
+
+                # 2. General unthrottled face alert check
+                event = self.camera.check_face_event() if hasattr(self.camera, "check_face_event") else None
+                if event and not recog_events:
+                    logger.info(f"Visitor face spotted ({event.get('faces_count')} face(s)).")
                     await ws.send(json.dumps({
                         "type": "camera_snapshot",
                         "payload": event,
                     }))
-                    # Emit security activity ledger entry
                     await ws.send(json.dumps({
                         "type": "activity_event",
                         "payload": {
                             "id": f"act-face-{int(time.time()*1000)}",
                             "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                             "category": "security",
-                            "message": f"Biometric detection: {event.get('faces_count')} face(s) spotted on {self.hub_id}",
+                            "message": f"Security: Visitor face detected on {self.hub_id}",
                             "source": "camera",
                         },
                     }))

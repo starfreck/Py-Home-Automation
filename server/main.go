@@ -122,10 +122,11 @@ func main() {
 				"hub_id":  hubID,
 				"is_mock": isMock,
 			})
-			// Push initial device configuration to the edge device
+			// Push initial device configuration and enrolled face profiles to the edge device
 			_ = eventHub.SendCommandToEdge(userID, "init_config", map[string]interface{}{
 				"devices": deviceMgr.GetAllDevices(userID),
 			})
+			_ = eventHub.SendCommandToEdge(userID, "sync_face_profiles", deviceMgr.GetFaceProfiles(userID))
 
 		case "telemetry":
 			rawBytes, _ := json.Marshal(msg.Payload)
@@ -170,6 +171,36 @@ func main() {
 			if err := json.Unmarshal(rawBytes, &scanRes); err == nil {
 				deviceMgr.LogActivity(userID, "security", fmt.Sprintf("Biometric face match on %s (%.1f%%)", scanRes.CameraID, scanRes.Confidence*100), "camera")
 				eventHub.BroadcastToUser(userID, "camera_scan", scanRes)
+			}
+
+		case "face_recognized":
+			rawBytes, _ := json.Marshal(msg.Payload)
+			var event model.FaceRecognitionEvent
+			if err := json.Unmarshal(rawBytes, &event); err == nil {
+				profile, _ := deviceMgr.GetFaceProfileByID(userID, event.ProfileID)
+				if profile != nil {
+					deviceMgr.RecordFaceSeen(userID, event.ProfileID)
+					actionDesc, err := deviceMgr.ExecuteFaceAction(userID, *profile)
+					if err == nil && actionDesc != "" {
+						event.ActionExecuted = actionDesc
+						deviceMgr.LogActivity(userID, "security", fmt.Sprintf("Familiar Face Verified: %s (%.1f%%) -> Rule: %s", event.Name, event.Confidence*100, actionDesc), "camera")
+						if profile.ActionDeviceID != "" {
+							if dev, err := deviceMgr.GetDevice(userID, profile.ActionDeviceID); err == nil {
+								eventHub.BroadcastToUser(userID, "device_update", dev)
+								_ = eventHub.SendCommandToEdge(userID, "execute_action", map[string]interface{}{
+									"device_id": dev.ID,
+									"gpio_pin":  dev.GPIOPin,
+									"action":    "set_state",
+									"state":     dev.State,
+									"value":     dev.Value,
+								})
+							}
+						}
+					} else {
+						deviceMgr.LogActivity(userID, "security", fmt.Sprintf("Familiar Face Verified: %s (%.1f%%)", event.Name, event.Confidence*100), "camera")
+					}
+				}
+				eventHub.BroadcastToUser(userID, "face_recognized", event)
 			}
 		}
 	}
@@ -282,6 +313,7 @@ func main() {
 			"scenes":        deviceMgr.GetAllScenes(userID),
 			"activities":    deviceMgr.GetActivities(userID, 50),
 			"snapshots":     deviceMgr.GetSnapshots(userID),
+			"face_profiles": deviceMgr.GetFaceProfiles(userID),
 			"status":        deviceMgr.GetSystemStatus(userID),
 			"edge_online":   eventHub.IsEdgeOnline(userID),
 		}
@@ -574,6 +606,51 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		claims, _ := auth.GetUserFromContext(r)
 		json.NewEncoder(w).Encode(deviceMgr.GetSnapshots(claims.UserID))
+	}))
+
+	// Face Profiles & Recognition Rules
+	mux.HandleFunc("/api/camera/profiles", authService.Middleware(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		claims, _ := auth.GetUserFromContext(r)
+		userID := claims.UserID
+
+		if r.Method == http.MethodPost {
+			var prof model.FaceProfile
+			if err := json.NewDecoder(r.Body).Decode(&prof); err != nil {
+				http.Error(w, `{"error":"invalid JSON profile payload"}`, http.StatusBadRequest)
+				return
+			}
+			saved := deviceMgr.AddFaceProfile(userID, prof)
+			eventHub.BroadcastToUser(userID, "face_profile_updated", saved)
+			_ = eventHub.SendCommandToEdge(userID, "sync_face_profiles", deviceMgr.GetFaceProfiles(userID))
+			deviceMgr.LogActivity(userID, "security", fmt.Sprintf("Enrolled face profile for '%s' (%s)", saved.Name, saved.Role), "camera")
+			w.WriteHeader(http.StatusCreated)
+			json.NewEncoder(w).Encode(saved)
+			return
+		}
+
+		json.NewEncoder(w).Encode(deviceMgr.GetFaceProfiles(userID))
+	}))
+
+	mux.HandleFunc("/api/camera/profiles/", authService.Middleware(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		claims, _ := auth.GetUserFromContext(r)
+		userID := claims.UserID
+
+		parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+		if len(parts) >= 4 && r.Method == http.MethodDelete {
+			profileID := parts[3]
+			if err := deviceMgr.DeleteFaceProfile(userID, profileID); err != nil {
+				http.Error(w, err.Error(), http.StatusNotFound)
+				return
+			}
+			eventHub.BroadcastToUser(userID, "face_profile_deleted", map[string]string{"id": profileID})
+			_ = eventHub.SendCommandToEdge(userID, "sync_face_profiles", deviceMgr.GetFaceProfiles(userID))
+			deviceMgr.LogActivity(userID, "security", fmt.Sprintf("Removed face profile '%s'", profileID), "camera")
+			json.NewEncoder(w).Encode(map[string]string{"status": "deleted", "id": profileID})
+			return
+		}
+		http.NotFound(w, r)
 	}))
 
 	// Healthcheck

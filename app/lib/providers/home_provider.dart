@@ -10,6 +10,7 @@ class HomeProvider extends ChangeNotifier {
   List<AutomationScene> _scenes = [];
   List<ActivityItem> _activities = [];
   List<CameraSnapshot> _snapshots = [];
+  List<FaceProfile> _faceProfiles = [];
   GatewayStatus? _status;
   
   bool _isConnected = false;
@@ -51,6 +52,9 @@ class HomeProvider extends ChangeNotifier {
       onSceneActivated: _handleSceneActivated,
       onCameraScan: _handleCameraScan,
       onCameraSnapshot: _handleCameraSnapshot,
+      onFaceProfileUpdated: _handleFaceProfileUpdated,
+      onFaceProfileDeleted: _handleFaceProfileDeleted,
+      onFaceRecognized: _handleFaceRecognized,
       onConnectionChange: (connected) {
         _isConnected = connected;
         notifyListeners();
@@ -76,6 +80,7 @@ class HomeProvider extends ChangeNotifier {
   List<AutomationScene> get scenes => _scenes;
   List<ActivityItem> get activities => _activities;
   List<CameraSnapshot> get snapshots => _snapshots;
+  List<FaceProfile> get faceProfiles => _faceProfiles;
   GatewayStatus? get status => _status;
   bool get isConnected => _isConnected;
   int get latencyMs => _latencyMs;
@@ -242,6 +247,9 @@ class HomeProvider extends ChangeNotifier {
     if (data['snapshots'] is List) {
       _snapshots = (data['snapshots'] as List).map((e) => CameraSnapshot.fromJson(e)).toList();
     }
+    if (data['face_profiles'] is List) {
+      _faceProfiles = (data['face_profiles'] as List).map((e) => FaceProfile.fromJson(e)).toList();
+    }
     if (data['status'] is Map<String, dynamic>) {
       _status = GatewayStatus.fromJson(data['status']);
     }
@@ -292,6 +300,69 @@ class HomeProvider extends ChangeNotifier {
   void _handleCameraSnapshot(CameraSnapshot snap) {
     _snapshots.insert(0, snap);
     notifyListeners();
+  }
+
+  void _handleFaceProfileUpdated(FaceProfile prof) {
+    final idx = _faceProfiles.indexWhere((p) => p.id == prof.id);
+    if (idx != -1) {
+      _faceProfiles[idx] = prof;
+    } else {
+      _faceProfiles.add(prof);
+    }
+    notifyListeners();
+  }
+
+  void _handleFaceProfileDeleted(String id) {
+    _faceProfiles.removeWhere((p) => p.id == id);
+    notifyListeners();
+  }
+
+  void _handleFaceRecognized(FaceRecognitionEvent event) {
+    final idx = _faceProfiles.indexWhere((p) => p.id == event.profileId || p.name == event.name);
+    if (idx != -1) {
+      final old = _faceProfiles[idx];
+      _faceProfiles[idx] = FaceProfile(
+        id: old.id,
+        userId: old.userId,
+        name: old.name,
+        role: old.role,
+        photoUrl: old.photoUrl,
+        actionDeviceId: old.actionDeviceId,
+        actionType: old.actionType,
+        actionSceneId: old.actionSceneId,
+        actionLabel: old.actionLabel,
+        cooldownSec: old.cooldownSec,
+        lastSeen: event.timestamp,
+        confidence: event.confidence,
+      );
+    }
+    notifyListeners();
+  }
+
+  Future<void> fetchFaceProfiles() async {
+    final list = await _gateway.fetchFaceProfiles();
+    if (list.isNotEmpty) {
+      _faceProfiles = list;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> enrollFaceProfile(FaceProfile profile) async {
+    try {
+      final created = await _gateway.addFaceProfile(profile);
+      _handleFaceProfileUpdated(created);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> deleteFaceProfile(String id) async {
+    final ok = await _gateway.deleteFaceProfile(id);
+    if (ok) {
+      _handleFaceProfileDeleted(id);
+    }
+    return ok;
   }
 
   void _initDefaultScenes() {

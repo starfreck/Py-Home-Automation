@@ -30,6 +30,9 @@ type DeviceManager struct {
 	// UserID -> []CameraSnapshot
 	snapshots map[string][]model.CameraSnapshot
 
+	// UserID -> ProfileID -> FaceProfile
+	faceProfiles map[string]map[string]model.FaceProfile
+
 	// UserID -> HubNode
 	hubNodes map[string]*model.HubNode
 
@@ -46,17 +49,18 @@ func NewDeviceManager(
 	onActivity func(userID string, item *model.ActivityItem),
 ) *DeviceManager {
 	dm := &DeviceManager{
-		devices:    make(map[string]map[string]*model.Device),
-		scenes:     make(map[string]map[string]model.Scene),
-		telemetry:  make(map[string]model.Telemetry),
-		settings:   make(map[string]model.Settings),
-		activities: make(map[string][]model.ActivityItem),
-		snapshots:  make(map[string][]model.CameraSnapshot),
-		hubNodes:   make(map[string]*model.HubNode),
-		startTime:  time.Now(),
-		onUpdate:   onUpdate,
-		onActivity: onActivity,
-		stopChan:   make(chan struct{}),
+		devices:      make(map[string]map[string]*model.Device),
+		scenes:       make(map[string]map[string]model.Scene),
+		telemetry:    make(map[string]model.Telemetry),
+		settings:     make(map[string]model.Settings),
+		activities:   make(map[string][]model.ActivityItem),
+		snapshots:    make(map[string][]model.CameraSnapshot),
+		faceProfiles: make(map[string]map[string]model.FaceProfile),
+		hubNodes:     make(map[string]*model.HubNode),
+		startTime:    time.Now(),
+		onUpdate:     onUpdate,
+		onActivity:   onActivity,
+		stopChan:     make(chan struct{}),
 	}
 
 	// Seed default administrator tenant
@@ -252,6 +256,36 @@ func (dm *DeviceManager) InitUserDefaults(userID string) {
 		Message:   "Cloud tenant initialized. Awaiting Edge CLI connection.",
 		Source:    "cloud",
 	})
+
+	if _, ok := dm.faceProfiles[userID]; !ok {
+		dm.faceProfiles[userID] = make(map[string]model.FaceProfile)
+		p1 := model.FaceProfile{
+			ID:             "prof-alice",
+			UserID:         userID,
+			Name:           "Alice",
+			Role:           "Resident (Owner)",
+			ActionDeviceID: "device-6",
+			ActionType:     "turn_on",
+			ActionLabel:    "Unlock Front Door",
+			CooldownSec:    30,
+			Confidence:     0.965,
+			CreatedAt:      now.Add(-48 * time.Hour),
+		}
+		p2 := model.FaceProfile{
+			ID:             "prof-bob",
+			UserID:         userID,
+			Name:           "Bob",
+			Role:           "Family Member",
+			ActionDeviceID: "device-1",
+			ActionType:     "turn_on",
+			ActionLabel:    "Turn On Living Room Light",
+			CooldownSec:    30,
+			Confidence:     0.942,
+			CreatedAt:      now.Add(-24 * time.Hour),
+		}
+		dm.faceProfiles[userID][p1.ID] = p1
+		dm.faceProfiles[userID][p2.ID] = p2
+	}
 }
 
 // GetAllDevices returns all devices belonging to a user.
@@ -805,3 +839,142 @@ func (dm *DeviceManager) Close() {
 		close(dm.stopChan)
 	}
 }
+
+// GetFaceProfiles returns all enrolled face profiles for a user.
+func (dm *DeviceManager) GetFaceProfiles(userID string) []model.FaceProfile {
+	dm.mu.RLock()
+	defer dm.mu.RUnlock()
+
+	userProfiles, ok := dm.faceProfiles[userID]
+	if !ok {
+		return []model.FaceProfile{}
+	}
+
+	list := make([]model.FaceProfile, 0, len(userProfiles))
+	for _, p := range userProfiles {
+		list = append(list, p)
+	}
+
+	sort.Slice(list, func(i, j int) bool {
+		return list[i].CreatedAt.Before(list[j].CreatedAt)
+	})
+	return list
+}
+
+// GetFaceProfileByID returns a single profile by ID.
+func (dm *DeviceManager) GetFaceProfileByID(userID, profileID string) (*model.FaceProfile, error) {
+	dm.mu.RLock()
+	defer dm.mu.RUnlock()
+
+	userProfiles, ok := dm.faceProfiles[userID]
+	if !ok {
+		return nil, fmt.Errorf("profile not found")
+	}
+	p, ok := userProfiles[profileID]
+	if !ok {
+		return nil, fmt.Errorf("profile not found")
+	}
+	cpy := p
+	return &cpy, nil
+}
+
+// AddFaceProfile stores a newly enrolled face profile.
+func (dm *DeviceManager) AddFaceProfile(userID string, profile model.FaceProfile) model.FaceProfile {
+	dm.mu.Lock()
+	defer dm.mu.Unlock()
+
+	if _, ok := dm.faceProfiles[userID]; !ok {
+		dm.faceProfiles[userID] = make(map[string]model.FaceProfile)
+	}
+
+	if profile.ID == "" {
+		profile.ID = fmt.Sprintf("prof-%d", time.Now().UnixNano())
+	}
+	profile.UserID = userID
+	profile.CreatedAt = time.Now()
+	if profile.CooldownSec <= 0 {
+		profile.CooldownSec = 30
+	}
+
+	dm.faceProfiles[userID][profile.ID] = profile
+	return profile
+}
+
+// DeleteFaceProfile removes an enrolled profile.
+func (dm *DeviceManager) DeleteFaceProfile(userID, profileID string) error {
+	dm.mu.Lock()
+	defer dm.mu.Unlock()
+
+	userProfiles, ok := dm.faceProfiles[userID]
+	if !ok {
+		return fmt.Errorf("profile not found")
+	}
+	if _, ok := userProfiles[profileID]; !ok {
+		return fmt.Errorf("profile not found")
+	}
+	delete(userProfiles, profileID)
+	return nil
+}
+
+// RecordFaceSeen updates the LastSeen timestamp on a profile.
+func (dm *DeviceManager) RecordFaceSeen(userID, profileID string) *model.FaceProfile {
+	dm.mu.Lock()
+	defer dm.mu.Unlock()
+
+	userProfiles, ok := dm.faceProfiles[userID]
+	if !ok {
+		return nil
+	}
+	p, ok := userProfiles[profileID]
+	if !ok {
+		return nil
+	}
+	now := time.Now()
+	p.LastSeen = &now
+	dm.faceProfiles[userID][profileID] = p
+	cpy := p
+	return &cpy
+}
+
+// ExecuteFaceAction triggers the automated device or scene rule associated with an enrolled face profile.
+func (dm *DeviceManager) ExecuteFaceAction(userID string, profile model.FaceProfile) (string, error) {
+	switch profile.ActionType {
+	case "turn_on":
+		if profile.ActionDeviceID != "" {
+			dev, err := dm.SetDeviceState(userID, profile.ActionDeviceID, true, 100)
+			if err != nil {
+				return "", err
+			}
+			return fmt.Sprintf("Turned ON %s (%s)", dev.Name, dev.Room), nil
+		}
+	case "turn_off":
+		if profile.ActionDeviceID != "" {
+			dev, err := dm.SetDeviceState(userID, profile.ActionDeviceID, false, 0)
+			if err != nil {
+				return "", err
+			}
+			return fmt.Sprintf("Turned OFF %s (%s)", dev.Name, dev.Room), nil
+		}
+	case "toggle":
+		if profile.ActionDeviceID != "" {
+			dev, err := dm.ToggleDevice(userID, profile.ActionDeviceID)
+			if err != nil {
+				return "", err
+			}
+			stateStr := "OFF"
+			if dev.State {
+				stateStr = "ON"
+			}
+			return fmt.Sprintf("Toggled %s to %s", dev.Name, stateStr), nil
+		}
+	case "scene":
+		if profile.ActionSceneID != "" {
+			if err := dm.ApplyScene(userID, profile.ActionSceneID); err != nil {
+				return "", err
+			}
+			return fmt.Sprintf("Activated scene '%s'", profile.ActionSceneID), nil
+		}
+	}
+	return "No automated action (Notification only)", nil
+}
+
