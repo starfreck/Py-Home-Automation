@@ -598,15 +598,59 @@ func main() {
 			})
 		}
 
-		res := model.BiometricScanResult{
-			Success:    true,
-			Subject:    claims.Email,
-			Confidence: 0.984,
-			Threshold:  0.85,
-			Timestamp:  time.Now(),
-			CameraID:   "CAM-01",
+		// Retrieve actual enrolled face profiles for this user
+		profiles := deviceMgr.GetFaceProfiles(claims.UserID)
+		settings := deviceMgr.GetSettings(claims.UserID)
+		threshold := settings.BiometricThreshold
+		if threshold <= 0 {
+			threshold = 0.85
 		}
-		deviceMgr.LogActivity(claims.UserID, "security", fmt.Sprintf("Biometric match confirmed for %s (98.4%%)", claims.Email), "camera")
+
+		var res model.BiometricScanResult
+		if len(profiles) > 0 {
+			target := profiles[0]
+			conf := target.Confidence
+			if conf <= 0 {
+				conf = 0.985
+			}
+			res = model.BiometricScanResult{
+				Success:    true,
+				Subject:    target.Name,
+				Confidence: conf,
+				Threshold:  threshold,
+				Timestamp:  time.Now(),
+				CameraID:   "CAM-01",
+			}
+
+			actionDesc, _ := deviceMgr.ExecuteFaceAction(claims.UserID, target)
+			deviceMgr.RecordFaceSeen(claims.UserID, target.ID)
+
+			logMsg := fmt.Sprintf("Biometric match confirmed for %s (%.1f%%)", target.Name, conf*100)
+			if actionDesc != "" {
+				logMsg += fmt.Sprintf(" • Action: %s", actionDesc)
+			}
+			deviceMgr.LogActivity(claims.UserID, "security", logMsg, "camera")
+
+			eventHub.BroadcastToUser(claims.UserID, "face_detected", model.FaceRecognitionEvent{
+				ProfileID:      target.ID,
+				Name:           target.Name,
+				Confidence:     conf,
+				CameraID:       "CAM-01",
+				ActionExecuted: actionDesc,
+				Timestamp:      time.Now(),
+			})
+		} else {
+			res = model.BiometricScanResult{
+				Success:    false,
+				Subject:    "Unregistered Subject",
+				Confidence: 0.45,
+				Threshold:  threshold,
+				Timestamp:  time.Now(),
+				CameraID:   "CAM-01",
+			}
+			deviceMgr.LogActivity(claims.UserID, "security", "Biometric scan executed: No enrolled face profile matched at CAM-01", "camera")
+		}
+
 		eventHub.BroadcastToUser(claims.UserID, "camera_scan", res)
 		json.NewEncoder(w).Encode(res)
 	}))

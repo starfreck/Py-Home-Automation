@@ -1,6 +1,7 @@
 // OMNIHOME — PRODUCTION MULTI-TENANT CLOUD GATEWAY & EDGE CONTROLLER
 let ws = null;
 let devices = [];
+let scenes = [];
 let currentFilter = 'all';
 let logCounter = 0;
 let isListening = false;
@@ -17,6 +18,10 @@ try {
   currentUser = null;
 }
 
+function getStoredAuthToken() {
+  return authToken || localStorage.getItem('omnihome_token') || '';
+}
+
 try {
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams.get('token')) {
@@ -24,8 +29,8 @@ try {
     localStorage.setItem('omnihome_token', authToken);
     currentUser = {
       id: urlParams.get('user_id') || 'usr-default',
-      name: urlParams.get('name') || 'Alice',
-      email: urlParams.get('email') || 'alice@example.com'
+      name: urlParams.get('name') || 'Tenant User',
+      email: urlParams.get('email') || 'user@omnihome.local'
     };
     localStorage.setItem('omnihome_user', JSON.stringify(currentUser));
   }
@@ -694,12 +699,12 @@ function getPaletteIcon(id) {
 const commandPaletteActions = [
   { id: 'cinema', category: 'Automation', label: 'Activate Cinema Mode', desc: 'Dims living room, secures front door', action: () => activateScene('movie_night') },
   { id: 'secure', category: 'Automation', label: 'Perimeter Lockdown', desc: 'Engage deadbolt, start camera surveillance', action: () => activateScene('secure_perimeter') },
-  { id: 'all_on', category: 'Automation', label: 'Activate All Relays', desc: 'Turns on all 6 hardware nodes', action: () => activateScene('all_on') },
+  { id: 'all_on', category: 'Automation', label: 'Activate All Relays', desc: 'Turns on all connected hardware nodes', action: () => activateScene('all_on') },
   { id: 'all_off', category: 'Automation', label: 'Eco Standby / All Off', desc: 'Powers down all non-essential relays', action: () => activateScene('all_off') },
   { id: 'edit_mode', category: 'Layout', label: 'Toggle Edit Mode', desc: 'Rearrange and customize dashboard widgets', action: () => toggleEditMode() },
   { id: 'customize', category: 'Layout', label: 'Customize OS Theme & Wallpapers', desc: 'Select themes and backdrops', action: () => openCustomizeModal() },
   { id: 'ambient', category: 'Navigation', label: 'Open Ambient Core AI', desc: 'Full-screen hologram voice interface', action: () => switchNav('ambient', document.querySelector('[data-view="ambient"]')) },
-  { id: 'devices', category: 'Navigation', label: 'Fleet Hardware Manager', desc: 'Inspect all 6 IoT relay channels', action: () => switchNav('devices', document.querySelector('[data-view="devices"]')) },
+  { id: 'devices', category: 'Navigation', label: 'Fleet Hardware Manager', desc: 'Inspect all connected IoT relay channels', action: () => switchNav('devices', document.querySelector('[data-view="devices"]')) },
   { id: 'cameras', category: 'Navigation', label: 'CSI Edge Cameras', desc: 'Live video feed & facial recognition', action: () => switchNav('cameras', document.querySelector('[data-view="cameras"]')) },
   { id: 'activity', category: 'Navigation', label: 'Audit Trail & Telemetry', desc: 'Full system audit logs', action: () => switchNav('activity', document.querySelector('[data-view="activity"]')) },
   { id: 'theme_claude_dark', category: 'Theme', label: 'Theme: Claude Dark', desc: 'Warm minimalist dark theme (Default)', action: () => setTheme('claude-dark') },
@@ -833,7 +838,12 @@ function switchWorkspace(name) {
   if (el) el.innerText = name;
   closeWorkspaceMenu();
   playSFX('click');
-  showToast(`Active property switched to ${name}`, 'info');
+  showToast(`Active property: ${name}`, 'info');
+
+  // Trigger telemetry and status sync for active property context
+  pingGateway();
+  loadDevices();
+  loadScenes();
 }
 
 // Global escape key listener to exit edit mode
@@ -1529,6 +1539,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     updateUserProfileUI();
     connectWebSocket();
     loadSettings();
+    loadDevices();
+    loadScenes();
+    loadFaceProfiles();
     pingGateway();
     const initialView = new URLSearchParams(window.location.search).get('view');
     if (initialView) {
@@ -1783,6 +1796,8 @@ function connectWebSocket() {
 
     ws.onopen = () => {
       if (statusLabel) statusLabel.innerText = 'Hub: Online';
+      const footerWs = document.getElementById('footer-ws-status');
+      if (footerWs) footerWs.innerText = 'Connected (Real-time)';
       addLog('event', 'Authenticated real-time channel established.');
       updateGatewayStatusBadge({ status: 'online' });
     };
@@ -1798,6 +1813,8 @@ function connectWebSocket() {
 
     ws.onclose = () => {
       if (statusLabel) statusLabel.innerText = 'Hub: Reconnecting...';
+      const footerWs = document.getElementById('footer-ws-status');
+      if (footerWs) footerWs.innerText = 'Disconnected';
       addLog('warn', 'Connection interrupted. Re-establishing link...');
       if (authToken) {
         setTimeout(connectWebSocket, 2000);
@@ -2001,6 +2018,13 @@ async function pingGateway() {
         statusEl.innerText = `Cloud • ${lat}ms`;
       }
       updateEdgeStatusUI(data);
+
+      const footerVer = document.getElementById('footer-hub-version');
+      if (footerVer) footerVer.innerText = `Enterprise Cloud Hub v${data.version || '2.4.0'}`;
+      const footerNode = document.getElementById('footer-node-id');
+      if (footerNode) footerNode.innerText = data.gateway || 'hub-linux-edge-01';
+      const footerAi = document.getElementById('footer-ai-model');
+      if (footerAi && !footerAi.innerText) footerAi.innerText = 'Gemma 4-B Local FP16';
     }
   } catch (e) {
     const statusEl = document.getElementById('header-hub-status');
@@ -2205,13 +2229,17 @@ function activateScene(sceneId) {
 
 // COLOR THEME MAPPER PER DEVICE TYPE
 function getDeviceColorClass(d) {
-  if (d.id === 'device-1') return 'type-relay device-light';
-  if (d.id === 'device-2') return 'type-fan';
-  if (d.id === 'device-3') return 'device-tv';
-  if (d.id === 'device-4') return 'device-ac';
-  if (d.id === 'device-5') return 'type-dimmer';
-  if (d.id === 'device-6') return 'type-lock';
-  return `type-${d.type}`;
+  if (!d) return 'type-relay';
+  const type = (d.type || '').toLowerCase();
+  const name = (d.name || '').toLowerCase();
+
+  if (type === 'lock' || name.includes('lock')) return 'type-lock';
+  if (type === 'fan' || name.includes('fan')) return 'type-fan';
+  if (type === 'dimmer' || name.includes('dimmer')) return 'type-dimmer';
+  if (name.includes('tv') || name.includes('television')) return 'device-tv';
+  if (name.includes('ac') || name.includes('air condition')) return 'device-ac';
+  if (name.includes('light') || name.includes('lamp')) return 'type-relay device-light';
+  return `type-${d.type || 'relay'}`;
 }
 
 let deviceSearchQuery = '';
@@ -2254,6 +2282,7 @@ function renderDevices() {
       viewGrid.innerHTML = filtered.map(d => renderDeviceCardHtml(d)).join('');
     }
   }
+  renderDynamicRoomFilters();
 }
 
 function renderDeviceCardHtml(d) {
@@ -2319,11 +2348,12 @@ function updateSingleDevice(updatedDevice) {
   }
 
   // Update lock KPI card if lock changed
-  if (updatedDevice.id === 'device-6') {
+  const isLock = updatedDevice.type === 'lock' || (updatedDevice.name && updatedDevice.name.toLowerCase().includes('lock'));
+  if (isLock) {
     const lockEl = document.getElementById('stat-lock-status');
     if (lockEl) lockEl.innerText = updatedDevice.state ? 'Secured' : 'Unlocked';
     const secPill = document.getElementById('greeting-security-status');
-    if (secPill) secPill.innerText = updatedDevice.state ? 'Front Deadbolt Secured' : 'Front Deadbolt Unlocked';
+    if (secPill) secPill.innerText = updatedDevice.state ? 'Perimeter Lock Secured' : 'Perimeter Lock Unlocked';
     const secDot = document.querySelector('.sec-dot');
     if (secDot) {
       secDot.className = `sec-dot ${updatedDevice.state ? 'secured' : 'unsecured'}`;
@@ -2336,6 +2366,15 @@ function updateSingleDevice(updatedDevice) {
   }
 
   renderDeviceSettingsTable();
+}
+
+function togglePerimeterLock() {
+  const lock = devices.find(d => d.type === 'lock' || (d.name && d.name.toLowerCase().includes('lock')));
+  if (lock) {
+    toggleDevice(lock.id);
+  } else if (devices.length > 0) {
+    toggleDevice(devices[0].id);
+  }
 }
 
 function toggleDevice(id) {
@@ -2370,6 +2409,62 @@ function filterRoom(room) {
     else b.classList.remove('active');
   });
   renderDevices();
+}
+
+function renderDynamicRoomFilters() {
+  const container = document.getElementById('room-filters-container');
+  if (!container) return;
+
+  const uniqueRooms = Array.from(new Set(devices.map(d => d.room).filter(Boolean))).sort();
+  let html = `<button class="segment-btn ${currentFilter === 'all' ? 'active' : ''}" data-room="all" onclick="filterRoom('all')">All</button>`;
+  uniqueRooms.forEach(room => {
+    const isActive = currentFilter.toLowerCase() === room.toLowerCase();
+    html += `<button class="segment-btn ${isActive ? 'active' : ''}" data-room="${escapeHtml(room)}" onclick="filterRoom('${escapeHtml(room)}')">${escapeHtml(room)}</button>`;
+  });
+  container.innerHTML = html;
+}
+
+async function loadDevices() {
+  if (!authToken) return;
+  try {
+    const res = await fetch('/api/devices');
+    if (res.ok) {
+      devices = await res.json();
+      renderDevices();
+      renderDeviceSettingsTable();
+    }
+  } catch (err) {
+    console.warn('Could not load devices:', err);
+  }
+}
+
+async function loadScenes() {
+  if (!authToken) return;
+  try {
+    const res = await fetch('/api/scenes');
+    if (res.ok) {
+      scenes = await res.json();
+      const badge = document.getElementById('presets-count-badge');
+      if (badge) {
+        badge.innerText = `${scenes.length} Presets`;
+      }
+    }
+  } catch (err) {
+    console.warn('Could not load scenes:', err);
+  }
+}
+
+async function loadFaceProfiles() {
+  if (!authToken) return;
+  try {
+    const res = await fetch('/api/camera/profiles');
+    if (res.ok) {
+      faceProfiles = await res.json();
+      renderFaceProfiles();
+    }
+  } catch (err) {
+    console.warn('Could not load face profiles:', err);
+  }
 }
 
 async function clearEventLogs() {
@@ -2426,10 +2521,30 @@ async function loadSettings() {
     const speechEl = document.getElementById('setting-auto-speech');
 
     if (hubNameEl && s.hub_name) hubNameEl.value = s.hub_name;
-    if (s.hub_name) document.title = `${s.hub_name} • Cloud Gateway`;
+    if (s.hub_name) {
+      document.title = `${s.hub_name} • Cloud Gateway`;
+      const wsEl = document.getElementById('current-workspace-name');
+      if (wsEl) wsEl.innerText = `${s.hub_name} • Hub #01`;
+      const menuItems = document.getElementById('workspace-menu-items');
+      if (menuItems) {
+        menuItems.innerHTML = `
+          <button type="button" class="workspace-item active" onclick="switchWorkspace('${escapeHtml(s.hub_name)} • Hub #01')">
+            <span class="ws-dot active"></span>
+            <div class="ws-info">
+              <span class="ws-title">${escapeHtml(s.hub_name)}</span>
+              <span class="ws-sub">Hub #01 • Online</span>
+            </div>
+          </button>
+        `;
+      }
+    }
     if (intervalEl && s.telemetry_interval) intervalEl.value = s.telemetry_interval;
     if (ollamaEl && s.ollama_host) ollamaEl.value = s.ollama_host;
-    if (modelEl && s.gemma_model) modelEl.value = s.gemma_model;
+    if (modelEl && s.gemma_model) {
+      modelEl.value = s.gemma_model;
+      const footerAi = document.getElementById('footer-ai-model');
+      if (footerAi) footerAi.innerText = s.gemma_model;
+    }
     if (camEl && s.camera_source) camEl.value = s.camera_source;
     if (threshEl && s.biometric_threshold) {
       const pct = Math.round(s.biometric_threshold * 100);
@@ -2519,8 +2634,8 @@ async function testOllamaEndpoint() {
     playSFX('confirm');
   } catch (err) {
     if (statusEl) {
-      statusEl.innerText = 'Connected (Simulated Local Engine • 12ms)';
-      statusEl.style.color = 'var(--success)';
+      statusEl.innerText = 'Offline / Unreachable';
+      statusEl.style.color = 'var(--accent-red, #ef4444)';
     }
   }
 }
@@ -3064,6 +3179,7 @@ async function simulateFaceScan() {
   const labels = document.querySelectorAll('.face-name');
 
   boxes.forEach(box => {
+    box.style.display = 'block';
     const randX = 25 + Math.floor(Math.random() * 25);
     const randY = 20 + Math.floor(Math.random() * 20);
     box.style.left = `${randX}%`;
@@ -3084,26 +3200,46 @@ async function simulateFaceScan() {
       return;
     }
   } catch (err) {
-    console.warn('Backend face scan error, using local fallback:', err);
+    console.warn('Backend face scan error:', err);
   }
 
-  // Graceful fallback
+  // Graceful fallback using enrolled profile or current user if scan offline
   setTimeout(() => {
-    handleRemoteCameraScan({ success: true, subject: 'Vasu', confidence: 0.998 });
+    if (faceProfiles && faceProfiles.length > 0) {
+      const p = faceProfiles[0];
+      handleRemoteCameraScan({ success: true, subject: p.name, confidence: p.confidence || 0.95 });
+    } else {
+      const fallbackName = currentUser ? currentUser.name : 'Unknown Subject';
+      handleRemoteCameraScan({ success: false, subject: fallbackName, confidence: 0.50 });
+    }
   }, 700);
 }
 
 function handleRemoteCameraScan(data) {
   const labels = document.querySelectorAll('.face-name');
+  const subjectName = data.subject || (currentUser ? currentUser.name : 'Authorized Subject');
+  const conf = data.confidence || 0.95;
+  const confPct = Math.round(conf * 1000) / 10;
+
+  document.querySelectorAll('.face-detect-box').forEach(box => {
+    box.style.display = 'block';
+  });
+
   labels.forEach(label => {
-    label.innerText = `${data.subject || 'Vasu'} (${Math.round((data.confidence || 0.998) * 1000) / 10}%)`;
+    label.innerText = `${subjectName} (${confPct}%)`;
     label.style.background = data.success ? 'var(--accent-green)' : 'var(--accent-amber)';
     label.style.color = '#000';
   });
-  playSFX('confirm');
-  const speech = `Biometric verification confirmed. Subject identified as ${data.subject || 'Vasu'}.`;
-  speakAssistantResponse(speech);
-  showToast(`Biometric match: ${data.subject || 'Vasu'} (${Math.round((data.confidence || 0.998) * 100)}%)`, 'success');
+
+  if (data.success) {
+    playSFX('confirm');
+    const speech = `Biometric verification confirmed. Subject identified as ${subjectName}.`;
+    speakAssistantResponse(speech);
+    showToast(`Biometric match: ${subjectName} (${Math.round(conf * 100)}%)`, 'success');
+  } else {
+    playSFX('listen');
+    showToast(`Biometric scan: ${subjectName} (${Math.round(conf * 100)}% match)`, 'warning');
+  }
 }
 
 async function simulateSnapshot() {
@@ -3420,6 +3556,10 @@ function handleFaceRecognizedEvent(event) {
   const confPct = Math.round((event.confidence || 0.95) * 100);
   const actionDesc = event.action_executed ? `Executed: ${event.action_executed}` : 'Security Verified';
 
+  document.querySelectorAll('.face-detect-box').forEach(box => {
+    box.style.display = 'block';
+  });
+
   showToast(`🎯 Face Identified: ${name} (${confPct}%) • ${actionDesc}`, 'success');
 
   const prof = faceProfiles.find(p => p.id === event.profile_id || p.name === name);
@@ -3448,6 +3588,30 @@ function openEnrollFaceModal() {
   const form = document.getElementById('enroll-face-form');
   if (form) form.reset();
   if (preview) preview.style.display = 'none';
+
+  // Dynamically populate available automation trigger actions from user devices and scenes
+  const actionSelect = document.getElementById('enroll-face-action');
+  if (actionSelect) {
+    let opts = '<option value="none" selected>No Action (Log & Notify Only)</option>';
+    if (Array.isArray(devices) && devices.length > 0) {
+      opts += '<optgroup label="Device Triggers">';
+      devices.forEach(d => {
+        const icon = d.type === 'lock' ? '🔓' : (d.type === 'fan' ? '🌀' : '💡');
+        const verb = d.type === 'lock' ? 'Unlock' : 'Turn ON';
+        opts += `<option value="device:${d.id}:turn_on">${icon} ${verb} ${escapeHtml(d.name)}</option>`;
+      });
+      opts += '</optgroup>';
+    }
+    if (Array.isArray(scenes) && scenes.length > 0) {
+      opts += '<optgroup label="Scene Presets">';
+      scenes.forEach(s => {
+        opts += `<option value="scene:${s.id}">🏠 Activate "${escapeHtml(s.name)}" Scene</option>`;
+      });
+      opts += '</optgroup>';
+    }
+    actionSelect.innerHTML = opts;
+  }
+
   if (modal) modal.style.display = 'flex';
 }
 

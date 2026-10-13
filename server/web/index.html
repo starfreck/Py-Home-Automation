@@ -23,32 +23,20 @@
       <!-- PROPERTY & TENANT WORKSPACE SELECTOR -->
       <div class="saas-workspace-selector" onclick="toggleWorkspaceMenu(event)" title="Switch Active Property">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-        <span id="current-workspace-name">Vasu Penthouse • Hub #01</span>
+        <span id="current-workspace-name">Primary Property • Hub #01</span>
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
 
         <div class="saas-workspace-menu" id="workspace-dropdown-menu" style="display: none;">
-          <div class="workspace-menu-header">Cloud Connected Properties</div>
-          <button type="button" class="workspace-item active" onclick="switchWorkspace('Vasu Penthouse • Hub #01')">
-            <span class="ws-dot active"></span>
-            <div class="ws-info">
-              <span class="ws-title">Vasu Penthouse (Primary)</span>
-              <span class="ws-sub">6 Relays • Online • 11ms</span>
-            </div>
-          </button>
-          <button type="button" class="workspace-item" onclick="switchWorkspace('Mountain Villa • Hub #02')">
-            <span class="ws-dot standby"></span>
-            <div class="ws-info">
-              <span class="ws-title">Mountain Villa</span>
-              <span class="ws-sub">4 Relays • Standby</span>
-            </div>
-          </button>
-          <button type="button" class="workspace-item" onclick="switchWorkspace('Downtown Studio • Hub #03')">
-            <span class="ws-dot standby"></span>
-            <div class="ws-info">
-              <span class="ws-title">Downtown Studio</span>
-              <span class="ws-sub">8 Relays • Standby</span>
-            </div>
-          </button>
+          <div class="workspace-menu-header">Connected Properties</div>
+          <div id="workspace-menu-items">
+            <button type="button" class="workspace-item active" onclick="switchWorkspace('Primary Property • Hub #01')">
+              <span class="ws-dot active"></span>
+              <div class="ws-info">
+                <span class="ws-title">Primary Property</span>
+                <span class="ws-sub">Hub #01 • Connecting...</span>
+              </div>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -172,13 +160,13 @@
             <span class="tenant-sep">/</span>
             <span class="tenant-node" id="telemetry-node-label">Edge Node #01</span>
           </div>
-          <h2 class="greeting-title" id="greeting-title">Command Center — Vasu</h2>
-          <span class="greeting-date" id="greeting-date">Monday, October 12, 2026</span>
+          <h2 class="greeting-title" id="greeting-title">Command Center</h2>
+          <span class="greeting-date" id="greeting-date">--</span>
         </div>
         <div class="greeting-right">
           <div class="greeting-status-capsule" title="Edge node hardware telemetry">
             <span class="status-indicator"></span>
-            <span id="gateway-health-pill">Gateway Online • 6 Relays Nominal</span>
+            <span id="gateway-health-pill">Connecting to Gateway...</span>
           </div>
           <button class="btn-subtle" id="btn-edit-mode" onclick="toggleEditMode()" title="Toggle widget edit & reorder mode">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -298,7 +286,7 @@
           </div>
           <div class="bento-card-header">
             <span class="bento-card-title">Quick Automations</span>
-            <span class="badge-subtle">4 Presets</span>
+            <span class="badge-subtle" id="presets-count-badge">Automations</span>
           </div>
           <div class="bento-scenes-grid">
             <button type="button" class="bento-scene-btn" onclick="activateScene('movie_night')">
@@ -356,14 +344,14 @@
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"/></svg>
           </div>
           <div class="kpi-main-number">
-            <span id="stat-temp">24.2</span><span class="kpi-unit">°C</span>
+            <span id="stat-temp">--</span><span class="kpi-unit">°C</span>
           </div>
           <div class="kpi-meta-row">
-            <span>Humidity: <strong id="stat-humidity">48</strong>%</span>
+            <span>Humidity: <strong id="stat-humidity">--</strong>%</span>
             <span class="kpi-tag-good">Optimal</span>
           </div>
           <div class="kpi-meter-wrap" title="Climate comfort score">
-            <div class="kpi-meter-bar" style="width: 76%;"></div>
+            <div class="kpi-meter-bar" style="width: 0%;"></div>
           </div>
           <span class="kpi-desc">Living Room Edge Sensor</span>
         </div>
@@ -382,7 +370,7 @@
           <div class="bento-card-header">
             <div class="bento-card-title">
               <span>Essential Devices</span>
-              <span class="badge-subtle" id="device-count-pill">6 Devices</span>
+              <span class="badge-subtle" id="device-count-pill">-- Devices</span>
             </div>
             <button class="link-pill-btn" onclick="switchNav('devices')">Manage All Devices &rarr;</button>
           </div>
@@ -407,13 +395,13 @@
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
           </div>
           <div class="kpi-main-number">
-            <span id="stat-watts">155.0</span><span class="kpi-unit">W</span>
+            <span id="stat-watts">--</span><span class="kpi-unit">W</span>
           </div>
           <div class="kpi-meta-row">
-            <span>Active Relays: <strong id="stat-active-count">4</strong> / <span id="stat-total-count">6</span></span>
+            <span>Active Relays: <strong id="stat-active-count">--</strong> / <span id="stat-total-count">--</span></span>
           </div>
           <div class="kpi-meter-wrap" title="Power capacity utilization">
-            <div class="kpi-meter-bar power-bar" id="stat-power-bar" style="width: 31%;"></div>
+            <div class="kpi-meter-bar power-bar" id="stat-power-bar" style="width: 0%;"></div>
           </div>
           <span class="kpi-desc">Real-time hardware load</span>
         </div>
@@ -434,14 +422,14 @@
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
           </div>
           <div class="kpi-main-number">
-            <span id="stat-lock-status">Secured</span>
+            <span id="stat-lock-status">Status Pending</span>
           </div>
           <div class="kpi-meta-row">
-            <button class="btn-subtle" onclick="toggleDevice('device-6')">Toggle Deadbolt</button>
-            <span class="kpi-desc">Pi: <span id="stat-pi-temp">41.8°C</span></span>
+            <button class="btn-subtle" onclick="togglePerimeterLock()">Toggle Deadbolt</button>
+            <span class="kpi-desc">Pi: <span id="stat-pi-temp">--</span></span>
           </div>
           <div class="kpi-meter-wrap" title="Security perimeter status">
-            <div class="kpi-meter-bar" id="stat-security-bar" style="width: 100%;"></div>
+            <div class="kpi-meter-bar" id="stat-security-bar" style="width: 0%;"></div>
           </div>
         </div>
 
@@ -469,8 +457,8 @@
           </div>
           <div class="bento-cam-frame">
             <canvas id="camera-canvas" width="480" height="240"></canvas>
-            <div id="ai-target-box" class="face-detect-box">
-              <span id="target-label" class="face-name">Vasu (99.8%)</span>
+            <div id="ai-target-box" class="face-detect-box" style="display: none;">
+              <span id="target-label" class="face-name">No Subject Detected</span>
             </div>
             <div class="cam-overlay-footer">
               <span>CSI Stream • Front Entrance</span>
@@ -508,7 +496,7 @@
     <div class="page-view" id="view-ambient" style="display: none;">
       <div class="ambient-fullscreen-stage">
         <div class="ambient-clock-large" id="ambient-big-clock">00:00:00</div>
-        <div class="ambient-date-sub" id="ambient-big-date">Monday, October 12, 2026</div>
+        <div class="ambient-date-sub" id="ambient-big-date">--</div>
 
         <div class="ambient-glob-wrapper" onclick="handleGlobClick()">
           <div class="glob-canvas-container large">
@@ -524,7 +512,7 @@
         </div>
 
         <div class="ambient-interaction-hud">
-          <div class="ambient-transcript" id="ambient-transcript">"All systems nominal"</div>
+          <div class="ambient-transcript" id="ambient-transcript">"Tap to speak or press /"</div>
           <div class="ambient-reply" id="ambient-reply">Awaiting vocal directive or shortcut command.</div>
         </div>
 
@@ -561,11 +549,8 @@
 
       <!-- ROOM FILTER & SEARCH TOOLBAR -->
       <div class="devices-toolbar">
-        <div class="segment-control">
+        <div class="segment-control" id="room-filters-container">
           <button class="segment-btn active" data-room="all" onclick="filterRoom('all')">All</button>
-          <button class="segment-btn" data-room="Living Room" onclick="filterRoom('Living Room')">Living Room</button>
-          <button class="segment-btn" data-room="Bedroom" onclick="filterRoom('Bedroom')">Bedroom</button>
-          <button class="segment-btn" data-room="Security" onclick="filterRoom('Security')">Security</button>
         </div>
 
         <div class="toolbar-search-wrap">
@@ -576,7 +561,7 @@
         <div class="toolbar-actions">
           <button type="button" class="btn-subtle" onclick="activateScene('all_on')" title="Turn all on">All On</button>
           <button type="button" class="btn-subtle" onclick="activateScene('all_off')" title="Turn all off">All Off</button>
-          <span class="item-count" id="devices-view-count">6 Devices</span>
+          <span class="item-count" id="devices-view-count">-- Devices</span>
         </div>
       </div>
 
@@ -618,8 +603,8 @@
           </div>
           <div class="camera-frame">
             <canvas id="camera-canvas-full" width="480" height="270"></canvas>
-            <div class="face-detect-box" style="left: 35%; top: 25%;">
-              <span class="face-name">Vasu (99.8%)</span>
+            <div class="face-detect-box" style="display: none; left: 35%; top: 25%;">
+              <span class="face-name">No Subject Detected</span>
             </div>
             <div class="cam-overlay-footer">
               <span>Front Entrance Deadbolt</span>
@@ -647,8 +632,8 @@
           </div>
           <div class="camera-frame">
             <canvas id="camera-canvas-cam2" width="480" height="270"></canvas>
-            <div class="face-detect-box" style="left: 20%; top: 30%;">
-              <span class="face-name">Wide Angle Active</span>
+            <div class="face-detect-box" style="display: none; left: 20%; top: 30%;">
+              <span class="face-name">CAM-02 Standby</span>
             </div>
             <div class="cam-overlay-footer">
               <span>Living Room Wide Angle</span>
@@ -1047,12 +1032,12 @@
   <footer class="saas-footer">
     <div class="saas-footer-content">
       <div class="footer-left">
-        <span class="saas-badge-pill">Enterprise Cloud Hub v3.4.2</span>
-        <span class="footer-meta">Node: <strong>hub-linux-edge-01</strong></span>
-        <span class="footer-meta">WebSocket: <strong id="footer-ws-status">Connected (11ms)</strong></span>
+        <span class="saas-badge-pill" id="footer-hub-version">Enterprise Cloud Hub</span>
+        <span class="footer-meta">Node: <strong id="footer-node-id">--</strong></span>
+        <span class="footer-meta">WebSocket: <strong id="footer-ws-status">Connecting...</strong></span>
       </div>
       <div class="footer-right">
-        <span class="footer-meta">Inference Engine: <strong>Gemma 4-B Local FP16</strong></span>
+        <span class="footer-meta">Inference Engine: <strong id="footer-ai-model">--</strong></span>
         <span class="footer-meta">Security: <strong>AES-256 / TLS 1.3</strong></span>
       </div>
     </div>
@@ -1081,7 +1066,7 @@
       <form id="auth-form" onsubmit="handleAuthSubmit(event)">
         <div class="form-group" id="auth-name-group" style="display: none; margin-bottom: 12px;">
           <label for="auth-name" style="font-size: 12px; font-weight: 500; display: block; margin-bottom: 4px;">Full Name</label>
-          <input type="text" id="auth-name" class="input-control" placeholder="e.g. Alice Cooper" autocomplete="name">
+          <input type="text" id="auth-name" class="input-control" placeholder="e.g. Full Name" autocomplete="name">
         </div>
 
         <div class="form-group" style="margin-bottom: 12px;">
@@ -1101,6 +1086,8 @@
         </div>
       </form>
     </div>
+  </div>
+
   <!-- MODAL: ENROLL FACE PROFILE -->
   <div class="modal-overlay" id="enroll-face-modal" style="display: none; z-index: 9998;" onclick="closeEnrollFaceModal()">
     <div class="modal-card" style="max-width: 480px; border: 1px solid var(--border-color, rgba(255,255,255,0.15));" onclick="event.stopPropagation()">
@@ -1112,7 +1099,7 @@
       <form id="enroll-face-form" onsubmit="handleEnrollFaceSubmit(event)" style="padding-top: 14px;">
         <div class="form-group" style="margin-bottom: 12px;">
           <label for="enroll-face-name" style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Person's Name</label>
-          <input type="text" id="enroll-face-name" class="input-control" required placeholder="e.g. Charlie" autocomplete="off">
+          <input type="text" id="enroll-face-name" class="input-control" required placeholder="e.g. Full Name" autocomplete="off">
         </div>
 
         <div class="form-group" style="margin-bottom: 12px;">
@@ -1141,12 +1128,7 @@
         <div class="form-group" style="margin-bottom: 12px;">
           <label for="enroll-face-action" style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 4px;">Automated Trigger Action</label>
           <select id="enroll-face-action" class="input-control">
-            <option value="none">No Action (Log & Notify Only)</option>
-            <option value="device:device-6:turn_on" selected>🔓 Unlock Front Door Lock</option>
-            <option value="device:device-1:turn_on">💡 Turn ON Living Room Light</option>
-            <option value="device:device-2:turn_on">🌀 Turn ON Ceiling Fan</option>
-            <option value="scene:welcome_home">🏠 Activate "Welcome Home" Scene</option>
-            <option value="scene:night_mode">🌙 Activate "Night Mode" Scene</option>
+            <option value="none" selected>No Action (Log & Notify Only)</option>
           </select>
         </div>
 

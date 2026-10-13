@@ -280,32 +280,6 @@ func (dm *DeviceManager) InitUserDefaults(userID string) {
 
 	if _, ok := dm.faceProfiles[userID]; !ok {
 		dm.faceProfiles[userID] = make(map[string]model.FaceProfile)
-		p1 := model.FaceProfile{
-			ID:             "prof-alice",
-			UserID:         userID,
-			Name:           "Alice",
-			Role:           "Resident (Owner)",
-			ActionDeviceID: "device-6",
-			ActionType:     "turn_on",
-			ActionLabel:    "Unlock Front Door",
-			CooldownSec:    30,
-			Confidence:     0.965,
-			CreatedAt:      now.Add(-48 * time.Hour),
-		}
-		p2 := model.FaceProfile{
-			ID:             "prof-bob",
-			UserID:         userID,
-			Name:           "Bob",
-			Role:           "Family Member",
-			ActionDeviceID: "device-1",
-			ActionType:     "turn_on",
-			ActionLabel:    "Turn On Living Room Light",
-			CooldownSec:    30,
-			Confidence:     0.942,
-			CreatedAt:      now.Add(-24 * time.Hour),
-		}
-		dm.faceProfiles[userID][p1.ID] = p1
-		dm.faceProfiles[userID][p2.ID] = p2
 	}
 }
 
