@@ -1,13 +1,18 @@
 package service
 
 import (
+	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/starfreck/omnihome-server/internal/model"
+	"github.com/starfreck/omnihome-server/internal/storage"
 )
 
 // DeviceManager coordinates multi-tenant device states, edge hardware channels, and telemetry.
@@ -36,11 +41,12 @@ type DeviceManager struct {
 	// UserID -> HubNode
 	hubNodes map[string]*model.HubNode
 
-	startTime  time.Time
-	mu         sync.RWMutex
-	onUpdate   func(userID string, device *model.Device)
-	onActivity func(userID string, item *model.ActivityItem)
-	stopChan   chan struct{}
+	storageClient *storage.Client
+	startTime     time.Time
+	mu            sync.RWMutex
+	onUpdate      func(userID string, device *model.Device)
+	onActivity    func(userID string, item *model.ActivityItem)
+	stopChan      chan struct{}
 }
 
 // NewDeviceManager initializes the multi-tenant manager.
@@ -67,7 +73,22 @@ func NewDeviceManager(
 	dm.InitUserDefaults("usr-admin-default")
 
 	go dm.telemetryWorker()
+	go dm.activityArchiveWorker()
 	return dm
+}
+
+// SetStorageClient assigns the RustFS object storage client.
+func (dm *DeviceManager) SetStorageClient(sc *storage.Client) {
+	dm.mu.Lock()
+	defer dm.mu.Unlock()
+	dm.storageClient = sc
+}
+
+// GetStorageClient returns the configured storage client.
+func (dm *DeviceManager) GetStorageClient() *storage.Client {
+	dm.mu.RLock()
+	defer dm.mu.RUnlock()
+	return dm.storageClient
 }
 
 // InitUserDefaults populates initial sample devices and presets for a new tenant.
@@ -793,6 +814,23 @@ func (dm *DeviceManager) AddSnapshot(userID string, snap model.CameraSnapshot) m
 	snap.UserID = userID
 	snap.Timestamp = time.Now()
 
+	// Upload to RustFS object storage partitioned by date
+	if snap.DataURL != "" && dm.storageClient != nil {
+		raw := snap.DataURL
+		if strings.Contains(raw, ",") {
+			raw = strings.SplitN(raw, ",", 2)[1]
+		}
+		if rawBytes, err := base64.StdEncoding.DecodeString(raw); err == nil && len(rawBytes) > 0 {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			storagePath, errUpload := dm.storageClient.UploadFaceSnapshot(ctx, userID, snap.ID, rawBytes, snap.Timestamp)
+			cancel()
+			if errUpload == nil {
+				snap.StoragePath = storagePath
+				snap.StorageURL = fmt.Sprintf("/api/storage/file?path=%s", storagePath)
+			}
+		}
+	}
+
 	if _, exists := dm.snapshots[userID]; !exists {
 		dm.snapshots[userID] = make([]model.CameraSnapshot, 0)
 	}
@@ -896,6 +934,22 @@ func (dm *DeviceManager) AddFaceProfile(userID string, profile model.FaceProfile
 		profile.CooldownSec = 30
 	}
 
+	// Upload enrolled avatar photo to RustFS
+	if profile.PhotoURL != "" && dm.storageClient != nil && strings.HasPrefix(profile.PhotoURL, "data:") {
+		raw := profile.PhotoURL
+		if strings.Contains(raw, ",") {
+			raw = strings.SplitN(raw, ",", 2)[1]
+		}
+		if rawBytes, err := base64.StdEncoding.DecodeString(raw); err == nil && len(rawBytes) > 0 {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			storagePath, errUpload := dm.storageClient.UploadProfilePhoto(ctx, userID, profile.ID, rawBytes, profile.CreatedAt)
+			cancel()
+			if errUpload == nil {
+				profile.PhotoURL = fmt.Sprintf("/api/storage/file?path=%s", storagePath)
+			}
+		}
+	}
+
 	dm.faceProfiles[userID][profile.ID] = profile
 	return profile
 }
@@ -976,5 +1030,68 @@ func (dm *DeviceManager) ExecuteFaceAction(userID string, profile model.FaceProf
 		}
 	}
 	return "No automated action (Notification only)", nil
+}
+
+// ArchiveActivitiesOlderThan archives activities older than the specified duration to RustFS partitioned by date.
+func (dm *DeviceManager) ArchiveActivitiesOlderThan(cutoff time.Duration) (map[string]int, error) {
+	dm.mu.Lock()
+	defer dm.mu.Unlock()
+
+	if dm.storageClient == nil {
+		return nil, fmt.Errorf("storage client not configured")
+	}
+
+	threshold := time.Now().Add(-cutoff)
+	archivedCounts := make(map[string]int)
+
+	for userID, items := range dm.activities {
+		var toKeep []model.ActivityItem
+		toArchiveByDate := make(map[string][]model.ActivityItem)
+
+		for _, item := range items {
+			if item.Timestamp.Before(threshold) {
+				dateStr := item.Timestamp.Format("2006-01-02")
+				toArchiveByDate[dateStr] = append(toArchiveByDate[dateStr], item)
+			} else {
+				toKeep = append(toKeep, item)
+			}
+		}
+
+		totalArchivedUser := 0
+		for dateStr, dateItems := range toArchiveByDate {
+			data, err := json.MarshalIndent(dateItems, "", "  ")
+			if err != nil {
+				continue
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			_, err = dm.storageClient.UploadArchivedActivities(ctx, userID, dateStr, data)
+			cancel()
+			if err == nil {
+				totalArchivedUser += len(dateItems)
+			}
+		}
+
+		if totalArchivedUser > 0 {
+			dm.activities[userID] = toKeep
+			archivedCounts[userID] = totalArchivedUser
+		}
+	}
+
+	return archivedCounts, nil
+}
+
+func (dm *DeviceManager) activityArchiveWorker() {
+	ticker := time.NewTicker(30 * time.Minute)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-dm.stopChan:
+			return
+		case <-ticker.C:
+			// Automatically archive activity ledger entries older than 24 hours to RustFS
+			_, _ = dm.ArchiveActivitiesOlderThan(24 * time.Hour)
+		}
+	}
 }
 

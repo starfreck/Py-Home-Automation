@@ -81,6 +81,10 @@ class HomeProvider extends ChangeNotifier {
   List<ActivityItem> get activities => _activities;
   List<CameraSnapshot> get snapshots => _snapshots;
   List<FaceProfile> get faceProfiles => _faceProfiles;
+  List<String> get storageDates => _storageDates;
+  String get selectedStorageDate => _selectedStorageDate;
+  List<Map<String, dynamic>> get storageFiles => _storageFiles;
+  List<ActivityItem> get archivedActivities => _archivedActivities;
   GatewayStatus? get status => _status;
   bool get isConnected => _isConnected;
   int get latencyMs => _latencyMs;
@@ -90,6 +94,11 @@ class HomeProvider extends ChangeNotifier {
   String get lastAssistantReply => _lastAssistantReply;
   bool get isAiThinking => _isAiThinking;
   String get baseUrl => _gateway.baseUrl;
+
+  List<String> _storageDates = [];
+  String _selectedStorageDate = '';
+  List<Map<String, dynamic>> _storageFiles = [];
+  List<ActivityItem> _archivedActivities = [];
 
   List<Device> get filteredDevices {
     var list = _currentFilter == 'All'
@@ -398,6 +407,37 @@ class HomeProvider extends ChangeNotifier {
         ),
       ];
     }
+  }
+
+  Future<void> loadStorageDates({String type = 'faces'}) async {
+    _storageDates = await _gateway.fetchStorageDates(type: type);
+    notifyListeners();
+  }
+
+  Future<void> setStorageDate(String date) async {
+    _selectedStorageDate = date;
+    await loadStorageFiles();
+  }
+
+  Future<void> loadStorageFiles() async {
+    _storageFiles = await _gateway.fetchStorageFiles(
+      type: 'faces',
+      date: _selectedStorageDate.isNotEmpty ? _selectedStorageDate : null,
+    );
+    notifyListeners();
+  }
+
+  Future<void> loadArchivedActivities(String date) async {
+    _archivedActivities = await _gateway.fetchArchivedActivities(date);
+    notifyListeners();
+  }
+
+  Future<bool> archiveOldActivities({int hours = 24}) async {
+    final success = await _gateway.archiveActivities(hours: hours);
+    if (success) {
+      await loadStorageDates(type: 'activities');
+    }
+    return success;
   }
 
   @override

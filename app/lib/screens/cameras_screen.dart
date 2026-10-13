@@ -362,16 +362,35 @@ class _CamerasScreenState extends State<CamerasScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Expanded(
-          child: Text(
-            'Captured Surveillance Snapshots',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              letterSpacing: -0.3,
-              color: AppTheme.textMain,
-            ),
-            overflow: TextOverflow.ellipsis,
+        Expanded(
+          child: Row(
+            children: [
+              const Flexible(
+                child: Text(
+                  'Captured Face Snapshots',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.3,
+                    color: AppTheme.textMain,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppTheme.accentGreen.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: AppTheme.accentGreen.withValues(alpha: 0.4)),
+                ),
+                child: const Text(
+                  'RustFS Cloud',
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppTheme.accentGreen),
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(width: 8),

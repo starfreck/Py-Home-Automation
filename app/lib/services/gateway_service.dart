@@ -444,4 +444,59 @@ class GatewayService {
       return false;
     }
   }
+
+  Future<List<String>> fetchStorageDates({String type = 'faces'}) async {
+    try {
+      final res = await http.get(
+        Uri.parse('$baseUrl/api/storage/dates?type=$type'),
+        headers: authHeaders,
+      );
+      if (res.statusCode == 200) {
+        final list = json.decode(res.body) as List;
+        return list.map((e) => e.toString()).toList();
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  Future<List<Map<String, dynamic>>> fetchStorageFiles({String type = 'faces', String? date}) async {
+    try {
+      final query = date != null && date.isNotEmpty ? '?type=$type&date=$date' : '?type=$type';
+      final res = await http.get(
+        Uri.parse('$baseUrl/api/storage/files$query'),
+        headers: authHeaders,
+      );
+      if (res.statusCode == 200) {
+        final list = json.decode(res.body) as List;
+        return list.cast<Map<String, dynamic>>();
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  Future<List<ActivityItem>> fetchArchivedActivities(String date) async {
+    try {
+      final res = await http.get(
+        Uri.parse('$baseUrl/api/storage/activities?date=$date'),
+        headers: authHeaders,
+      );
+      if (res.statusCode == 200) {
+        final list = json.decode(res.body) as List;
+        return list.map((e) => ActivityItem.fromJson(e)).toList();
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  Future<bool> archiveActivities({int hours = 24}) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$baseUrl/api/storage/archive-activities?hours=$hours'),
+        headers: authHeaders,
+      );
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
 }

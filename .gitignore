@@ -3,11 +3,15 @@ pyhome
 server/pyhome
 omnihome
 server/omnihome
+rustfs
+server/rustfs
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
+rustfs_data/
+data/
 
 # Go build cache
 *.test

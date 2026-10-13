@@ -658,14 +658,29 @@
         </div>
       </div>
 
-      <!-- CAM SNAPSHOT GALLERY STRIP -->
+      <!-- CAM SNAPSHOT GALLERY STRIP (RUSTFS CLOUD ARCHIVE) -->
       <div class="content-card snapshot-gallery-card">
-        <div class="card-title-bar">
-          <h4>Captured Edge Snapshots</h4>
-          <span class="badge-subtle" id="snapshot-count">0 snapshots</span>
+        <div class="card-title-bar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+          <div>
+            <h4 style="margin: 0; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+              <span>Face Detections & Snapshots</span>
+              <span class="badge-subtle" style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 6px;">RustFS Cloud</span>
+            </h4>
+            <p style="font-size: 12px; color: var(--text-dim, #94a3b8); margin: 3px 0 0;">Stored securely in RustFS partitioned by date (users/{uid}/faces/YYYY/MM/DD). Only accessible by your tenant.</p>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <label for="rustfs-snapshot-date-select" style="font-size: 12px; color: var(--text-dim, #94a3b8); margin: 0;">Date:</label>
+            <select id="rustfs-snapshot-date-select" class="input-control" style="padding: 4px 10px; font-size: 12px; border-radius: 8px; background: var(--bg-surface, #0f1726); color: var(--text-main, #f8fafc); border: 1px solid var(--border-color, #22314e);" onchange="loadRustFSSnapshots(this.value)">
+              <option value="">Today / Recent</option>
+            </select>
+            <button type="button" class="btn-action secondary" onclick="loadRustFSDatesAndSnapshots()" style="padding: 5px 12px; font-size: 12px;" title="Refresh RustFS Archive">
+              ↻ Refresh
+            </button>
+            <span class="badge-subtle" id="snapshot-count">0 snapshots</span>
+          </div>
         </div>
         <div class="snapshots-strip" id="snapshots-strip">
-          <div class="empty-snapshot-hint">No snapshots captured yet. Tap "Take Snapshot" to capture current feed.</div>
+          <div class="empty-snapshot-hint">No snapshots captured yet. Tap "Take Snapshot" or let face detection trigger to store images in RustFS.</div>
         </div>
       </div>
 
@@ -698,6 +713,9 @@
           <p class="view-subtitle">Chronological ledger of hardware actuations, biometric events, and voice directives.</p>
         </div>
         <div class="header-actions">
+          <button class="btn-action primary" onclick="archiveOldActivitiesToRustFS()" title="Archive ledger records older than 24h into RustFS object storage" style="background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4);">
+            📦 Archive >24h to RustFS
+          </button>
           <button class="btn-action secondary" onclick="exportAuditLog()">Export JSON</button>
           <button class="btn-action secondary" onclick="exportLogsCsv()">Export CSV</button>
           <button class="btn-action secondary" onclick="clearEventLogs()">Clear Log</button>
@@ -720,6 +738,34 @@
 
         <div id="full-event-log" class="activity-timeline-stream">
           <!-- Populated by app.js -->
+        </div>
+      </div>
+
+      <!-- RUSTFS 24H+ ARCHIVED ACTIVITY SECTION -->
+      <div class="content-card rustfs-archived-card" style="margin-top: 24px;">
+        <div class="card-title-bar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px;">
+          <div>
+            <h4 style="margin: 0; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+              <span>Historical Activity Archive (RustFS 24h+)</span>
+              <span class="badge-subtle" style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 6px;">RustFS Cloud</span>
+            </h4>
+            <p style="font-size: 12px; color: var(--text-dim, #94a3b8); margin: 3px 0 0;">Audit entries older than 24 hours archived partitioned by date (users/{uid}/activities/YYYY/MM/DD/activities.json).</p>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <label for="rustfs-audit-date-select" style="font-size: 12px; color: var(--text-dim, #94a3b8); margin: 0;">Date:</label>
+            <select id="rustfs-audit-date-select" class="input-control" style="padding: 4px 10px; font-size: 12px; border-radius: 8px; background: var(--bg-surface, #0f1726); color: var(--text-main, #f8fafc); border: 1px solid var(--border-color, #22314e);" onchange="loadRustFSArchivedActivities(this.value)">
+              <option value="">Select Date...</option>
+            </select>
+            <button type="button" class="btn-action secondary" onclick="loadRustFSArchivedActivityDates()" style="padding: 5px 12px; font-size: 12px;" title="Refresh Archive Dates">
+              ↻ Refresh
+            </button>
+          </div>
+        </div>
+
+        <div id="rustfs-archived-activities-list" class="activity-timeline-stream" style="max-height: 360px; overflow-y: auto;">
+          <div class="empty-snapshot-hint" style="padding: 24px; text-align: center; color: var(--text-dim, #94a3b8); font-size: 13px;">
+            Select a date above to load archived audit ledger records from RustFS storage.
+          </div>
         </div>
       </div>
     </div>

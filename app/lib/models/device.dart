@@ -239,17 +239,23 @@ class CameraSnapshot {
   final String id;
   final DateTime timestamp;
   final String dataUrl;
+  final String? storagePath;
+  final String? storageUrl;
   final String source;
   final int width;
   final int height;
+  final String? recognizedName;
 
   CameraSnapshot({
     required this.id,
     required this.timestamp,
     required this.dataUrl,
+    this.storagePath,
+    this.storageUrl,
     required this.source,
     required this.width,
     required this.height,
+    this.recognizedName,
   });
 
   factory CameraSnapshot.fromJson(Map<String, dynamic> json) {
@@ -259,9 +265,12 @@ class CameraSnapshot {
           ? DateTime.tryParse(json['timestamp']) ?? DateTime.now()
           : DateTime.now(),
       dataUrl: json['data_url'] ?? '',
+      storagePath: json['storage_path'],
+      storageUrl: json['storage_url'],
       source: json['source'] ?? 'CAM-01',
       width: (json['width'] is num) ? (json['width'] as num).toInt() : 480,
       height: (json['height'] is num) ? (json['height'] as num).toInt() : 270,
+      recognizedName: json['recognized_name'],
     );
   }
 }

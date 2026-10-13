@@ -3,7 +3,9 @@ package main
 import (
 	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"net/http"
@@ -16,6 +18,7 @@ import (
 	"github.com/starfreck/omnihome-server/internal/hub"
 	"github.com/starfreck/omnihome-server/internal/model"
 	"github.com/starfreck/omnihome-server/internal/service"
+	"github.com/starfreck/omnihome-server/internal/storage"
 )
 
 //go:embed web/*
@@ -200,6 +203,19 @@ func main() {
 						deviceMgr.LogActivity(userID, "security", fmt.Sprintf("Familiar Face Verified: %s (%.1f%%)", event.Name, event.Confidence*100), "camera")
 					}
 				}
+
+				// Automatically store face recognition snapshot into RustFS partitioned by date
+				if event.Snapshot != "" {
+					snap := deviceMgr.AddSnapshot(userID, model.CameraSnapshot{
+						DataURL:        event.Snapshot,
+						Source:         event.CameraID,
+						RecognizedName: event.Name,
+					})
+					if snap.StorageURL != "" {
+						event.Snapshot = snap.StorageURL
+					}
+				}
+
 				eventHub.BroadcastToUser(userID, "face_recognized", event)
 			}
 		}
@@ -211,6 +227,15 @@ func main() {
 
 	eventHub = hub.NewHub(onClientMessage, onEdgeMessage, onEdgeDisconnect)
 	deviceMgr = service.NewDeviceManager(onDeviceUpdate, onActivity)
+
+	// Initialize RustFS Cloud Object Storage client
+	storageClient := storage.NewClient(storage.Config{
+		Endpoint:  os.Getenv("RUSTFS_ENDPOINT"),
+		AccessKey: os.Getenv("RUSTFS_ACCESS_KEY"),
+		SecretKey: os.Getenv("RUSTFS_SECRET_KEY"),
+		Bucket:    os.Getenv("RUSTFS_BUCKET"),
+	})
+	deviceMgr.SetStorageClient(storageClient)
 
 	// 2. Setup HTTP & WebSocket Routes
 	mux := http.NewServeMux()
@@ -651,6 +676,126 @@ func main() {
 			return
 		}
 		http.NotFound(w, r)
+	}))
+
+	// ---------------- RUSTFS CLOUD OBJECT STORAGE APIS (STRICT MULTI-TENANT ISOLATION) ----------------
+
+	// GET /api/storage/files?type=faces&date=2026-10-13
+	mux.HandleFunc("/api/storage/files", authService.Middleware(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		claims, _ := auth.GetUserFromContext(r)
+		category := r.URL.Query().Get("type")
+		if category == "" {
+			category = "faces"
+		}
+		dateVal := r.URL.Query().Get("date")
+
+		objects, err := storageClient.ListUserObjectsByDate(r.Context(), claims.UserID, category, dateVal)
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":"failed to list files: %v"}`, err), http.StatusInternalServerError)
+			return
+		}
+		if objects == nil {
+			objects = []storage.StoredObjectInfo{}
+		}
+		json.NewEncoder(w).Encode(objects)
+	}))
+
+	// GET /api/storage/dates?type=faces|activities
+	mux.HandleFunc("/api/storage/dates", authService.Middleware(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		claims, _ := auth.GetUserFromContext(r)
+		category := r.URL.Query().Get("type")
+		if category == "" {
+			category = "faces"
+		}
+
+		dates, err := storageClient.ListAvailableDates(r.Context(), claims.UserID, category)
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":"failed to list dates: %v"}`, err), http.StatusInternalServerError)
+			return
+		}
+		if dates == nil {
+			dates = []string{}
+		}
+		json.NewEncoder(w).Encode(dates)
+	}))
+
+	// GET /api/storage/file?path=users/<userID>/...
+	mux.HandleFunc("/api/storage/file", authService.Middleware(func(w http.ResponseWriter, r *http.Request) {
+		claims, _ := auth.GetUserFromContext(r)
+		path := r.URL.Query().Get("path")
+		if path == "" {
+			http.Error(w, `{"error":"missing path parameter"}`, http.StatusBadRequest)
+			return
+		}
+
+		// STRICT MULTI-TENANT AUTHORIZATION:
+		// Verifies path starts with users/<claims.UserID>/
+		rc, contentType, size, err := storageClient.GetUserObject(r.Context(), claims.UserID, path)
+		if err != nil {
+			if errors.Is(err, storage.ErrAccessDenied) {
+				http.Error(w, `{"error":"Forbidden: you do not have permission to access another user's files"}`, http.StatusForbidden)
+				return
+			}
+			http.Error(w, `{"error":"file not found in storage"}`, http.StatusNotFound)
+			return
+		}
+		defer rc.Close()
+
+		w.Header().Set("Content-Type", contentType)
+		if size > 0 {
+			w.Header().Set("Content-Length", fmt.Sprintf("%d", size))
+		}
+		w.Header().Set("Cache-Control", "private, max-age=86400")
+		io.Copy(w, rc)
+	}))
+
+	// GET /api/storage/activities?date=YYYY-MM-DD
+	mux.HandleFunc("/api/storage/activities", authService.Middleware(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		claims, _ := auth.GetUserFromContext(r)
+		dateVal := r.URL.Query().Get("date")
+		if dateVal == "" {
+			http.Error(w, `{"error":"date parameter required (YYYY-MM-DD)"}`, http.StatusBadRequest)
+			return
+		}
+
+		data, err := storageClient.GetArchivedActivities(r.Context(), claims.UserID, dateVal)
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":"no archived activities found for date: %s"}`, dateVal), http.StatusNotFound)
+			return
+		}
+		w.Write(data)
+	}))
+
+	// POST /api/storage/archive-activities (Manual or scheduled trigger)
+	mux.HandleFunc("/api/storage/archive-activities", authService.Middleware(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method != http.MethodPost {
+			http.Error(w, `{"error":"POST required"}`, http.StatusMethodNotAllowed)
+			return
+		}
+
+		cutoffHours := 24
+		if q := r.URL.Query().Get("hours"); q != "" {
+			var h int
+			if _, err := fmt.Sscanf(q, "%d", &h); err == nil && h >= 0 {
+				cutoffHours = h
+			}
+		}
+
+		counts, err := deviceMgr.ArchiveActivitiesOlderThan(time.Duration(cutoffHours) * time.Hour)
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":"%v"}`, err), http.StatusInternalServerError)
+			return
+		}
+
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status":   "archived",
+			"cutoff":   fmt.Sprintf("%dh", cutoffHours),
+			"archived": counts,
+		})
 	}))
 
 	// Healthcheck

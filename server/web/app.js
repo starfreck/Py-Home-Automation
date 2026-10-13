@@ -313,7 +313,7 @@ function updateThemeButtonUI() {
 // ==========================================
 // 2. NAVIGATION & VIEW CONTROLLER
 // ==========================================
-function switchNav(viewName, el) {
+async function switchNav(viewName, el) {
   playSFX('click');
   if (viewName === 'assistant') viewName = 'dashboard';
 
@@ -346,8 +346,10 @@ function switchNav(viewName, el) {
     renderDevices();
   } else if (viewName === 'activity') {
     renderFullActivityLog();
+    await loadRustFSArchivedActivityDates();
   } else if (viewName === 'cameras') {
     initCameraCanvasFull();
+    await loadRustFSDatesAndSnapshots();
   } else if (viewName === 'dashboard') {
     renderDevices();
     applyWidgetPreferences();
@@ -1511,7 +1513,7 @@ function drawFluidGlobLayer(ctx, cx, cy, R0, layerIdx, time, energy, state) {
 // ==========================================
 // 7. APPLICATION BOOTSTRAPPER
 // ==========================================
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
   initTheme();
   initClock();
   initGreeting();
@@ -1530,7 +1532,7 @@ window.addEventListener('DOMContentLoaded', () => {
     pingGateway();
     const initialView = new URLSearchParams(window.location.search).get('view');
     if (initialView) {
-      switchNav(initialView);
+      await switchNav(initialView);
     }
   } else {
     showAuthModal();
@@ -3182,6 +3184,147 @@ function addSnapshotToGallery(snap) {
 
   const total = strip.querySelectorAll('.snapshot-thumb-wrap').length;
   if (countEl) countEl.innerText = `${total} snapshot${total === 1 ? '' : 's'}`;
+}
+
+// ==============================================================
+// RUSTFS OBJECT STORAGE CLOUD ARCHIVE SUBSYSTEM
+// ==============================================================
+async function loadRustFSDatesAndSnapshots() {
+  if (!authToken) return;
+  try {
+    const res = await fetch('/api/storage/dates?type=faces');
+    if (res.ok) {
+      const dates = await res.json();
+      const select = document.getElementById('rustfs-snapshot-date-select');
+      if (select && Array.isArray(dates)) {
+        const curVal = select.value;
+        select.innerHTML = '<option value="">All / Recent</option>' + 
+          dates.map(d => `<option value="${d}">${d}</option>`).join('');
+        if (curVal && dates.includes(curVal)) select.value = curVal;
+      }
+    }
+  } catch (err) {
+    console.debug('Failed to load RustFS dates:', err);
+  }
+  const selDate = document.getElementById('rustfs-snapshot-date-select')?.value || '';
+  await loadRustFSSnapshots(selDate);
+}
+
+async function loadRustFSSnapshots(dateStr) {
+  if (!authToken) return;
+  const strip = document.getElementById('snapshots-strip');
+  const countEl = document.getElementById('snapshot-count');
+  if (!strip) return;
+
+  try {
+    const url = dateStr ? `/api/storage/files?type=faces&date=${encodeURIComponent(dateStr)}` : '/api/storage/files?type=faces';
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Failed to fetch from RustFS');
+    const items = await res.json();
+
+    strip.innerHTML = '';
+    if (!Array.isArray(items) || items.length === 0) {
+      strip.innerHTML = `<div class="empty-snapshot-hint">No face snapshots found in RustFS storage for ${dateStr || 'recent dates'}.</div>`;
+      if (countEl) countEl.innerText = '0 snapshots';
+      return;
+    }
+
+    if (countEl) countEl.innerText = `${items.length} snapshot${items.length === 1 ? '' : 's'}`;
+
+    items.forEach(item => {
+      const d = item.last_modified ? new Date(item.last_modified) : new Date();
+      const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const wrap = document.createElement('div');
+      wrap.className = 'snapshot-thumb-wrap';
+      wrap.title = `Stored in RustFS: ${item.path} (${item.date || ''})`;
+      wrap.innerHTML = `
+        <img src="${item.url}" class="snapshot-thumb" alt="Captured Frame" loading="lazy" onerror="this.src='/favicon.ico'">
+        <span class="snapshot-time-tag">${item.date ? item.date.slice(5) + ' ' : ''}${timeStr}</span>
+      `;
+      wrap.onclick = () => {
+        window.open(item.url, '_blank');
+      };
+      strip.appendChild(wrap);
+    });
+  } catch (err) {
+    console.debug('Error loading RustFS snapshots:', err);
+  }
+}
+
+async function loadRustFSArchivedActivityDates() {
+  if (!authToken) return;
+  try {
+    const res = await fetch('/api/storage/dates?type=activities');
+    if (res.ok) {
+      const dates = await res.json();
+      const select = document.getElementById('rustfs-audit-date-select');
+      const urlDate = new URLSearchParams(window.location.search).get('date');
+      if (select && Array.isArray(dates)) {
+        let curVal = urlDate || select.value;
+        select.innerHTML = '<option value="">Select Date...</option>' + 
+          dates.map(d => `<option value="${d}">${d}</option>`).join('');
+        if (curVal && dates.includes(curVal)) {
+          select.value = curVal;
+          await loadRustFSArchivedActivities(curVal);
+        } else if (dates.length > 0) {
+          select.value = dates[0];
+          await loadRustFSArchivedActivities(dates[0]);
+        }
+      }
+    }
+  } catch (err) {
+    console.debug('Failed to load RustFS activity dates:', err);
+  }
+}
+
+async function loadRustFSArchivedActivities(dateStr) {
+  if (!authToken || !dateStr) return;
+  const listEl = document.getElementById('rustfs-archived-activities-list');
+  if (!listEl) return;
+
+  listEl.innerHTML = `<div class="empty-snapshot-hint" style="padding: 20px; text-align: center; color: var(--text-dim, #94a3b8);">Loading ${dateStr} records from RustFS storage...</div>`;
+
+  try {
+    const res = await fetch(`/api/storage/activities?date=${encodeURIComponent(dateStr)}`);
+    if (!res.ok) throw new Error('No archived records found');
+    const items = await res.json();
+
+    if (!Array.isArray(items) || items.length === 0) {
+      listEl.innerHTML = `<div class="empty-snapshot-hint" style="padding: 20px; text-align: center; color: var(--text-dim, #94a3b8);">No records found for ${dateStr}.</div>`;
+      return;
+    }
+
+    listEl.innerHTML = items.map(act => {
+      const d = act.timestamp ? new Date(act.timestamp) : new Date();
+      const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      return `
+        <div class="log-entry" style="display: flex; gap: 12px; padding: 10px 14px; border-bottom: 1px solid var(--border-color, #22314e); font-size: 13px;">
+          <span style="color: var(--text-dim, #94a3b8); font-family: monospace; min-width: 75px;">${timeStr}</span>
+          <span class="badge-subtle" style="text-transform: uppercase; font-size: 10px; font-weight: 700; height: fit-content;">${act.category || 'event'}</span>
+          <span style="color: var(--text-main, #f8fafc); flex: 1;">${act.message || ''}</span>
+          <span style="color: var(--text-dim, #64748b); font-size: 11px;">[${act.source || 'cloud'}]</span>
+        </div>
+      `;
+    }).join('');
+    showToast(`Loaded ${items.length} archived records from RustFS for ${dateStr}`, 'info');
+  } catch (err) {
+    listEl.innerHTML = `<div class="empty-snapshot-hint" style="padding: 20px; text-align: center; color: var(--accent-red, #ef4444);">${err.message}</div>`;
+  }
+}
+
+async function archiveOldActivitiesToRustFS() {
+  if (!authToken) return;
+  showToast('Archiving activity records older than 24h to RustFS...', 'info');
+  try {
+    const res = await fetch('/api/storage/archive-activities?hours=24', { method: 'POST' });
+    if (!res.ok) throw new Error('Archival failed');
+    const data = await res.json();
+    const count = Object.values(data.archived || {}).reduce((a, b) => a + b, 0);
+    showToast(`Archival complete: ${count} record(s) archived to RustFS partitioned by date.`, 'success');
+    loadRustFSArchivedActivityDates();
+  } catch (err) {
+    showToast(`Archive error: ${err.message}`, 'error');
+  }
 }
 
 // ==============================================================

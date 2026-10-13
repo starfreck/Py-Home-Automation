@@ -19,6 +19,8 @@
 - [System Architecture Diagram](#-system-architecture-diagram)
 - [Edge Reverse Tunneling & Command Flow](#-edge-reverse-tunneling--command-flow)
 - [Security & Multi-Tenancy](#-security--multi-tenancy)
+- [RustFS Cloud Object Storage & 24h Archival](#-rustfs-cloud-object-storage--24h-archival)
+- [Biometric Face Recognition & Tagging Engine](#-biometric-face-recognition--tagging-engine)
 - [Cloud Backend (`server/`)](#-cloud-backend-server)
 - [Edge Device CLI (`edge/`)](#-edge-device-cli-edge)
 - [Multi-Platform Flutter App (`app/`)](#-multi-platform-flutter-app-app)
@@ -34,13 +36,20 @@
 1. **Strict Multi-Tenancy & User Isolation:**
    - Every tenant's devices, automation presets, activities, and telemetry streams are partitioned strictly by `UserID`.
    - Cross-tenant device access is cryptographically blocked via stateless HMAC-SHA256 JWT tokens and bcrypt password hashing (`cost 12`).
-2. **NAT Traversal via Outbound Reverse Tunneling (`/ws/edge`):**
+2. **RustFS Cloud Object Storage Integration:**
+   - Face detection snapshots and profiles are streamed directly into an S3-compatible **RustFS** cluster partitioned hierarchically by date (`users/{uid}/faces/YYYY/MM/DD/{snapshot_id}.jpg`).
+   - Anti-MITM object level enforcement ensures cross-tenant access attempts immediately fail with HTTP 403 Forbidden.
+   - Activities older than 24 hours are automatically migrated to date-partitioned JSON archives (`users/{uid}/activities/YYYY/MM/DD/activities.json`), preserving cloud RAM.
+3. **Biometric Face Tagging & Automation Rules:**
+   - Enroll household members from the App or Web Dashboard with profile pictures and associated automated actions (e.g., unlocking the front door, switching on specific lights, or activating scenes).
+   - Real-time face recognition events trigger instantaneous local or cloud rule execution.
+4. **NAT Traversal via Outbound Reverse Tunneling (`/ws/edge`):**
    - Edge hardware (Raspberry Pi behind home NAT/firewalls) opens an **outbound persistent WebSocket connection** to the Cloud.
    - No dynamic DNS, port forwarding, or public IP needed on the home edge network.
-3. **Hardware Actuation & Telemetry Streaming:**
+5. **Hardware Actuation & Telemetry Streaming:**
    - Commands initiated in the Flutter App or Web Dashboard flow to the Cloud, which routes `execute_action` frames down the active Edge WebSocket tunnel.
    - The Edge CLI physically actuates Raspberry Pi GPIO pins (or virtual mock pins on development machines) and continuously streams hardware telemetry (CPU temp, load, RAM, wattage) back to the cloud.
-4. **Zero Broken TTS/STT Dependencies:**
+6. **Zero Broken TTS/STT Dependencies:**
    - Cloud AI processing operates purely on structured text/JSON synthesis (compatible with OpenAI, Gemini, Claude, Ollama, or local heuristics).
    - Audio recognition and voice synthesis are handled client-side via native OS speech engines or browser Web Speech APIs.
 
@@ -62,10 +71,15 @@ flowchart TB
         WS_HUB["WebSocket Hub & Reverse Tunnel<br/>• Client Channel: /ws?token=jwt<br/>• Edge Tunnel: /ws/edge?token=jwt"]
     end
 
+    subgraph Storage["🗄️ Cloud Object Storage - RustFS"]
+        RUSTFS["RustFS S3 Cluster<br/>• Tenant-Isolated (users/{uid}/)<br/>• Date-Partitioned Snapshots (YYYY/MM/DD)<br/>• 24h Activity Historical Archival"]
+    end
+
     subgraph Edge["🔌 Edge Hardware Nodes - Raspberry Pi / Linux"]
         CLI["omnihome-edge CLI & Daemon<br/>(Python 3.10+)"]
         TUNNEL["Outbound Reverse Tunnel Client<br/>(Automatic Backoff & Reconnect)"]
         HAL["Hardware Abstraction Layer<br/>• RPi.GPIO Physical Driver<br/>• Virtual Emulation Fallback"]
+        CAM["Vision & Biometrics Engine<br/>• Face Recognition & Matching<br/>• Tagging & Automation Triggers"]
         PINS["Physical Actuators & Sensors<br/>• Relay Channels (GPIO 17, 27, 22, 23, 24, 25)<br/>• CPU SoC Thermal Zone Reader"]
     end
 
@@ -75,13 +89,16 @@ flowchart TB
     AUTH --> MGR
     AUTH --> WS_HUB
     MGR <--> AI_SVC
+    MGR <-->|S3 API (MinIO Client)| RUSTFS
 
     %% Edge Interactions
     TUNNEL -->|Outbound WSS to /ws/edge| WS_HUB
     CLI --> TUNNEL
     TUNNEL --> HAL
+    TUNNEL --> CAM
     HAL --> PINS
     PINS -.->|Hardware Telemetry| HAL
+    CAM -.->|Face Events & Snapshots| TUNNEL
     HAL -.->|Metrics JSON| TUNNEL
 ```
 
@@ -128,6 +145,56 @@ sequenceDiagram
 - **Reverse Tunnel Verification:** Inbound `/ws/edge` connections require valid tenant JWT bearer tokens. Actuation signals are routed strictly down the tunnel matching the authenticated `claims.UserID`.
 - **Anti-Tampering File Permissions:** Stored edge credentials in `~/.omnihome/edge_config.json` are written with strict `0600` permissions (owner read/write only) inside a `0700` directory.
 - **MITM Resistance:** All HTTP and WebSocket endpoints validate standard Authorization headers (`Authorization: Bearer <token>`).
+- **Object-Level Multi-Tenant Storage Guard:** Storage retrieval (`/api/storage/file?path=...`) verifies that object paths strictly start with `users/<claims.UserID>/`. Malicious or accidental requests for foreign paths are instantly rejected with HTTP 403 Forbidden.
+
+---
+
+## 🗄️ RustFS Cloud Object Storage & 24h Archival
+
+OmniHome incorporates **RustFS**—a high-performance, S3-compatible cloud object storage engine written in Rust—to store high-volume surveillance imagery and historical audit records without bloating the core application server memory.
+
+### 1. Hierarchical Storage Architecture
+```
+rustfs://omnihome-storage/
+└── users/
+    └── {user_id}/
+        ├── profiles/
+        │   └── {YYYY}/{MM}/{DD}/
+        │       └── {profile_id}.jpg
+        ├── faces/
+        │   └── {YYYY}/{MM}/{DD}/
+        │       └── {snapshot_id}.jpg
+        └── activities/
+            └── {YYYY}/{MM}/{DD}/
+                └── activities.json
+```
+
+### 2. Multi-Tenant Date Partitioning
+- **Face Detections & Snapshots:** Every camera event uploaded by an edge node or captured via live scan streams to `users/{user_id}/faces/YYYY/MM/DD/{snapshot_id}.jpg`.
+- **Auditing & History:** Users can filter snapshots by specific dates or view chronological streams on both the Web Dashboard and Flutter mobile app.
+- **24-Hour Activity Archival Engine:** An automated background worker periodically scans the in-memory activity ledger. Events older than 24 hours are compiled into daily JSON archives (`users/{user_id}/activities/YYYY/MM/DD/activities.json`), offloading cloud memory while keeping years of historical audit trails instantly queryable on demand.
+
+### 3. Storage APIs
+| Endpoint | Method | Description |
+| :--- | :--- | :--- |
+| `/api/storage/files?type=faces&date=YYYY-MM-DD` | `GET` | Lists face detection snapshots for the authenticated tenant partitioned by date. |
+| `/api/storage/dates?type=faces\|activities` | `GET` | Retrieves all available archival dates stored in RustFS for the tenant. |
+| `/api/storage/file?path=...` | `GET` | Streams object data with strict tenant isolation (rejection with 403 on foreign access). |
+| `/api/storage/activities?date=YYYY-MM-DD` | `GET` | Loads 24h+ historical audit ledger JSON records from RustFS storage. |
+| `/api/storage/archive-activities?hours=24` | `POST` | Triggers immediate archival of activities older than specified cutoff into RustFS. |
+
+---
+
+## 👁️ Biometric Face Recognition & Tagging Engine
+
+OmniHome features an integrated biometric computer vision pipeline:
+
+1. **Member Enrollment & Tagging:** Household members can be enrolled from the Web Dashboard or Flutter App with a name, role (`Owner`, `Family Member`, `Guest`), photo, and linked automated action.
+2. **Automated Routine Triggers:** When a familiar face is detected with >85% confidence:
+   - **Unlock Door:** Automatically actuates the connected smart lock relay.
+   - **Turn On Lights:** Illuminates entryway or living room lighting.
+   - **Scene Execution:** Triggers custom multi-device ambient presets.
+3. **Audit Trails & Security Alerts:** Every biometric event records recognized name, confidence score, camera ID, and timestamp into both the live timeline and RustFS cloud storage.
 
 ---
 

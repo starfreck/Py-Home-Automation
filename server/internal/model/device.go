@@ -105,13 +105,16 @@ type ActivityItem struct {
 
 // CameraSnapshot represents a frame captured from edge surveillance feeds.
 type CameraSnapshot struct {
-	ID        string    `json:"id"`
-	UserID    string    `json:"user_id"`
-	Timestamp time.Time `json:"timestamp"`
-	DataURL   string    `json:"data_url,omitempty"`
-	Source    string    `json:"source"`
-	Width     int       `json:"width"`
-	Height    int       `json:"height"`
+	ID             string    `json:"id"`
+	UserID         string    `json:"user_id"`
+	Timestamp      time.Time `json:"timestamp"`
+	DataURL        string    `json:"data_url,omitempty"`
+	StoragePath    string    `json:"storage_path,omitempty"`
+	StorageURL     string    `json:"storage_url,omitempty"`
+	Source         string    `json:"source"`
+	Width          int       `json:"width"`
+	Height         int       `json:"height"`
+	RecognizedName string    `json:"recognized_name,omitempty"`
 }
 
 // BiometricScanResult represents facial recognition output from edge cameras.
