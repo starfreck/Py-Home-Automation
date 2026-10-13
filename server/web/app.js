@@ -17,6 +17,20 @@ try {
   currentUser = null;
 }
 
+try {
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('token')) {
+    authToken = urlParams.get('token');
+    localStorage.setItem('omnihome_token', authToken);
+    currentUser = {
+      id: urlParams.get('user_id') || 'usr-default',
+      name: urlParams.get('name') || 'Alice',
+      email: urlParams.get('email') || 'alice@example.com'
+    };
+    localStorage.setItem('omnihome_user', JSON.stringify(currentUser));
+  }
+} catch (e) {}
+
 // Global fetch interceptor to attach JWT bearer token & detect 401s
 const _nativeFetch = window.fetch;
 window.fetch = async function(url, options = {}) {
@@ -1509,10 +1523,15 @@ window.addEventListener('DOMContentLoaded', () => {
   initSpeechRecognition();
 
   if (authToken) {
+    hideAuthModal();
     updateUserProfileUI();
     connectWebSocket();
     loadSettings();
     pingGateway();
+    const initialView = new URLSearchParams(window.location.search).get('view');
+    if (initialView) {
+      switchNav(initialView);
+    }
   } else {
     showAuthModal();
   }
