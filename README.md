@@ -49,20 +49,20 @@
 ## 🏛️ System Architecture Diagram
 
 ```mermaid
-graph TB
-    subgraph Clients["📱 Client Layer (Multi-Platform)"]
+flowchart TB
+    subgraph Clients["📱 Client Layer - Multi-Platform"]
         FLUTTER["Flutter App<br/>(iOS / Android / Desktop / Web)"]
         WEB["SaaS Web Dashboard<br/>(Embedded HTML5 / JS / CSS)"]
     end
 
-    subgraph Cloud["☁️ OmniHome Cloud Gateway (Go Native Core)"]
+    subgraph Cloud["☁️ OmniHome Cloud Gateway - Go Native Core"]
         AUTH["Auth Service<br/>• Bcrypt Passwords<br/>• JWT Bearer Tokens<br/>• Anti-MITM Verification"]
-        MGR["Device Manager (Multi-Tenant)<br/>• Per-User Device Registry<br/>• Telemetry Aggregation<br/>• Activity Audit Ledger"]
+        MGR["Device Manager - Multi-Tenant<br/>• Per-User Device Registry<br/>• Telemetry Aggregation<br/>• Activity Audit Ledger"]
         AI_SVC["AI Directive Engine<br/>• OpenAI / Gemini / Claude / Ollama<br/>• Structured JSON Directives<br/>• Zero Audio API Dependencies"]
         WS_HUB["WebSocket Hub & Reverse Tunnel<br/>• Client Channel: /ws?token=jwt<br/>• Edge Tunnel: /ws/edge?token=jwt"]
     end
 
-    subgraph Edge["🔌 Edge Hardware Nodes (Raspberry Pi / Linux)"]
+    subgraph Edge["🔌 Edge Hardware Nodes - Raspberry Pi / Linux"]
         CLI["omnihome-edge CLI & Daemon<br/>(Python 3.10+)"]
         TUNNEL["Outbound Reverse Tunnel Client<br/>(Automatic Backoff & Reconnect)"]
         HAL["Hardware Abstraction Layer<br/>• RPi.GPIO Physical Driver<br/>• Virtual Emulation Fallback"]
@@ -70,14 +70,14 @@ graph TB
     end
 
     %% Client Interactions
-    FLUTTER -->|HTTPS / WSS (Bearer JWT)| AUTH
-    WEB -->|HTTPS / WSS (Bearer JWT)| AUTH
+    FLUTTER -->|HTTPS / WSS with Bearer JWT| AUTH
+    WEB -->|HTTPS / WSS with Bearer JWT| AUTH
     AUTH --> MGR
     AUTH --> WS_HUB
     MGR <--> AI_SVC
 
     %% Edge Interactions
-    TUNNEL -->|Outbound WSS: /ws/edge?token=jwt| WS_HUB
+    TUNNEL -->|Outbound WSS to /ws/edge| WS_HUB
     CLI --> TUNNEL
     TUNNEL --> HAL
     HAL --> PINS
@@ -113,10 +113,10 @@ sequenceDiagram
     Note over Tenant, GPIO: 2. Hardware Actuation Flow
     Tenant->>Cloud: Toggle Light (POST /api/devices/device-1/toggle)
     Cloud->>Cloud: Validate JWT & Tenant Ownership
-    Cloud->>Edge: Push Tunnel Frame: {"type": "execute_action", "pin": 17, "state": true}
+    Cloud->>Edge: Push Tunnel Frame: execute_action (pin 17, state true)
     Edge->>GPIO: Actuate GPIO 17 HIGH / ON
-    Edge-->>Cloud: Push Result: {"type": "action_result", "device_id": "device-1", "state": true}
-    Edge-->>Cloud: Push Audit Event: {"type": "activity_event", "message": "GPIO 17 switched ON"}
+    Edge-->>Cloud: Push Result: action_result (device-1, state true)
+    Edge-->>Cloud: Push Audit Event: activity_event (GPIO 17 switched ON)
     Cloud-->>Tenant: Broadcast State & Activity Event to App & Web Dashboard
 ```
 
