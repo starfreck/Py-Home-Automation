@@ -312,7 +312,7 @@ func (e *EdgeClient) readPump() {
 		})
 	}()
 
-	e.conn.SetReadLimit(65536) // Allow telemetry and camera frames
+	e.conn.SetReadLimit(2 * 1024 * 1024) // Allow full-resolution camera snapshots (2MB)
 	e.conn.SetReadDeadline(time.Now().Add(60 * time.Second))
 	e.conn.SetPongHandler(func(string) error {
 		e.conn.SetReadDeadline(time.Now().Add(60 * time.Second))

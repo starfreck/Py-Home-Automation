@@ -16,6 +16,8 @@ import time
 from typing import Any, Dict, List, Optional
 import websockets
 
+from edge.camera import EdgeCamera
+from edge.config import get_camera_config
 from edge.hardware import EdgeHardware
 
 logger = logging.getLogger("OmniHomeEdge.Tunnel")
@@ -31,6 +33,8 @@ class EdgeTunnelClient:
         hub_id: Optional[str] = None,
         mock_mode: bool = False,
         telemetry_interval: int = 3,
+        camera_enabled: bool = True,
+        camera_source: Optional[Any] = None,
     ):
         self.cloud_url = cloud_url.rstrip("/")
         self.token = token
@@ -38,6 +42,22 @@ class EdgeTunnelClient:
         self.interval = telemetry_interval
         self.hw = EdgeHardware(mock_mode=mock_mode)
         self.running = True
+
+        # Initialize Camera & Face Recognition Subsystem
+        cam_cfg = get_camera_config()
+        self.camera_enabled = camera_enabled and cam_cfg.get("enabled", True)
+        effective_source = camera_source if camera_source is not None else cam_cfg.get("source", 0)
+
+        self.camera = EdgeCamera(
+            source=effective_source,
+            width=cam_cfg.get("width", 640),
+            height=cam_cfg.get("height", 480),
+            face_detection=cam_cfg.get("face_detection", True),
+            cooldown_seconds=cam_cfg.get("cooldown", 5.0),
+            hub_id=self.hub_id,
+        )
+        if self.camera_enabled:
+            self.camera.open()
 
         # Determine WebSocket URL
         ws_scheme = "wss" if self.cloud_url.startswith("https") else "ws"
@@ -53,6 +73,8 @@ class EdgeTunnelClient:
         """Signal client to stop and clean up hardware."""
         self.running = False
         self.hw.cleanup()
+        if self.camera:
+            self.camera.release()
         logger.info("Edge tunnel client stopped.")
 
     async def telemetry_loop(self, ws):
@@ -84,6 +106,12 @@ class EdgeTunnelClient:
                     await self._handle_execute_action(ws, payload)
                 elif msg_type in ("sync_devices", "init_config"):
                     await self._handle_sync_devices(ws, payload)
+                elif msg_type == "camera_snapshot":
+                    await self._handle_camera_snapshot(ws, payload)
+                elif msg_type == "camera_scan":
+                    await self._handle_camera_scan(ws, payload)
+                elif msg_type == "camera_config":
+                    await self._handle_camera_config(ws, payload)
                 elif msg_type == "ping":
                     await ws.send(json.dumps({"type": "pong", "payload": {}}))
                 else:
@@ -162,6 +190,75 @@ class EdgeTunnelClient:
         }
         await ws.send(json.dumps(ack_packet))
 
+    async def _handle_camera_snapshot(self, ws, payload: Dict[str, Any]):
+        """Capture on-demand snapshot and return to cloud."""
+        if not self.camera:
+            return
+        logger.info("Executing on-demand camera snapshot directive from cloud...")
+        snap = self.camera.capture_snapshot(annotate=True, detect_faces=True)
+        response_packet = {
+            "type": "camera_snapshot",
+            "payload": snap,
+        }
+        await ws.send(json.dumps(response_packet))
+
+    async def _handle_camera_scan(self, ws, payload: Dict[str, Any]):
+        """Execute biometric facial scan and return verification result."""
+        if not self.camera:
+            return
+        subject = payload.get("subject", "Authorized Tenant")
+        logger.info(f"Executing biometric facial scan directive for '{subject}'...")
+        res = self.camera.scan_biometric(subject_name=subject)
+        response_packet = {
+            "type": "camera_scan",
+            "payload": res,
+        }
+        await ws.send(json.dumps(response_packet))
+
+    async def _handle_camera_config(self, ws, payload: Dict[str, Any]):
+        """Dynamically update camera source or detection options."""
+        if not self.camera:
+            return
+        if "source" in payload:
+            new_source = self.camera._parse_source(payload["source"])
+            logger.info(f"Switching edge camera source to: {new_source}")
+            self.camera.source = new_source
+            self.camera.release()
+            self.camera.open()
+        if "face_detection" in payload:
+            self.camera.face_detection_enabled = bool(payload["face_detection"])
+            logger.info(f"Face detection toggled to: {self.camera.face_detection_enabled}")
+
+    async def surveillance_loop(self, ws):
+        """Monitors video feed for face recognition events and pushes security alerts."""
+        if not self.camera or not self.camera_enabled:
+            return
+        logger.info("Camera surveillance and face detection monitor active.")
+        while self.running:
+            try:
+                event = self.camera.check_face_event()
+                if event:
+                    logger.info(f"Dispatching face detection event ({event.get('faces_count')} face(s)) to cloud...")
+                    # Send snapshot frame
+                    await ws.send(json.dumps({
+                        "type": "camera_snapshot",
+                        "payload": event,
+                    }))
+                    # Emit security activity ledger entry
+                    await ws.send(json.dumps({
+                        "type": "activity_event",
+                        "payload": {
+                            "id": f"act-face-{int(time.time()*1000)}",
+                            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                            "category": "security",
+                            "message": f"Biometric detection: {event.get('faces_count')} face(s) spotted on {self.hub_id}",
+                            "source": "camera",
+                        },
+                    }))
+            except Exception as e:
+                logger.debug(f"Surveillance loop check error: {e}")
+            await asyncio.sleep(1.5)
+
     async def run(self):
         """Main connection management loop with exponential backoff."""
         logger.info(f"Connecting edge tunnel to: {self.cloud_url} (Hub ID: {self.hub_id})")
@@ -181,13 +278,20 @@ class EdgeTunnelClient:
                             "hub_id": self.hub_id,
                             "mock": self.hw.mock_mode,
                             "pins": list(self.hw.pins_state.keys()),
+                            "camera": {
+                                "enabled": self.camera_enabled,
+                                "source": str(self.camera.source) if self.camera else "none",
+                                "face_detection": self.camera.face_detection_enabled if self.camera else False,
+                                "is_synthetic": self.camera.is_synthetic if self.camera else True,
+                            },
                         },
                     }
                     await ws.send(json.dumps(handshake))
 
-                    # Run both telemetry and receiver concurrently
+                    # Run telemetry, camera surveillance, and receiver concurrently
                     await asyncio.gather(
                         self.telemetry_loop(ws),
+                        self.surveillance_loop(ws),
                         self.receive_loop(ws),
                     )
 

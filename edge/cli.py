@@ -24,6 +24,7 @@ import urllib.error
 import urllib.request
 
 from edge import config
+from edge.camera import EdgeCamera, HAS_OPENCV, FACE_CASCADE_PATH, EYE_CASCADE_PATH
 from edge.client import EdgeTunnelClient
 from edge.hardware import EdgeHardware, HAS_RPI_GPIO
 
@@ -213,7 +214,84 @@ def cmd_pin_test(args):
         print(f"[FAILED] Failed to actuate Pin GPIO {pin}.")
 
 
+# ===================== COMMAND: CAMERA =====================
+
+def cmd_camera_status(args):
+    """Display camera hardware and face recognition diagnostic status."""
+    cam_cfg = config.get_camera_config()
+    print("\n" + "=" * 55)
+    print("        OmniHome Edge Camera & Vision Status         ")
+    print("=" * 55)
+    print(f"Vision Engine:    {'OpenCV (cv2)' if HAS_OPENCV else 'Unavailable (pip install opencv-python-headless)'}")
+    print(f"Face Model:       {'LOADED (' + str(FACE_CASCADE_PATH.name) + ')' if FACE_CASCADE_PATH.exists() else 'MISSING'}")
+    print(f"Camera Enabled:   {'YES' if cam_cfg.get('enabled') else 'NO'}")
+    print(f"Camera Source:    {cam_cfg.get('source')} (Default: 0 / /dev/video0)")
+    print(f"Face Detection:   {'ACTIVE' if cam_cfg.get('face_detection') else 'DISABLED'}")
+    print(f"Alert Cooldown:   {cam_cfg.get('cooldown')} seconds")
+    print(f"Frame Dimensions: {cam_cfg.get('width')}x{cam_cfg.get('height')}")
+
+    # Check physical V4L2 devices
+    v4l_devs = [f"/dev/{f}" for f in os.listdir("/dev") if f.startswith("video")] if os.path.exists("/dev") else []
+    print(f"Physical Devices: {', '.join(sorted(v4l_devs)) if v4l_devs else 'No V4L2 video devices detected'}")
+    print("=" * 55 + "\n")
+
+
+def cmd_camera_test(args):
+    """Test camera capture, run face detection, and save sample snapshot."""
+    cam_cfg = config.get_camera_config()
+    source = args.source if args.source is not None else cam_cfg.get("source", 0)
+    output_file = args.output or "edge_camera_test.jpg"
+
+    print(f"\nInitializing camera test on source '{source}'...")
+    cam = EdgeCamera(
+        source=source,
+        width=cam_cfg.get("width", 640),
+        height=cam_cfg.get("height", 480),
+        face_detection=True,
+    )
+    cam.open()
+
+    print(f"Capture Mode:     {'PHYSICAL HARDWARE' if not cam.is_synthetic else 'SYNTHETIC EMULATION'}")
+    snap = cam.capture_snapshot(annotate=True, detect_faces=True)
+    faces = snap.get("faces", [])
+    data_url = snap.get("data_url", "")
+
+    print(f"Snapshot ID:      {snap.get('id')}")
+    print(f"Resolution:       {snap.get('width')}x{snap.get('height')}")
+    print(f"Faces Detected:   {len(faces)}")
+    for i, f in enumerate(faces):
+        print(f"  - Face #{i+1}: X={f['x']}, Y={f['y']}, Width={f['width']}, Height={f['height']}")
+
+    # Save to disk if OpenCV available
+    if HAS_OPENCV and data_url.startswith("data:image/jpeg;base64,"):
+        import base64
+        raw_b64 = data_url.split(",", 1)[1]
+        with open(output_file, "wb") as f:
+            f.write(base64.b64decode(raw_b64))
+        print(f"Snapshot Saved:   {os.path.abspath(output_file)}")
+
+    cam.release()
+    print("\n[SUCCESS] Camera diagnostic capture complete!\n")
+
+
+def cmd_camera_set_source(args):
+    """Update camera input source in edge configuration."""
+    source = args.source
+    config.update_camera_config({"source": source})
+    print(f"\n[SUCCESS] Edge camera source updated to: '{source}'\n")
+
+
+def cmd_camera_toggle_detection(args):
+    """Toggle real-time face detection on or off."""
+    cam_cfg = config.get_camera_config()
+    current = cam_cfg.get("face_detection", True)
+    new_state = not current if args.state is None else (args.state.lower() in ("1", "true", "on", "enable"))
+    config.update_camera_config({"face_detection": new_state})
+    print(f"\n[SUCCESS] Face detection {'ENABLED' if new_state else 'DISABLED'}.\n")
+
+
 # ===================== COMMAND: START (DAEMON) =====================
+
 
 def cmd_start(args):
     """Run edge tunnel daemon connecting edge hardware to Cloud Gateway."""
@@ -296,6 +374,23 @@ def build_parser():
     p_pin.add_argument("state", help="Target state: 'on', 'off', '1', '0'")
     p_pin.add_argument("--mock", action="store_true", help="Test in virtual simulation mode")
     p_pin.set_defaults(func=cmd_pin_test)
+
+    # camera commands
+    p_cam_status = subparsers.add_parser("cam-status", help="Inspect edge camera and face recognition status")
+    p_cam_status.set_defaults(func=cmd_camera_status)
+
+    p_cam_test = subparsers.add_parser("cam-test", help="Capture snapshot and run face detection test")
+    p_cam_test.add_argument("--source", help="Camera source (index e.g. 0, path e.g. /dev/video0, or URL)")
+    p_cam_test.add_argument("--output", help="Output JPEG path (default: edge_camera_test.jpg)")
+    p_cam_test.set_defaults(func=cmd_camera_test)
+
+    p_cam_src = subparsers.add_parser("cam-source", help="Set camera source in edge configuration")
+    p_cam_src.add_argument("source", help="Camera source (e.g. 0, /dev/video0, or stream URL)")
+    p_cam_src.set_defaults(func=cmd_camera_set_source)
+
+    p_cam_toggle = subparsers.add_parser("cam-detection", help="Toggle or set real-time face detection")
+    p_cam_toggle.add_argument("--state", help="'on'/'enable' or 'off'/'disable' (default toggles)")
+    p_cam_toggle.set_defaults(func=cmd_camera_toggle_detection)
 
     # start
     p_start = subparsers.add_parser("start", help="Start edge hardware daemon and reverse tunnel")

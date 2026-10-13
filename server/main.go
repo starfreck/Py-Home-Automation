@@ -155,6 +155,22 @@ func main() {
 			if err := json.Unmarshal(rawBytes, &act); err == nil {
 				deviceMgr.LogActivity(userID, act.Category, act.Message, act.Source)
 			}
+
+		case "camera_snapshot":
+			rawBytes, _ := json.Marshal(msg.Payload)
+			var snap model.CameraSnapshot
+			if err := json.Unmarshal(rawBytes, &snap); err == nil {
+				saved := deviceMgr.AddSnapshot(userID, snap)
+				eventHub.BroadcastToUser(userID, "camera_snapshot", saved)
+			}
+
+		case "camera_scan":
+			rawBytes, _ := json.Marshal(msg.Payload)
+			var scanRes model.BiometricScanResult
+			if err := json.Unmarshal(rawBytes, &scanRes); err == nil {
+				deviceMgr.LogActivity(userID, "security", fmt.Sprintf("Biometric face match on %s (%.1f%%)", scanRes.CameraID, scanRes.Confidence*100), "camera")
+				eventHub.BroadcastToUser(userID, "camera_scan", scanRes)
+			}
 		}
 	}
 
@@ -517,6 +533,14 @@ func main() {
 	mux.HandleFunc("/api/camera/scan", authService.Middleware(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		claims, _ := auth.GetUserFromContext(r)
+
+		// Dispatch live biometric scan command to edge device hardware if online
+		if eventHub.IsEdgeOnline(claims.UserID) {
+			_ = eventHub.SendCommandToEdge(claims.UserID, "camera_scan", map[string]interface{}{
+				"subject": claims.Email,
+			})
+		}
+
 		res := model.BiometricScanResult{
 			Success:    true,
 			Subject:    claims.Email,
@@ -535,6 +559,12 @@ func main() {
 		claims, _ := auth.GetUserFromContext(r)
 		var snap model.CameraSnapshot
 		_ = json.NewDecoder(r.Body).Decode(&snap)
+
+		// Dispatch snapshot capture command to edge hardware if online
+		if eventHub.IsEdgeOnline(claims.UserID) {
+			_ = eventHub.SendCommandToEdge(claims.UserID, "camera_snapshot", map[string]interface{}{})
+		}
+
 		saved := deviceMgr.AddSnapshot(claims.UserID, snap)
 		eventHub.BroadcastToUser(claims.UserID, "camera_snapshot", saved)
 		json.NewEncoder(w).Encode(saved)
