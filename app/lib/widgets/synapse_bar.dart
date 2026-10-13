@@ -75,13 +75,16 @@ class _SynapseBarState extends State<SynapseBar> {
                 ),
               ),
               const SizedBox(width: 8),
-              const Text(
-                'Gemma 4 Synapse',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: AppTheme.textMain,
-                  letterSpacing: -0.2,
+              const Flexible(
+                child: Text(
+                  'Gemma 4 Synapse',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.textMain,
+                    letterSpacing: -0.2,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               const SizedBox(width: 8),

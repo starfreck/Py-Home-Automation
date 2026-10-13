@@ -92,61 +92,70 @@ class _ActivityScreenState extends State<ActivityScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Filter chips
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: ['All', 'Hardware', 'Security', 'AI', 'Scene'].map((cat) {
-                  final isSelected = _selectedCategory.toLowerCase() == cat.toLowerCase();
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: FilterChip(
-                      selected: isSelected,
-                      label: Text(cat),
-                      labelStyle: TextStyle(
-                        fontSize: 11,
-                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                        color: isSelected ? Colors.white : AppTheme.textMuted,
-                      ),
-                      selectedColor: AppTheme.primary,
-                      backgroundColor: AppTheme.card,
-                      side: BorderSide(color: isSelected ? AppTheme.primary : AppTheme.cardBorder),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      onSelected: (_) => setState(() => _selectedCategory = cat),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-          ),
-
-          // Total events counter
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '${filteredActivities.length} Events in Ledger',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textMuted),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1100),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Filter chips
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: ['All', 'Hardware', 'Security', 'AI', 'Scene'].map((cat) {
+                      final isSelected = _selectedCategory.toLowerCase() == cat.toLowerCase();
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: FilterChip(
+                          selected: isSelected,
+                          label: Text(cat),
+                          labelStyle: TextStyle(
+                            fontSize: 11,
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            color: isSelected ? Colors.white : AppTheme.textMuted,
+                          ),
+                          selectedColor: AppTheme.primary,
+                          backgroundColor: AppTheme.card,
+                          side: BorderSide(color: isSelected ? AppTheme.primary : AppTheme.cardBorder),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          onSelected: (_) => setState(() => _selectedCategory = cat),
+                        ),
+                      );
+                    }).toList(),
+                  ),
                 ),
-                const Row(
+              ),
+
+              // Total events counter
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Icon(Icons.lock_clock_rounded, size: 12, color: AppTheme.accentGreen),
-                    SizedBox(width: 4),
-                    Text(
-                      'Tamper-Evident Ledger',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.accentGreen),
+                    Flexible(
+                      child: Text(
+                        '${filteredActivities.length} Events in Ledger',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textMuted),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.lock_clock_rounded, size: 12, color: AppTheme.accentGreen),
+                        SizedBox(width: 4),
+                        Text(
+                          'Tamper-Evident Ledger',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.accentGreen),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
+              ),
           const SizedBox(height: 8),
 
           // Ledger timeline list
@@ -253,6 +262,8 @@ class _ActivityScreenState extends State<ActivityScreen> {
           ),
         ],
       ),
-    );
+    ),
+  ),
+);
   }
 }

@@ -32,6 +32,7 @@ class _DevicesScreenState extends State<DevicesScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      constraints: const BoxConstraints(maxWidth: 600),
       backgroundColor: AppTheme.card,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -223,6 +224,67 @@ class _DevicesScreenState extends State<DevicesScreen> {
     );
   }
 
+  Widget _buildSearchBar(HomeProvider provider) {
+    return TextField(
+      controller: _searchController,
+      onChanged: (val) => provider.setSearchQuery(val),
+      style: const TextStyle(fontSize: 14, color: AppTheme.textMain),
+      decoration: InputDecoration(
+        hintText: 'Search devices by name, room, or type...',
+        hintStyle: const TextStyle(fontSize: 13, color: AppTheme.textDim),
+        prefixIcon: const Icon(Icons.search_rounded, size: 20, color: AppTheme.textDim),
+        suffixIcon: _searchController.text.isNotEmpty
+            ? IconButton(
+                icon: const Icon(Icons.clear_rounded, size: 18, color: AppTheme.textDim),
+                onPressed: () {
+                  _searchController.clear();
+                  provider.setSearchQuery('');
+                },
+              )
+            : null,
+        filled: true,
+        fillColor: AppTheme.surface,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppTheme.cardBorder),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: AppTheme.cardBorder),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterChips(HomeProvider provider) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: ['All', 'Living Room', 'Bedroom', 'Kitchen', 'Office', 'Entrance'].map((room) {
+          final isSelected = provider.currentFilter.toLowerCase() == room.toLowerCase();
+          return Padding(
+            padding: const EdgeInsets.only(right: 6),
+            child: FilterChip(
+              selected: isSelected,
+              label: Text(room),
+              labelStyle: TextStyle(
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? Colors.white : AppTheme.textMuted,
+              ),
+              selectedColor: AppTheme.primary,
+              backgroundColor: AppTheme.card,
+              side: BorderSide(color: isSelected ? AppTheme.primary : AppTheme.cardBorder),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              onSelected: (_) => provider.setFilter(room),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<HomeProvider>();
@@ -238,140 +300,132 @@ class _DevicesScreenState extends State<DevicesScreen> {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Search & Filter header
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Column(
-              children: [
-                TextField(
-                  controller: _searchController,
-                  onChanged: (val) => provider.setSearchQuery(val),
-                  style: const TextStyle(fontSize: 14, color: AppTheme.textMain),
-                  decoration: InputDecoration(
-                    hintText: 'Search devices by name, room, or type...',
-                    hintStyle: const TextStyle(fontSize: 13, color: AppTheme.textDim),
-                    prefixIcon: const Icon(Icons.search_rounded, size: 20, color: AppTheme.textDim),
-                    suffixIcon: _searchController.text.isNotEmpty
-                        ? IconButton(
-                            icon: const Icon(Icons.clear_rounded, size: 18, color: AppTheme.textDim),
-                            onPressed: () {
-                              _searchController.clear();
-                              provider.setSearchQuery('');
-                            },
-                          )
-                        : null,
-                    filled: true,
-                    fillColor: AppTheme.surface,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: AppTheme.cardBorder),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: AppTheme.cardBorder),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: ['All', 'Living Room', 'Bedroom', 'Kitchen', 'Office', 'Entrance'].map((room) {
-                      final isSelected = provider.currentFilter.toLowerCase() == room.toLowerCase();
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: FilterChip(
-                          selected: isSelected,
-                          label: Text(room),
-                          labelStyle: TextStyle(
-                            fontSize: 11,
-                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                            color: isSelected ? Colors.white : AppTheme.textMuted,
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1600),
+          child: Column(
+            children: [
+              // Search & Filter header
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isDesktop = constraints.maxWidth >= 800;
+                    if (isDesktop) {
+                      return Row(
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: _buildSearchBar(provider),
                           ),
-                          selectedColor: AppTheme.primary,
-                          backgroundColor: AppTheme.card,
-                          side: BorderSide(color: isSelected ? AppTheme.primary : AppTheme.cardBorder),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          onSelected: (_) => provider.setFilter(room),
-                        ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            flex: 4,
+                            child: _buildFilterChips(provider),
+                          ),
+                        ],
                       );
-                    }).toList(),
-                  ),
+                    } else {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSearchBar(provider),
+                          const SizedBox(height: 10),
+                          _buildFilterChips(provider),
+                        ],
+                      );
+                    }
+                  },
                 ),
-              ],
-            ),
-          ),
+              ),
 
-          // Count summary bar
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  '${provider.filteredDevices.length} Devices Registered',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textMuted),
-                ),
-                Text(
-                  '${provider.devices.where((d) => d.state).length} Active Now',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.accentGreen),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 6),
-
-          // Device grid
-          Expanded(
-            child: provider.filteredDevices.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.devices_other_rounded, size: 48, color: AppTheme.textDim),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'No devices match the criteria',
-                          style: TextStyle(fontSize: 14, color: AppTheme.textMuted),
-                        ),
-                        const SizedBox(height: 8),
-                        TextButton.icon(
-                          onPressed: () => _showAddDeviceModal(context),
-                          icon: const Icon(Icons.add, size: 18, color: AppTheme.primary),
-                          label: const Text('Add a new device', style: TextStyle(color: AppTheme.primary)),
-                        ),
-                      ],
+              // Count summary bar
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        '${provider.filteredDevices.length} Devices Registered',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.textMuted),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  )
-                : LayoutBuilder(
-                    builder: (context, constraints) {
-                      final isWide = constraints.maxWidth > 550;
-                      return GridView.builder(
-                        padding: const EdgeInsets.all(16),
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: isWide ? 2 : 1,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                          mainAxisExtent: 215,
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        '${provider.devices.where((d) => d.state).length} Active Now',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.accentGreen),
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.end,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 6),
+
+              // Device grid
+              Expanded(
+                child: provider.filteredDevices.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.devices_other_rounded, size: 48, color: AppTheme.textDim),
+                            const SizedBox(height: 12),
+                            const Text(
+                              'No devices match the criteria',
+                              style: TextStyle(fontSize: 14, color: AppTheme.textMuted),
+                            ),
+                            const SizedBox(height: 8),
+                            TextButton.icon(
+                              onPressed: () => _showAddDeviceModal(context),
+                              icon: const Icon(Icons.add, size: 18, color: AppTheme.primary),
+                              label: const Text('Add a new device', style: TextStyle(color: AppTheme.primary)),
+                            ),
+                          ],
                         ),
-                        itemCount: provider.filteredDevices.length,
-                        itemBuilder: (context, index) {
-                          final dev = provider.filteredDevices[index];
-                          return DeviceCard(
-                            device: dev,
-                            onToggle: (_) => provider.toggleDevice(dev.id),
-                            onSliderChanged: (val) => provider.setSliderValue(dev.id, val),
-                            onLongPress: () => _confirmDelete(context, dev),
+                      )
+                    : LayoutBuilder(
+                        builder: (context, constraints) {
+                          int crossAxisCount;
+                          if (constraints.maxWidth >= 1350) {
+                            crossAxisCount = 4;
+                          } else if (constraints.maxWidth >= 950) {
+                            crossAxisCount = 3;
+                          } else if (constraints.maxWidth >= 600) {
+                            crossAxisCount = 2;
+                          } else {
+                            crossAxisCount = 1;
+                          }
+
+                          return GridView.builder(
+                            padding: const EdgeInsets.all(16),
+                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: crossAxisCount,
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 12,
+                              mainAxisExtent: 215,
+                            ),
+                            itemCount: provider.filteredDevices.length,
+                            itemBuilder: (context, index) {
+                              final dev = provider.filteredDevices[index];
+                              return DeviceCard(
+                                device: dev,
+                                onToggle: (_) => provider.toggleDevice(dev.id),
+                                onSliderChanged: (val) => provider.setSliderValue(dev.id, val),
+                                onLongPress: () => _confirmDelete(context, dev),
+                              );
+                            },
                           );
                         },
-                      );
-                    },
-                  ),
+                      ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
