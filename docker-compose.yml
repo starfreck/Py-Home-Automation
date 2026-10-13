@@ -1,6 +1,23 @@
 version: '3.8'
 
 services:
+  rustfs:
+    image: rustfs/rustfs:latest
+    container_name: omnihome-rustfs
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - RUSTFS_ACCESS_KEY=rustfsadmin
+      - RUSTFS_SECRET_KEY=rustfsadminpassword
+      - RUSTFS_VOLUMES=/data
+      - RUSTFS_CONSOLE_ENABLE=true
+    volumes:
+      - rustfs-data:/data
+    networks:
+      - omnihome-net
+
   omnihome-gateway:
     build:
       context: ./server
@@ -12,6 +29,12 @@ services:
     environment:
       - PORT=8080
       - GIN_MODE=release
+      - RUSTFS_ENDPOINT=rustfs:9000
+      - RUSTFS_ACCESS_KEY=rustfsadmin
+      - RUSTFS_SECRET_KEY=rustfsadminpassword
+      - RUSTFS_BUCKET=omnihome-storage
+    depends_on:
+      - rustfs
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/api/status"]
       interval: 15s
@@ -42,3 +65,6 @@ services:
 networks:
   omnihome-net:
     driver: bridge
+
+volumes:
+  rustfs-data:

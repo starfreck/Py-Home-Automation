@@ -312,7 +312,17 @@ Py-Home-Automation/
 
 ## 🚀 Quick Start Guide
 
-### 1. Build & Start the Cloud Backend
+### 1. Launch RustFS Cloud Storage (Docker)
+
+```bash
+# Start Dockerized RustFS S3 object storage with persistent storage volume
+docker compose up -d rustfs
+
+# S3 API Endpoint: http://localhost:9000
+# Web Console UI:  http://localhost:9001 (Credentials: rustfsadmin / rustfsadminpassword)
+```
+
+### 2. Build & Start the Cloud Backend
 
 ```bash
 cd server
@@ -321,7 +331,7 @@ go build -o omnihome main.go
 # Cloud Dashboard: http://localhost:8080
 ```
 
-### 2. Connect the Edge Device CLI (Raspberry Pi or Linux)
+### 3. Connect the Edge Device CLI (Raspberry Pi or Linux)
 
 ```bash
 # 1. Authenticate with the Cloud Gateway
@@ -334,7 +344,7 @@ go build -o omnihome main.go
 ./bin/omnihome-edge start
 ```
 
-### 3. Run the Flutter App
+### 4. Run the Flutter App
 
 ```bash
 cd app
