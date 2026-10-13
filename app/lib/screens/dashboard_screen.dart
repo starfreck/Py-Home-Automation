@@ -357,7 +357,7 @@ class DashboardScreen extends StatelessWidget {
                         crossAxisCount: isWide ? 2 : 1,
                         crossAxisSpacing: 12,
                         mainAxisSpacing: 12,
-                        mainAxisExtent: 175,
+                        mainAxisExtent: 215,
                       ),
                       itemCount: provider.filteredDevices.length,
                       itemBuilder: (context, index) {
